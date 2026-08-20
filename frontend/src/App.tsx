@@ -30,7 +30,6 @@ interface ProfileData {
     season_pass_type?: 'NONE' | 'SEASON' | 'VIP';
     can_claim_free_refill?: boolean;
     wallet_ltc: string | null;
-    wallet_btc: string | null;
     deletion_scheduled_at: string | null;
     game_cash?: number;
   };

@@ -84,7 +84,7 @@ export function authMiddleware(req: AuthenticatedRequest, res: Response, next: N
   const initData = parts[1];
 
   // Dev mode mock login fallback (e.g. dev_1234 or dev_1234_ref_5678)
-  if ((config.nodeEnv === 'development' || config.enableDevSimulation) && (initData.startsWith('dev_') || !initData)) {
+  if (config.nodeEnv === 'development' && (initData.startsWith('dev_') || !initData)) {
     const devParts = (initData || 'dev_1337').split('_ref_');
     const rawId = devParts[0].startsWith('dev_') ? devParts[0].substring(4) : devParts[0];
     const userId = rawId || '1337';
@@ -103,7 +103,7 @@ export function authMiddleware(req: AuthenticatedRequest, res: Response, next: N
   const verification = verifyTelegramInitData(initData, config.telegramBotToken);
 
   if (!verification.isValid || !verification.user || !verification.user.id) {
-    if (config.nodeEnv === 'development' || config.enableDevSimulation) {
+    if (config.nodeEnv === 'development') {
       req.telegramUser = {
         id: '1337',
         username: 'dev_user_1337',

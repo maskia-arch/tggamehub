@@ -210,25 +210,11 @@ export async function createCheckout(req: AuthenticatedRequest, res: Response) {
     let allocatedAddress = poolAddress?.address;
 
     if (!allocatedAddress) {
-      if (config.enableDevSimulation) {
-        allocatedAddress = `DEV_${coinCode}_SIMULATED_${crypto.randomBytes(4).toString('hex')}`;
-        await db('wallet_address_pool')
-          .insert({
-            coin: coinCode,
-            address: allocatedAddress,
-            address_index: 99999,
-            is_used: true,
-          })
-          .onConflict('address')
-          .ignore();
-        console.log(`[Shop DEV] Address pool empty. Generated and registered DEV dummy address ${allocatedAddress}`);
-      } else {
-        console.warn(`[SHOP CHECKOUT]: Address pool empty for coin ${coinCode}.`);
-        return res.status(503).json({
-          error: 'no_address_available',
-          message: 'Der Zahlungsservice ist vorübergehend nicht verfügbar (keine freien Adressen im Pool). Bitte wende dich an den Support.'
-        });
-      }
+      console.warn(`[SHOP CHECKOUT]: Address pool empty for coin ${coinCode}.`);
+      return res.status(503).json({
+        error: 'no_address_available',
+        message: 'Der Zahlungsservice ist vorübergehend nicht verfügbar (keine freien Adressen im Pool). Bitte wende dich an den Support.'
+      });
     } else {
       await db('wallet_address_pool')
         .where({ id: poolAddress.id })
@@ -267,7 +253,6 @@ export async function createCheckout(req: AuthenticatedRequest, res: Response) {
       amountEur: product.priceEur,
       coin: coinCode,
       expiresAt,
-      isDevMode: config.enableDevSimulation,
     });
   } catch (error) {
     console.error('Error creating checkout:', error);
@@ -275,45 +260,6 @@ export async function createCheckout(req: AuthenticatedRequest, res: Response) {
   }
 }
 
-/**
- * POST /api/shop/simulate-dev-payment
- */
-export async function simulateDevPayment(req: AuthenticatedRequest, res: Response) {
-  try {
-    if (config.nodeEnv === 'production' && !config.enableDevSimulation) {
-      return res.status(403).json({ error: 'dev_simulation_disabled', message: 'DEV payment simulation is disabled in production.' });
-    }
-
-    const userId = req.telegramUser?.id;
-    const { orderId } = req.body;
-
-    if (!userId || !orderId) {
-      return res.status(400).json({ error: 'orderId and authenticated user context are required' });
-    }
-
-    const order = await db('shop_orders').where({ id: orderId, user_id: userId }).first();
-    if (!order) {
-      return res.status(404).json({ error: 'Order not found' });
-    }
-
-    if (order.status !== 'paid') {
-      await db('shop_orders')
-        .where({ id: orderId })
-        .update({
-          status: 'paid',
-          paid_at: new Date(),
-        });
-
-      await fulfillProductOrder(order.user_id, order.product_id, Number(order.amount_eur));
-      console.log(`[Shop DEV Sim] Payment simulated for order ${orderId}. Fulfilling product ${order.product_id}`);
-    }
-
-    return res.json({ success: true, message: 'DEV payment simulation successful. Product fulfilled.' });
-  } catch (error) {
-    console.error('Error simulating DEV payment:', error);
-    return res.status(500).json({ error: 'Internal server error' });
-  }
-}
 
 /**
  * GET /api/shop/order/status/:orderId

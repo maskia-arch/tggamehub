@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import {
-  User, Share2, Copy, Check, Tv, Edit3, Lock, Wallet,
-  Bitcoin, Trash2, AlertTriangle, X, ChevronRight, Shield, Clock
+  User, Share2, Copy, Check, Tv, Edit3, Wallet,
+  Trash2, AlertTriangle, X, ChevronRight, Shield, Clock
 } from 'lucide-react';
 
 interface ProfileData {
@@ -16,14 +16,18 @@ interface ProfileData {
     referrals_count: number;
     daily_ad_count: number;
     daily_ad_limit: number;
+    season_pass_type?: 'NONE' | 'SEASON' | 'VIP';
+    can_claim_free_refill?: boolean;
     wallet_ltc: string | null;
-    wallet_btc: string | null;
     deletion_scheduled_at: string | null;
+    game_cash?: number;
   };
   energy: {
     current: number;
     max: number;
     nextRechargeInSeconds: number;
+    isTimeBoosterActive?: boolean;
+    timeBoosterSecondsLeft?: number;
   };
 }
 
@@ -82,7 +86,6 @@ export function Profile({ profile, onRefresh, initData, backendUrl }: ProfilePro
   // Wallet state
   const [editingWallets, setEditingWallets] = useState(false);
   const [ltcInput, setLtcInput] = useState(profile.user.wallet_ltc || '');
-  const [btcInput, setBtcInput] = useState(profile.user.wallet_btc || '');
   const [walletSaving, setWalletSaving] = useState(false);
   const [walletError, setWalletError] = useState('');
   const [walletSuccess, setWalletSuccess] = useState(false);
@@ -135,19 +138,27 @@ export function Profile({ profile, onRefresh, initData, backendUrl }: ProfilePro
     finally { setAdLoading(false); }
   };
 
-  // ── Save display name ──────────────────────────────────────────────────────
+  // ── Save display name (costs 10 InGame$) ────────────────────────────────────
   const saveDisplayName = async () => {
-    if (!nameInput.trim() || nameInput.trim().length < 2) {
-      setNameError('Mindestens 2 Zeichen erforderlich.');
+    const cleanName = nameInput.trim();
+    if (!cleanName || cleanName.length < 3 || cleanName.length > 15) {
+      setNameError('Anzeigename muss zwischen 3 und 15 Zeichen lang sein.');
       return;
     }
+
+    const currentCash = profile.user.game_cash || 0;
+    if (currentCash < 10.0) {
+      setNameError(`Zu wenig Game Cash (Kosten: 10.00 $, Dein Guthaben: ${currentCash.toFixed(2)} $).`);
+      return;
+    }
+
     setNameSaving(true);
     setNameError('');
     try {
       const res = await fetch(`${backendUrl}/api/user/display-name`, {
         method: 'PATCH',
         headers: { 'Authorization': `Bearer ${initData}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ displayName: nameInput.trim() }),
+        body: JSON.stringify({ displayName: cleanName }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -160,7 +171,7 @@ export function Profile({ profile, onRefresh, initData, backendUrl }: ProfilePro
     finally { setNameSaving(false); }
   };
 
-  // ── Save wallets ───────────────────────────────────────────────────────────
+  // ── Save LTC wallet ────────────────────────────────────────────────────────
   const saveWallets = async () => {
     setWalletSaving(true);
     setWalletError('');
@@ -169,11 +180,11 @@ export function Profile({ profile, onRefresh, initData, backendUrl }: ProfilePro
       const res = await fetch(`${backendUrl}/api/user/wallets`, {
         method: 'PATCH',
         headers: { 'Authorization': `Bearer ${initData}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ wallet_ltc: ltcInput.trim() || null, wallet_btc: btcInput.trim() || null }),
+        body: JSON.stringify({ wallet_ltc: ltcInput.trim() || null }),
       });
       const data = await res.json();
       if (!res.ok) {
-        setWalletError(data.error || 'Fehler beim Speichern.');
+        setWalletError(data.error || data.message || 'Fehler beim Speichern.');
       } else {
         setWalletSuccess(true);
         setEditingWallets(false);
@@ -249,14 +260,17 @@ export function Profile({ profile, onRefresh, initData, backendUrl }: ProfilePro
           {/* Name + username */}
           <div style={{ flex: 1, minWidth: 0 }}>
             {editingName ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%' }}>
+                <div style={{ fontSize: '11px', color: 'var(--accent-gold)', fontWeight: 700 }}>
+                  🏷️ Namensänderung kostet 10.00 InGame$ (Guthaben: {(profile.user.game_cash || 0).toFixed(2)} $)
+                </div>
                 <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                   <input
                     ref={nameInputRef}
                     value={nameInput}
                     onChange={(e) => setNameInput(e.target.value)}
-                    maxLength={32}
-                    placeholder="Anzeigename..."
+                    maxLength={15}
+                    placeholder="Wunschname (3–15 Zeichen)..."
                     autoFocus
                     style={{
                       flex: 1, background: 'rgba(0,0,0,0.4)',
@@ -269,15 +283,18 @@ export function Profile({ profile, onRefresh, initData, backendUrl }: ProfilePro
                   />
                   <button
                     onClick={saveDisplayName}
-                    disabled={nameSaving}
+                    disabled={nameSaving || (profile.user.game_cash || 0) < 10.0}
                     style={{
-                      background: 'var(--primary-glow)', border: 'none',
+                      background: (profile.user.game_cash || 0) < 10.0 ? 'rgba(255,255,255,0.1)' : 'var(--primary-glow)',
+                      border: 'none',
                       borderRadius: '10px', padding: '8px 14px',
-                      color: '#000', fontWeight: 800, fontSize: '12px',
-                      cursor: 'pointer', opacity: nameSaving ? 0.6 : 1,
+                      color: (profile.user.game_cash || 0) < 10.0 ? 'rgba(255,255,255,0.4)' : '#000',
+                      fontWeight: 800, fontSize: '12px',
+                      cursor: (profile.user.game_cash || 0) < 10.0 ? 'not-allowed' : 'pointer',
+                      opacity: nameSaving ? 0.6 : 1,
                     }}
                   >
-                    {nameSaving ? '...' : 'OK'}
+                    {nameSaving ? '...' : '10 $ Zahlen'}
                   </button>
                   <button
                     onClick={() => { setEditingName(false); setNameError(''); }}
@@ -297,31 +314,18 @@ export function Profile({ profile, onRefresh, initData, backendUrl }: ProfilePro
                 <span style={{ fontSize: '18px', fontWeight: 900, color: '#fff', lineHeight: 1.2 }}>
                   {displayName}
                 </span>
-                {!profile.user.display_name_changed ? (
-                  <button
-                    onClick={() => { setEditingName(true); setTimeout(() => nameInputRef.current?.focus(), 50); }}
-                    title={t.profile.changeDisplayName}
-                    style={{
-                      background: 'rgba(0,242,254,0.1)', border: '1px solid rgba(0,242,254,0.2)',
-                      borderRadius: '8px', padding: '3px 8px',
-                      display: 'flex', alignItems: 'center', gap: '4px',
-                      cursor: 'pointer', color: 'var(--accent-cyan)', fontSize: '10px', fontWeight: 700,
-                    }}
-                  >
-                    <Edit3 size={11} /> {t.profile.changeDisplayName}
-                  </button>
-                ) : (
-                  <span title={t.common.locked}
-                    style={{
-                      background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
-                      borderRadius: '8px', padding: '3px 8px',
-                      display: 'flex', alignItems: 'center', gap: '4px',
-                      color: 'rgba(255,255,255,0.3)', fontSize: '10px',
-                    }}
-                  >
-                    <Lock size={10} /> {t.common.locked}
-                  </span>
-                )}
+                <button
+                  onClick={() => { setEditingName(true); setTimeout(() => nameInputRef.current?.focus(), 50); }}
+                  title="Anzeigename für 10.00 InGame$ ändern"
+                  style={{
+                    background: 'rgba(0,242,254,0.1)', border: '1px solid rgba(0,242,254,0.2)',
+                    borderRadius: '8px', padding: '3px 8px',
+                    display: 'flex', alignItems: 'center', gap: '4px',
+                    cursor: 'pointer', color: 'var(--accent-cyan)', fontSize: '10px', fontWeight: 700,
+                  }}
+                >
+                  <Edit3 size={11} /> Name ändern (10 $)
+                </button>
               </div>
             )}
             <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.35)', marginTop: '3px', display: 'block' }}>
@@ -485,34 +489,17 @@ export function Profile({ profile, onRefresh, initData, backendUrl }: ProfilePro
 
         {editingWallets ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            {/* LTC */}
+            {/* LTC Input */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
               <label style={{ fontSize: '10px', fontWeight: 700, color: 'rgba(255,255,255,0.4)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
-                ◈ Litecoin (LTC) Adresse
+                🟣 Litecoin (LTC) Auszahlungs-Adresse
               </label>
               <input
                 value={ltcInput}
                 onChange={(e) => setLtcInput(e.target.value)}
-                placeholder="LTC-Adresse eingeben..."
+                placeholder="LTC-Adresse eingeben (L..., M... oder ltc1...)"
                 style={{
                   background: 'rgba(0,0,0,0.35)', border: '1px solid rgba(167,139,250,0.3)',
-                  borderRadius: '12px', padding: '11px 14px',
-                  color: '#fff', fontSize: '13px', outline: 'none',
-                  fontFamily: 'monospace',
-                }}
-              />
-            </div>
-            {/* BTC */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
-              <label style={{ fontSize: '10px', fontWeight: 700, color: 'rgba(255,255,255,0.4)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
-                ₿ Bitcoin (BTC) Adresse
-              </label>
-              <input
-                value={btcInput}
-                onChange={(e) => setBtcInput(e.target.value)}
-                placeholder="BTC-Adresse eingeben..."
-                style={{
-                  background: 'rgba(0,0,0,0.35)', border: '1px solid rgba(255,140,0,0.3)',
                   borderRadius: '12px', padding: '11px 14px',
                   color: '#fff', fontSize: '13px', outline: 'none',
                   fontFamily: 'monospace',
@@ -531,10 +518,10 @@ export function Profile({ profile, onRefresh, initData, backendUrl }: ProfilePro
                   cursor: walletSaving ? 'not-allowed' : 'pointer', opacity: walletSaving ? 0.7 : 1,
                 }}
               >
-                {walletSaving ? 'Speichert...' : 'Speichern'}
+                {walletSaving ? 'Speichert...' : 'LTC-Adresse Speichern'}
               </button>
               <button
-                onClick={() => { setEditingWallets(false); setWalletError(''); setLtcInput(profile.user.wallet_ltc || ''); setBtcInput(profile.user.wallet_btc || ''); }}
+                onClick={() => { setEditingWallets(false); setWalletError(''); setLtcInput(profile.user.wallet_ltc || ''); }}
                 style={{
                   background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
                   borderRadius: '12px', padding: '12px 16px',
@@ -553,37 +540,22 @@ export function Profile({ profile, onRefresh, initData, backendUrl }: ProfilePro
               background: 'rgba(0,0,0,0.2)', borderRadius: '12px', padding: '11px 14px',
               border: '1px solid rgba(255,255,255,0.05)',
             }}>
-              <span style={{ fontSize: '16px', flexShrink: 0 }}>◈</span>
+              <span style={{ fontSize: '16px', flexShrink: 0 }}>🟣</span>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 700 }}>Litecoin (LTC)</div>
+                <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 700 }}>Litecoin (LTC) — Airdrop-Auszahlung</div>
                 <div style={{ fontSize: '12px', color: profile.user.wallet_ltc ? '#e2e8f0' : 'rgba(255,255,255,0.2)', fontFamily: 'monospace', marginTop: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {profile.user.wallet_ltc || 'Keine Adresse hinterlegt'}
                 </div>
               </div>
               {profile.user.wallet_ltc && <Check size={14} style={{ color: '#4ade80', flexShrink: 0 }} />}
             </div>
-            {/* BTC display */}
-            <div style={{
-              display: 'flex', alignItems: 'center', gap: '10px',
-              background: 'rgba(0,0,0,0.2)', borderRadius: '12px', padding: '11px 14px',
-              border: '1px solid rgba(255,255,255,0.05)',
-            }}>
-              <Bitcoin size={16} style={{ color: '#f59e0b', flexShrink: 0 }} />
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 700 }}>Bitcoin (BTC)</div>
-                <div style={{ fontSize: '12px', color: profile.user.wallet_btc ? '#e2e8f0' : 'rgba(255,255,255,0.2)', fontFamily: 'monospace', marginTop: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {profile.user.wallet_btc || 'Keine Adresse hinterlegt'}
-                </div>
-              </div>
-              {profile.user.wallet_btc && <Check size={14} style={{ color: '#4ade80', flexShrink: 0 }} />}
-            </div>
             {walletSuccess && (
               <div style={{ fontSize: '11px', color: '#4ade80', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                <Check size={12} /> Adressen erfolgreich gespeichert
+                <Check size={12} /> LTC-Adresse erfolgreich gespeichert
               </div>
             )}
             <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.25)', margin: 0, lineHeight: 1.5 }}>
-              Deine Adressen werden für eventuelle Auszahlungen verwendet und sicher gespeichert.
+              Alle Season-Airdrops und Gewinne werden bei CoinCade ausschließlich in Litecoin (LTC) ausgezahlt.
             </p>
           </div>
         )}

@@ -21,7 +21,6 @@ import {
 import {
   createCheckout,
   getOrderStatus,
-  simulateDevPayment,
   getActivePayments,
   getAddressPoolStatus,
   pushAddressPool,
@@ -79,7 +78,7 @@ router.post('/market/trade', authMiddleware, tradeCoin);
 // Shop endpoints (secured via WebApp auth)
 router.post('/shop/checkout', authMiddleware, createCheckout);
 router.get('/shop/order/status/:orderId', authMiddleware, getOrderStatus);
-router.post('/shop/simulate-dev-payment', authMiddleware, simulateDevPayment);
+
 
 // Crypto Wallet endpoints (secured via separate secret token / HMAC signatures)
 router.get('/crypto/active-payments', getActivePayments);

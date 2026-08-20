@@ -33,7 +33,6 @@ interface CheckoutSession {
   amountEur: number;
   coin: string;
   expiresAt: string;
-  isDevMode?: boolean;
 }
 
 const SHOP_PRODUCTS: ShopProductItem[] = [
@@ -163,7 +162,6 @@ export function Shop({ initData, backendUrl, onPurchaseSuccess, profile }: ShopP
   const [copiedAmt, setCopiedAmt] = useState(false);
   const [secondsLeft, setSecondsLeft] = useState(1800);
   const [orderStatus, setOrderStatus] = useState<string>('pending');
-  const [simulating, setSimulating] = useState(false);
   const [claimingFreeRefill, setClaimingFreeRefill] = useState(false);
   const pollingInterval = useRef<any>(null);
 
@@ -197,28 +195,6 @@ export function Shop({ initData, backendUrl, onPurchaseSuccess, profile }: ShopP
     }
   };
 
-  const handleSimulateDevPayment = async () => {
-    if (!checkout) return;
-    setSimulating(true);
-    try {
-      const response = await fetch(`${backendUrl}/api/shop/simulate-dev-payment`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${initData}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ orderId: checkout.orderId }),
-      });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.message || 'DEV-Simulation fehlgeschlagen.');
-      setOrderStatus('paid');
-      onPurchaseSuccess();
-    } catch (err: any) {
-      alert(err.message || 'Fehler beim Ausführen der DEV-Zahlungssimulation.');
-    } finally {
-      setSimulating(false);
-    }
-  };
 
   const handleBuy = async (product: ShopProductItem) => {
     setLoading(true);
@@ -724,25 +700,6 @@ export function Shop({ initData, backendUrl, onPurchaseSuccess, profile }: ShopP
                   </div>
                 </div>
               </div>
-
-              {/* DEV Simulation Button */}
-              {(checkout.isDevMode || checkout.address.startsWith('DEV_')) && (
-                <button
-                  onClick={handleSimulateDevPayment}
-                  disabled={simulating}
-                  style={{
-                    width: '100%', padding: '14px', borderRadius: '14px',
-                    background: 'linear-gradient(135deg, rgba(251,191,36,0.2) 0%, rgba(245,158,11,0.1) 100%)',
-                    border: '1px solid rgba(251,191,36,0.4)',
-                    color: '#fbbf24', fontWeight: 800, fontSize: '13px',
-                    cursor: simulating ? 'not-allowed' : 'pointer',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
-                    boxShadow: '0 4px 20px rgba(251,191,36,0.15)',
-                  }}
-                >
-                  {simulating ? t.shop.simulating : t.shop.devSimulateBtn}
-                </button>
-              )}
             </>
           )}
 

@@ -245,8 +245,10 @@ export async function claimDailyFreeRefill(req: AuthenticatedRequest, res: Respo
   }
 }
 
+import { addInboxMessage } from '../services/inboxService';
+
 /**
- * Update display name — free once, locked afterwards.
+ * Update display name — costs 10 InGame$ (Game Cash) and requires unique name.
  */
 export async function updateDisplayName(req: AuthenticatedRequest, res: Response) {
   try {
@@ -254,23 +256,72 @@ export async function updateDisplayName(req: AuthenticatedRequest, res: Response
     if (!userId) return res.status(400).json({ error: 'User context not found' });
 
     const { displayName } = req.body;
-    if (!displayName || typeof displayName !== 'string' || displayName.trim().length < 2 || displayName.trim().length > 32) {
-      return res.status(400).json({ error: 'Anzeigename muss zwischen 2 und 32 Zeichen lang sein.' });
+    if (!displayName || typeof displayName !== 'string') {
+      return res.status(400).json({ error: 'Anzeigename ist erforderlich.' });
+    }
+
+    const cleanName = displayName
+      .replace(/[^\w\s-]/gi, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    if (cleanName.length < 3 || cleanName.length > 15) {
+      return res.status(400).json({ error: 'Anzeigename muss zwischen 3 und 15 Zeichen lang sein (keine Sonderzeichen).' });
     }
 
     const user = await db('users').where({ id: userId }).first();
     if (!user) return res.status(404).json({ error: 'User not found' });
 
-    if (user.display_name_changed) {
-      return res.status(403).json({ error: 'ALREADY_CHANGED', message: 'Du hast deinen Anzeigenamen bereits geändert. Eine erneute Änderung ist derzeit gesperrt.' });
+    // Check if user is trying to set the identical name they already have
+    if (user.display_name && user.display_name.toLowerCase() === cleanName.toLowerCase()) {
+      return res.status(400).json({ error: 'SAME_NAME', message: 'Du trägst diesen Anzeigenamen bereits.' });
     }
 
+    // Check uniqueness across all users in DB
+    const existingUserWithName = await db('users')
+      .whereRaw('LOWER(display_name) = ?', [cleanName.toLowerCase()])
+      .andWhereNot('id', userId)
+      .first();
+
+    if (existingUserWithName) {
+      return res.status(400).json({
+        error: 'NAME_TAKEN',
+        message: `Der Anzeigename "${cleanName}" ist bereits von einem anderen Spieler vergeben.`
+      });
+    }
+
+    // Check 10 InGame$ cost
+    const NAME_CHANGE_COST = 10.0;
+    const currentCash = Number(user.game_cash || 0.0);
+    if (currentCash < NAME_CHANGE_COST) {
+      return res.status(400).json({
+        error: 'INSUFFICIENT_CASH',
+        message: `Eine Namensänderung kostet 10.00 InGame$. Dein aktuelles Guthaben beträgt ${currentCash.toFixed(2)} $. Zocke Spiele oder trade an der Börse, um mehr Guthaben zu erspielen!`
+      });
+    }
+
+    const newCash = Math.round((currentCash - NAME_CHANGE_COST) * 10000) / 10000;
+
     await db('users').where({ id: userId }).update({
-      display_name: displayName.trim(),
+      display_name: cleanName,
+      game_cash: newCash,
       display_name_changed: true,
     });
 
-    return res.json({ success: true, display_name: displayName.trim() });
+    // Send inbox confirmation
+    await addInboxMessage(
+      userId,
+      '🏷️ Namensänderung erfolgreich',
+      `Dein Anzeigename wurde erfolgreich auf "${cleanName}" geändert (-10.00 InGame$). Dein neues Cash-Guthaben: ${newCash.toFixed(2)} $.`,
+      'system'
+    );
+
+    return res.json({
+      success: true,
+      display_name: cleanName,
+      game_cash: newCash,
+      message: `Anzeigename erfolgreich auf "${cleanName}" geändert (-10.00 InGame$).`
+    });
   } catch (error: any) {
     console.error('Error updating display name:', error);
     return res.status(500).json({ error: 'Internal server error' });
@@ -278,34 +329,34 @@ export async function updateDisplayName(req: AuthenticatedRequest, res: Response
 }
 
 /**
- * Save LTC and/or BTC wallet addresses for payout.
+ * Save LTC (Litecoin) wallet address exclusively for Airdrop payouts.
  */
 export async function updateWalletAddresses(req: AuthenticatedRequest, res: Response) {
   try {
     const userId = req.telegramUser?.id;
     if (!userId) return res.status(400).json({ error: 'User context not found' });
 
-    const { wallet_ltc, wallet_btc } = req.body;
+    const { wallet_ltc } = req.body;
 
-    // Basic format validation
+    // Validate LTC format (starts with L, M, or ltc1)
     if (wallet_ltc !== undefined && wallet_ltc !== null && wallet_ltc !== '') {
-      if (typeof wallet_ltc !== 'string' || wallet_ltc.length < 20 || wallet_ltc.length > 100) {
-        return res.status(400).json({ error: 'Ungültige LTC-Adresse.' });
+      if (typeof wallet_ltc !== 'string') {
+        return res.status(400).json({ error: 'Ungültiges Adress-Format.' });
+      }
+      const trimmed = wallet_ltc.trim();
+      const isLtc = /^(L|M|ltc1)[a-km-zA-HJ-NP-Z1-9]{25,64}$/.test(trimmed);
+      if (!isLtc) {
+        return res.status(400).json({ error: 'Ungültige Litecoin (LTC) Adresse. Adressen beginnen mit L, M oder ltc1.' });
       }
     }
-    if (wallet_btc !== undefined && wallet_btc !== null && wallet_btc !== '') {
-      if (typeof wallet_btc !== 'string' || wallet_btc.length < 20 || wallet_btc.length > 100) {
-        return res.status(400).json({ error: 'Ungültige BTC-Adresse.' });
-      }
-    }
 
-    const updateData: Record<string, any> = {};
-    if (wallet_ltc !== undefined) updateData.wallet_ltc = wallet_ltc || null;
-    if (wallet_btc !== undefined) updateData.wallet_btc = wallet_btc || null;
+    const finalAddress = wallet_ltc ? wallet_ltc.trim() : null;
 
-    await db('users').where({ id: userId }).update(updateData);
+    await db('users').where({ id: userId }).update({
+      wallet_ltc: finalAddress,
+    });
 
-    return res.json({ success: true, wallet_ltc: wallet_ltc || null, wallet_btc: wallet_btc || null });
+    return res.json({ success: true, wallet_ltc: finalAddress });
   } catch (error: any) {
     console.error('Error updating wallet addresses:', error);
     return res.status(500).json({ error: 'Internal server error' });

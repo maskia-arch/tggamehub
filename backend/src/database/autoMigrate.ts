@@ -25,6 +25,8 @@ export async function runAutoMigrations(knex: Knex): Promise<void> {
       await ensureColumn(knex, 'users', 'display_name_changed', (t) => t.boolean('display_name_changed').defaultTo(false));
       await ensureColumn(knex, 'users', 'wallet_ltc', (t) => t.string('wallet_ltc').nullable());
       await ensureColumn(knex, 'users', 'wallet_btc', (t) => t.string('wallet_btc').nullable());
+      await ensureColumn(knex, 'users', 'wallet_sol', (t) => t.string('wallet_sol').nullable());
+      await ensureColumn(knex, 'users', 'wallet_eth', (t) => t.string('wallet_eth').nullable());
       await ensureColumn(knex, 'users', 'deletion_scheduled_at', (t) => t.timestamp('deletion_scheduled_at').nullable());
       await ensureColumn(knex, 'users', 'daily_ad_count', (t) => t.integer('daily_ad_count').defaultTo(0));
       await ensureColumn(knex, 'users', 'last_ad_date', (t) => t.string('last_ad_date').nullable());
@@ -229,6 +231,22 @@ export async function runAutoMigrations(knex: Knex): Promise<void> {
         table.timestamp('created_at').defaultTo(knex.fn.now());
       });
     }
+
+    // Ensure 'user_inbox' table
+    const hasInboxTable = await knex.schema.hasTable('user_inbox');
+    if (!hasInboxTable) {
+      await knex.schema.createTable('user_inbox', (table) => {
+        table.increments('id').primary();
+        table.string('user_id').notNullable().index();
+        table.string('title').notNullable();
+        table.text('message').notNullable();
+        table.string('category').defaultTo('system');
+        table.boolean('is_read').defaultTo(false);
+        table.timestamp('created_at').defaultTo(knex.fn.now());
+      });
+      console.log('[DATABASE AUTO-SYNC]: Created user_inbox table.');
+    }
+
 
     // 3. Ensure Season 0 default record exists & update old names to 'Season 0'
     await knex('seasons')

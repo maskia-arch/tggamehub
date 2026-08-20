@@ -22,7 +22,6 @@ export const config = {
   maxEnergy: parseInt(process.env.MAX_ENERGY || '5', 10),
   referralEnergyBonus: parseInt(process.env.REFERRAL_ENERGY_BONUS || '5', 10),
   shopWebhookSecret: (process.env.SHOP_WEBHOOK_SECRET || 'local_shop_webhook_secret_key_12345').trim(),
-  enableDevSimulation: process.env.ENABLE_DEV_SIMULATION === 'true' || (process.env.NODE_ENV || '').trim() !== 'production',
 };
 
 // Validate critical values

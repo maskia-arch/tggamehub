@@ -371,14 +371,13 @@ export async function settleAndFinalizeSeason(seasonId?: number) {
   const preview = await getAirdropPreview(targetId);
   const nowIso = new Date().toISOString();
   const ltcRate = await getCoinEurRate('LTC');
-  const btcRate = await getCoinEurRate('BTC');
 
   const processWinner = async (userId: string, category: string, rank: number | null, prizeEur: number) => {
     if (prizeEur <= 0) return;
     const user = await db('users').where({ id: userId }).first();
-    const walletAddress = user?.wallet_ltc || user?.wallet_btc || null;
-    const coin = user?.wallet_ltc ? 'LTC' : (user?.wallet_btc ? 'BTC' : 'LTC');
-    const rate = coin === 'BTC' ? btcRate : ltcRate;
+    const walletAddress = user?.wallet_ltc || null;
+    const coin = 'LTC';
+    const rate = ltcRate;
     const amountCrypto = rate > 0 ? parseFloat((prizeEur / rate).toFixed(8)) : 0;
 
     await db('airdrop_payouts').insert({
