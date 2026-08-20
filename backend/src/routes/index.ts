@@ -26,7 +26,8 @@ import {
   pushAddressPool,
   processWalletCallback,
   getSyncQueue,
-  clearSyncQueue
+  clearSyncQueue,
+  handleAdsgramReward
 } from '../controllers/shop';
 
 import { getMarketData, getCoinChartData, tradeCoin, getMarketEventsData } from '../controllers/market';
@@ -37,6 +38,8 @@ const router = Router();
 // User endpoints (secured)
 router.get('/user/profile', authMiddleware, getProfile);
 router.post('/user/energy/ad', authMiddleware, addEnergyAd);
+router.get('/adsgram/reward', handleAdsgramReward);
+router.post('/adsgram/reward', handleAdsgramReward);
 router.post('/user/claim-daily-free-refill', authMiddleware, claimDailyFreeRefill);
 router.patch('/user/display-name', authMiddleware, updateDisplayName);
 router.patch('/user/wallets', authMiddleware, updateWalletAddresses);

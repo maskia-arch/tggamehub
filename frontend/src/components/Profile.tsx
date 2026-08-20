@@ -3,6 +3,7 @@ import {
   User, Share2, Copy, Check, Tv, Edit3, Wallet,
   Trash2, AlertTriangle, X, ChevronRight, Shield, Clock
 } from 'lucide-react';
+import { showRewardedAd } from '../services/adsgram';
 
 interface ProfileData {
   user: {
@@ -129,13 +130,26 @@ export function Profile({ profile, onRefresh, initData, backendUrl }: ProfilePro
   const watchAd = async () => {
     setAdLoading(true);
     try {
+      const adResult = await showRewardedAd();
+      if (!adResult.success || !adResult.rewardEarned) {
+        if (adResult.error) {
+          alert(adResult.error);
+        }
+        return;
+      }
+
       const res = await fetch(`${backendUrl}/api/user/energy/ad`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${initData}`, 'Content-Type': 'application/json' },
       });
-      if (res.ok) { onRefresh(); }
-    } catch { /* ignore */ }
-    finally { setAdLoading(false); }
+      if (res.ok) {
+        onRefresh();
+      }
+    } catch {
+      /* ignore */
+    } finally {
+      setAdLoading(false);
+    }
   };
 
   // ── Save display name (costs 10 InGame$) ────────────────────────────────────

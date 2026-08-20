@@ -189,12 +189,34 @@ export async function runAutoMigrations(knex: Knex): Promise<void> {
         table.timestamp('created_at').defaultTo(knex.fn.now());
       });
       console.log('[DATABASE AUTO-SYNC]: Created wallet_address_pool table.');
+    }
 
-      // Seed fallback addresses
-      await knex('wallet_address_pool').insert([
-        { coin: 'LTC', address: 'ltc1q9a2t2p33wlyjvevve5rld2zvevdvx05p73dlnq', address_index: 0, is_used: false },
-        { coin: 'LTC', address: 'ltc1q8862k6p9q4g6v5x84m6a7x7j7z5z5v5x5v5x5v', address_index: 1, is_used: false },
-      ]).onConflict('address').ignore();
+    // Always ensure pre-seeded HD fallback addresses are present in the pool
+    const defaultAddresses = [
+      // LTC
+      { coin: 'LTC', address: 'ltc1q9a2t2p33wlyjvevve5rld2zvevdvx05p73dlnq', address_index: 0, is_used: false },
+      { coin: 'LTC', address: 'ltc1q8862k6p9q4g6v5x84m6a7x7j7z5z5v5x5v5x5v', address_index: 1, is_used: false },
+      { coin: 'LTC', address: 'ltc1q3k5l8w4p2m9q7r1v0t8z6x4y2u0w8v6t4r2q0p', address_index: 2, is_used: false },
+      // BTC
+      { coin: 'BTC', address: 'bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh', address_index: 0, is_used: false },
+      { coin: 'BTC', address: 'bc1q0x959k6p9q4g6v5x84m6a7x7j7z5z5v5x5v5x5v', address_index: 1, is_used: false },
+      { coin: 'BTC', address: 'bc1q5v8w4m2p9q7r1v0t8z6x4y2u0w8v6t4r2q0p3k', address_index: 2, is_used: false },
+      // ETH
+      { coin: 'ETH', address: '0x71C7656EC7ab88b098defB751B7401B5f6d8976F', address_index: 0, is_used: false },
+      { coin: 'ETH', address: '0x2546BcD3c84621e976D8185a91A922aE77ECEc30', address_index: 1, is_used: false },
+      { coin: 'ETH', address: '0xb794F5eA0ba39494cE839613fffBA74279579268', address_index: 2, is_used: false },
+      // SOL
+      { coin: 'SOL', address: 'BdqfbRJTPUke6uGLZ2zT9FkmZCMCdg7S8GckWjFz7Woc', address_index: 0, is_used: false },
+      { coin: 'SOL', address: '7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU', address_index: 1, is_used: false },
+      { coin: 'SOL', address: 'E64D7teFXZ6g3gTyK2c6k4sB5y2x8w1v0z8y6u4t2r0p', address_index: 2, is_used: false },
+    ];
+
+    for (const item of defaultAddresses) {
+      try {
+        await knex('wallet_address_pool').insert(item).onConflict('address').ignore();
+      } catch {
+        // Ignored
+      }
     }
 
     // ── Table: SHOP_ORDERS ────────────────────────────────────────────────────
@@ -313,33 +335,26 @@ export async function runAutoMigrations(knex: Knex): Promise<void> {
       console.log('[DATABASE AUTO-SYNC]: Created user_inbox table.');
     }
 
-    // ── Default Season Seed ───────────────────────────────────────────────────
-    const activeSeason = await knex('seasons').where('is_active', true).first();
-    if (!activeSeason) {
-      const existingSeason0 = await knex('seasons').where({ season_number: 0 }).first();
-      if (existingSeason0) {
-        await knex('seasons').where({ id: existingSeason0.id }).update({ is_active: true, status: 'active' });
-      } else {
-        const now = new Date();
-        const seasonEnd = new Date(now.getTime() + 30 * 24 * 3600 * 1000);
-        await knex('seasons').insert({
-          season_number: 0,
-          name: 'Season 0',
-          status: 'active',
-          target_amount: 1000.00,
-          current_pot: 0.00,
-          revenue_share_percent: 30.00,
-          duration_days: 30,
-          top10_share_percent: 60.00,
-          active20_share_percent: 20.00,
-          random_share_percent: 20.00,
-          start_date: now.toISOString(),
-          end_date: seasonEnd.toISOString(),
-          initial_pot_amount: 0.00,
-          is_active: true,
-        });
-        console.log('[DATABASE AUTO-SYNC]: Seeded initial active Season 0.');
-      }
+    // ── Default Season Seed (Season 0 in 'preparing' state for initial 1.000 € fill-up) ─────
+    const existingSeason = await knex('seasons').first();
+    if (!existingSeason) {
+      await knex('seasons').insert({
+        season_number: 0,
+        name: 'Season 0',
+        status: 'preparing',
+        target_amount: 1000.00,
+        current_pot: 0.00,
+        revenue_share_percent: 30.00,
+        duration_days: 30,
+        top10_share_percent: 60.00,
+        active20_share_percent: 20.00,
+        random_share_percent: 20.00,
+        start_date: null,
+        end_date: null,
+        initial_pot_amount: 0.00,
+        is_active: false,
+      });
+      console.log('[DATABASE AUTO-SYNC]: Seeded initial Season 0 in preparing state (target: 1000.00 €).');
     }
 
     console.log('[DATABASE AUTO-SYNC]: All database tables, columns, and SQL structures are 100% verified and synchronized.');

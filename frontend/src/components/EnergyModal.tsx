@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Zap, X, Play, ShoppingBag, Users, Clock, Lock } from 'lucide-react';
 import { useLanguage } from '../i18n/LanguageContext';
+import { showRewardedAd } from '../services/adsgram';
 
 interface EnergyModalProps {
   isOpen: boolean;
@@ -71,30 +72,39 @@ export function EnergyModal({
   const handleWatchAd = async () => {
     if (isAdLimitReached || adLoading) return;
     setAdLoading(true);
-    // Simulate watching 3s video advertisement
-    setTimeout(async () => {
-      try {
-        const response = await fetch(`${backendUrl}/api/user/energy/ad`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${initData}`,
-            'Content-Type': 'application/json',
-          },
-        });
 
-        const resData = await response.json();
-        if (!response.ok) {
-          throw new Error(resData.message || 'Werbe-Belohnung konnte nicht verbucht werden.');
+    try {
+      // 1. Trigger Adsgram Rewarded Video Ad
+      const adResult = await showRewardedAd();
+
+      if (!adResult.success || !adResult.rewardEarned) {
+        if (adResult.error) {
+          alert(adResult.error);
         }
-
-        onEnergyGranted(currentEnergy + 1);
-        onClose();
-      } catch (err: any) {
-        alert(err.message || 'Fehler beim Abspielen des Werbespots.');
-      } finally {
-        setAdLoading(false);
+        return;
       }
-    }, 3000);
+
+      // 2. Claim energy reward from backend after video completion
+      const response = await fetch(`${backendUrl}/api/user/energy/ad`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${initData}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      const resData = await response.json();
+      if (!response.ok) {
+        throw new Error(resData.message || 'Werbe-Belohnung konnte nicht verbucht werden.');
+      }
+
+      onEnergyGranted(currentEnergy + 1);
+      onClose();
+    } catch (err: any) {
+      alert(err.message || 'Fehler beim Abspielen des Werbespots.');
+    } finally {
+      setAdLoading(false);
+    }
   };
 
   const handleInviteFriend = () => {

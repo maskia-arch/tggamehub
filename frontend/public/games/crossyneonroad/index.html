@@ -1898,17 +1898,31 @@
     }
 
     let lastFrameTime = 0;
+    let frameAccumulator = 0;
+    const TIME_STEP = 1000 / TARGET_FPS; // Exact 60 FPS standard (16.667 ms)
+
     function gameLoop(timestamp) {
       if (gameState !== 'playing') return;
-      
-      // Throttle/Cap FPS to 60fps to ensure uniform speeds
-      const elapsed = timestamp - lastFrameTime;
-      if (elapsed >= 1000 / TARGET_FPS) {
-        update();
-        draw();
-        lastFrameTime = timestamp - (elapsed % (1000 / TARGET_FPS));
+
+      if (!lastFrameTime) {
+        lastFrameTime = timestamp || performance.now();
       }
-      
+
+      const now = timestamp || performance.now();
+      let elapsed = now - lastFrameTime;
+      lastFrameTime = now;
+
+      // Cap max delta to prevent spiral of death on lag / tab switch
+      if (elapsed > 100) elapsed = 100;
+      frameAccumulator += elapsed;
+
+      // Execute updates at strict 60Hz rate
+      while (frameAccumulator >= TIME_STEP) {
+        update();
+        frameAccumulator -= TIME_STEP;
+      }
+
+      draw();
       animationFrameId = requestAnimationFrame(gameLoop);
     }
 

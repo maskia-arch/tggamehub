@@ -214,21 +214,24 @@ export async function tickMarketPrices() {
     for (const coin of coins) {
       const symbol = coin.symbol;
       const currentPrice = Number(coin.current_price);
+      const basePrice = Number(coin.base_price || currentPrice);
       const lastActivity = lastActivityMap[symbol] || 0;
       const secondsSinceActivity = (now - lastActivity) / 1000;
 
       let priceShiftPercent = 0.0;
 
-      if (secondsSinceActivity < 15) {
-        // Active interval: stochastic positive bias with random micro-swings
-        const baseFactor = (Math.random() * 0.0015 + 0.0005); // +0.05% to +0.20%
-        const stochasticNoise = (Math.random() * 0.001 - 0.0003); // Random variation
-        priceShiftPercent = baseFactor + stochasticNoise;
+      // Realistic orderbook micro-spread noise (creates natural candle wicks)
+      const microNoise = (Math.random() * 0.0004 - 0.0002); // ±0.02% micro bid/ask spread
+
+      if (secondsSinceActivity < 30) {
+        // Active gameplay period: mild positive momentum with micro-fluctuations
+        const activeBias = 0.00008 + (Math.random() * 0.00012); // +0.008% to +0.020%
+        priceShiftPercent = activeBias + microNoise;
       } else {
-        // Inactivity period: stochastic cooling decay with random rebounds and dips
-        const decayFactor = -0.0004;
-        const randomReboundOrDrop = (Math.random() * 0.0012 - 0.0006); // -0.06% to +0.06%
-        priceShiftPercent = decayFactor + randomReboundOrDrop;
+        // Inactive cooling: subtle mean-reverting drift towards base price
+        const deviationRatio = (currentPrice - basePrice) / Math.max(1e-8, basePrice);
+        const meanRevertDrift = -0.00003 * Math.sign(deviationRatio) * Math.min(2.0, Math.abs(deviationRatio));
+        priceShiftPercent = meanRevertDrift + microNoise;
       }
 
       const rawNewPrice = currentPrice * (1 + priceShiftPercent);
@@ -251,8 +254,8 @@ export async function tickMarketPrices() {
       }
     }
 
-    // Stochastic Random Market Trigger Events (~8% chance per 5-second tick cycle)
-    if (Math.random() < 0.08) {
+    // Stochastic Market Trigger Events (~1.5% chance per 5-second tick, approx every 5-8 minutes)
+    if (Math.random() < 0.015) {
       await triggerRandomMarketEvent(coins);
     }
   } catch (err) {
@@ -262,7 +265,7 @@ export async function tickMarketPrices() {
 
 /**
  * Random Market Event Trigger Generator
- * Triggers news events (Bull Rallies, Bear Dumps, Whale Buys, Volatility Spikes, Hype News)
+ * Triggers realistic crypto market events (Bull Rallies, Bear Dumps, Whale Buys, News)
  */
 async function triggerRandomMarketEvent(coins: any[]) {
   try {
@@ -278,36 +281,36 @@ async function triggerRandomMarketEvent(coins: any[]) {
         type: 'COMMUNITY_RALLY',
         title: '⚡ Community Kaufwelle',
         description: `Starkes Interesse in der Player-Community treibt den $${symbol} Kurs an.`,
-        minImpact: 0.008,
-        maxImpact: 0.022,
+        minImpact: 0.003,
+        maxImpact: 0.009,
       },
       {
         type: 'PROFIT_TAKING',
         title: '📉 Gewinnmitnahmen',
         description: `Händler realisieren Gewinne nach Kursanstieg bei $${symbol}.`,
-        minImpact: -0.018,
-        maxImpact: -0.006,
+        minImpact: -0.008,
+        maxImpact: -0.003,
       },
       {
         type: 'TOKEN_BURN_EVENT',
         title: '🔥 Gameplay Token Burn',
-        description: `Durch hohe Spielrunden wurden erneut viele $${symbol} Token verbrannt!`,
-        minImpact: 0.010,
-        maxImpact: 0.025,
+        description: `Durch hohe Spielrunden wurden $${symbol} Token verbrannt!`,
+        minImpact: 0.004,
+        maxImpact: 0.012,
       },
       {
         type: 'VOLATILITY_SPIKE',
         title: '📊 Handels-Volatilität',
         description: `Preisfindung und Orderbuch-Aktivität bei $${symbol}.`,
-        minImpact: -0.012,
-        maxImpact: 0.012,
+        minImpact: -0.005,
+        maxImpact: 0.005,
       },
       {
         type: 'VIRAL_TREND',
         title: '🚀 Arcade Highscore Trend',
         description: `Aktuelle Rekordjagd im Minigame verleiht $${symbol} Aufwind.`,
-        minImpact: 0.012,
-        maxImpact: 0.028,
+        minImpact: 0.005,
+        maxImpact: 0.014,
       },
     ];
 
@@ -340,7 +343,7 @@ async function triggerRandomMarketEvent(coins: any[]) {
       created_at: new Date(),
     });
 
-    console.log(`[Market Trigger Event]: ${template.title} on $${symbol} -> Impact: ${priceImpactPercent >= 0 ? '+' : ''}${priceImpactPercent}% (New Price: ${newPrice.toFixed(8)} $)`);
+    console.log(`[Market Trigger Event]: ${template.title} on $${symbol} -> Impact: ${priceImpactPercent >= 0 ? '+' : ''}${priceImpactPercent}%`);
   } catch (err) {
     console.error('[Market Event Trigger Error]:', err);
   }
@@ -348,10 +351,9 @@ async function triggerRandomMarketEvent(coins: any[]) {
 
 /**
  * Triggered on score submission.
- * Evaluates performance against the game's benchmark target score.
- * Benchmark score reached -> Positive stock impact!
- * Below benchmark score -> Small negative stock impact!
- * Equalizes Ingame$ payouts across games for fair gameplay rewards.
+ * Highscore & Gameplay Performance Effect:
+ * Realistic benchmark-relative logarithmic scaling.
+ * Supports collective community pushes through 1-hour volume velocity.
  */
 export async function recordGameplayVolume(gameId: string, score: number): Promise<{
   earnedCash: number;
@@ -365,7 +367,6 @@ export async function recordGameplayVolume(gameId: string, score: number): Promi
   priceChangePercent: number;
 }> {
   const cleanGameId = (gameId || '').toLowerCase().trim();
-  // Dynamically calculate benchmark metrics from actual SQL score stats
   const benchmark = await getDynamicGameBenchmark(cleanGameId);
 
   const targetScore = benchmark.targetScore;
@@ -373,12 +374,11 @@ export async function recordGameplayVolume(gameId: string, score: number): Promi
   const totalRoundsPlayed = benchmark.totalRoundsPlayed;
   const performanceRatio = score > 0 ? Math.round((score / targetScore) * 1000) / 1000 : 0;
 
-  // Balanced Ingame$ Cash Payout across games:
-  // Average performance ratio (1.0) yields 0.05 Game$ in ANY game.
+  // Balanced Ingame$ Cash Payout across games (average 1.0 yields ~0.05 Game$)
   let earnedCash = 0.0;
   if (score > 0) {
-    const rawCash = benchmark.basePayoutCash * performanceRatio;
-    earnedCash = Math.min(0.25, Math.max(0.0001, Math.round(rawCash * 10000) / 10000));
+    const rawCash = benchmark.basePayoutCash * Math.min(3.0, Math.pow(performanceRatio, 0.85));
+    earnedCash = Math.min(0.20, Math.max(0.0001, Math.round(rawCash * 10000) / 10000));
   }
 
   const coinMapping = GAME_COIN_MAP[cleanGameId];
@@ -403,7 +403,7 @@ export async function recordGameplayVolume(gameId: string, score: number): Promi
       return { earnedCash, targetScore, minScoreThreshold, totalRoundsPlayed, performanceRatio, isPositiveImpact: false, priceChangePercent: 0 };
     }
 
-    // Fetch 1-hour volume history to calculate hourly volume velocity
+    // Fetch 1-hour volume history to calculate community volume velocity
     const oneHourAgo = new Date(Date.now() - 3600 * 1000);
     const hourlyHistory = await db('market_price_history')
       .where({ coin_symbol: coinSymbol })
@@ -413,36 +413,40 @@ export async function recordGameplayVolume(gameId: string, score: number): Promi
     const total1hVolume = past1hVolume + score;
 
     let boostMultiplier = 1.0;
-    let activeMilestoneLabel = 'Standard 1h';
     for (const ms of HOURLY_MILESTONES) {
       if (total1hVolume >= ms.hourlyVolumeThreshold) {
         boostMultiplier = ms.boostMultiplier;
-        activeMilestoneLabel = ms.label;
       }
     }
 
-    const burnedTokens = Math.round((score * 0.002) * 100) / 100;
+    const burnedTokens = Math.round((score * 0.0005) * 100) / 100;
     const newSupply = Math.max(100, Number(coin.circulating_supply) - burnedTokens);
     const newTotalBurned = Number(coin.total_burned || 0) + burnedTokens;
     const newVolume24h = Math.round((Number(coin.volume_24h || 0) + score) * 100) / 100;
 
-    // Stock price effect based on dynamic score benchmark
-    // Score >= targetScore -> positive price gain (+0.1% to +2.5% * boostMultiplier)
-    // Score < targetScore -> small negative price drop (-0.05% to -0.30%)
-    let priceShiftPercent = 0.0;
+    // Realistic Score Impact Formula:
+    // Score >= benchmark: Diminishing logarithmic boost (+0.02% to +0.12% per round)
+    // Score < benchmark: Mild negative penalty (-0.01% to -0.04% per round)
     const isPositiveImpact = performanceRatio >= 1.0;
+    let priceShiftPercent = 0.0;
 
     if (isPositiveImpact) {
-      const baseGain = 0.001 + Math.min(0.025, (performanceRatio - 1.0) * 0.01);
+      // Sublinear logarithmic scaling prevents single-user score inflation
+      const baseGain = 0.00025 * Math.log(1 + 2 * performanceRatio);
       priceShiftPercent = baseGain * boostMultiplier;
     } else {
-      const penalty = 0.0005 + Math.min(0.0025, (1.0 - performanceRatio) * 0.002);
+      const penalty = 0.0002 * Math.pow(Math.max(0, 1.0 - performanceRatio), 1.2);
       priceShiftPercent = -penalty;
     }
 
-    const burnBoost = Math.pow(1 + (burnedTokens / Math.max(100000, newSupply)), 0.5);
+    // Liquidity Depth Resistance: As price grows relative to base price, resistance increases
+    const basePrice = Number(coin.base_price || coin.current_price);
     const currentPrice = Number(coin.current_price);
-    const rawPrice = currentPrice * (1 + priceShiftPercent) * burnBoost;
+    const priceElevation = Math.max(1.0, currentPrice / Math.max(1e-8, basePrice));
+    const liquidityResistance = Math.sqrt(priceElevation);
+
+    const effectiveShift = priceShiftPercent / liquidityResistance;
+    const rawPrice = currentPrice * (1 + effectiveShift);
     const newPrice = Math.max(0.00000001, Math.round(rawPrice * 1e12) / 1e12);
 
     const priceChangePercent = Math.round(((newPrice - currentPrice) / currentPrice) * 10000) / 100;
@@ -465,8 +469,8 @@ export async function recordGameplayVolume(gameId: string, score: number): Promi
       timestamp: new Date(),
     });
 
-    // Record real player gameplay event in market_events table
-    if (Math.abs(priceChangePercent) >= 0.05) {
+    // Record significant market event
+    if (Math.abs(priceChangePercent) >= 0.08) {
       const eventTitle = isPositiveImpact ? '🔥 Highscore Token Burn' : '📉 Score Unter Benchmark';
       const eventDesc = isPositiveImpact
         ? `Ein Spieler hat ${score.toLocaleString()} Punkte erzielt und $${coinSymbol} Token verbrannt!`
@@ -482,21 +486,19 @@ export async function recordGameplayVolume(gameId: string, score: number): Promi
       });
     }
 
-    console.log(`[Market Engine]: Score ${score} vs Dynamic Benchmark ${targetScore} (${(performanceRatio * 100).toFixed(0)}%) -> $${coinSymbol} Price: ${newPrice.toFixed(8)} $ (${priceChangePercent >= 0 ? '+' : ''}${priceChangePercent.toFixed(2)}%), Earned: ${earnedCash.toFixed(4)} Game$ (${activeMilestoneLabel})`);
-    
     return {
       earnedCash,
       newPrice,
       burned: burnedTokens,
       targetScore,
       minScoreThreshold,
-      totalRoundsPlayed,
+      totalRoundsPlayed: totalRoundsPlayed + 1,
       performanceRatio,
       isPositiveImpact,
       priceChangePercent,
     };
   } catch (err) {
-    console.error(`[Market Engine ERROR]: Failed to record gameplay volume for ${gameId}:`, err);
+    console.error(`[Market Engine]: Error recording gameplay volume:`, err);
     return { earnedCash, targetScore, minScoreThreshold, totalRoundsPlayed, performanceRatio, isPositiveImpact: false, priceChangePercent: 0 };
   }
 }
@@ -607,6 +609,11 @@ export async function getMarketOverview(userId: string) {
 /**
  * Fetch OHLC Candlesticks for charting supporting timeframes: 30m (default), 60m, 12h, 24h
  */
+/**
+ * Fetch OHLC Candlesticks for charting supporting timeframes: 30m (default), 60m, 12h, 24h
+ * Uses deterministic fixed time-bucket grouping so past closed candles NEVER mutate.
+ * Only the latest open candle updates live.
+ */
 export async function getCoinChart(coinSymbol: string, timeframe: string = '30m'): Promise<CandlePoint[]> {
   const cleanSymbol = coinSymbol.replace('$', '').toUpperCase();
   const coin = await db('market_coins').where({ symbol: cleanSymbol }).first();
@@ -621,49 +628,75 @@ export async function getCoinChart(coinSymbol: string, timeframe: string = '30m'
   const candleCount = 24;
   const candleSpanMs = (timeframeMinutes * 60 * 1000) / candleCount;
   const now = Date.now();
-  const timeframeStart = new Date(now - timeframeMinutes * 60 * 1000);
+  const currentBucketIndex = Math.floor(now / candleSpanMs);
+  const oldestBucketStartTime = (currentBucketIndex - candleCount + 1) * candleSpanMs;
 
   const history = await db('market_price_history')
     .where({ coin_symbol: cleanSymbol })
-    .where('timestamp', '>=', timeframeStart)
+    .where('timestamp', '>=', new Date(oldestBucketStartTime - candleSpanMs * 2))
     .orderBy('timestamp', 'asc');
+
+  let lastKnownPrice = currentPrice;
+  if (history.length > 0) {
+    lastKnownPrice = Number(history[0].price);
+  }
+
+  // Pre-sort history into discrete, fixed time buckets
+  const bucketMap = new Map<number, Array<{ price: number; volume: number; timestamp: number }>>();
+
+  for (const h of history) {
+    const ts = new Date(h.timestamp).getTime();
+    if (ts < oldestBucketStartTime) {
+      lastKnownPrice = Number(h.price);
+      continue;
+    }
+    const bIndex = Math.floor(ts / candleSpanMs);
+    if (!bucketMap.has(bIndex)) {
+      bucketMap.set(bIndex, []);
+    }
+    bucketMap.get(bIndex)!.push({
+      price: Number(h.price),
+      volume: Number(h.volume || 0),
+      timestamp: ts,
+    });
+  }
 
   const candles: CandlePoint[] = [];
 
-  if (!history || history.length < 5) {
-    for (let i = candleCount - 1; i >= 0; i--) {
-      const timeOffset = i * candleSpanMs;
+  for (let i = 0; i < candleCount; i++) {
+    const bucketIndex = currentBucketIndex - candleCount + 1 + i;
+    const bucketStartTime = bucketIndex * candleSpanMs;
+    const isCurrentActiveCandle = i === candleCount - 1;
 
-      candles.push({
-        open: Math.round(currentPrice * 1e12) / 1e12,
-        high: Math.round(currentPrice * 1e12) / 1e12,
-        low: Math.round(currentPrice * 1e12) / 1e12,
-        close: Math.round(currentPrice * 1e12) / 1e12,
-        volume: 0,
-        timestamp: new Date(now - timeOffset).toISOString(),
-        isBullish: true,
-      });
+    const points = bucketMap.get(bucketIndex);
+
+    let open: number;
+    let high: number;
+    let low: number;
+    let close: number;
+    let volume = 0;
+
+    if (points && points.length > 0) {
+      open = points[0].price;
+      close = points[points.length - 1].price;
+      high = Math.max(...points.map((p) => p.price));
+      low = Math.min(...points.map((p) => p.price));
+      volume = points.reduce((sum, p) => sum + p.volume, 0);
+      lastKnownPrice = close;
+    } else {
+      open = lastKnownPrice;
+      high = lastKnownPrice;
+      low = lastKnownPrice;
+      close = lastKnownPrice;
+      volume = 0;
     }
-    return candles;
-  }
 
-  // Aggregate raw DB points into candles
-  const totalPoints = history.length;
-  const chunkSize = Math.max(1, Math.floor(totalPoints / candleCount));
-
-  for (let i = 0; i < totalPoints; i += chunkSize) {
-    const chunk = history.slice(i, i + chunkSize);
-    if (chunk.length === 0) continue;
-
-    const prices = chunk.map((h: any) => Number(h.price));
-    const open = prices[0];
-    const close = prices[prices.length - 1];
-    const high = Math.max(...prices);
-    const low = Math.min(...prices);
-    const volume = chunk.reduce((sum: number, h: any) => sum + Number(h.volume || 0), 0);
-    const timestamp = typeof chunk[chunk.length - 1].timestamp === 'string'
-      ? chunk[chunk.length - 1].timestamp
-      : new Date(chunk[chunk.length - 1].timestamp).toISOString();
+    if (isCurrentActiveCandle) {
+      // Live active unclosed candle incorporates the real-time ticker price
+      close = currentPrice;
+      high = Math.max(high, currentPrice);
+      low = Math.min(low, currentPrice);
+    }
 
     candles.push({
       open: Math.round(open * 1e12) / 1e12,
@@ -671,31 +704,20 @@ export async function getCoinChart(coinSymbol: string, timeframe: string = '30m'
       low: Math.round(low * 1e12) / 1e12,
       close: Math.round(close * 1e12) / 1e12,
       volume: Math.round(volume),
-      timestamp,
+      timestamp: new Date(bucketStartTime).toISOString(),
       isBullish: close >= open,
     });
-  }
-
-  if (candles.length > 0) {
-    const lastCandle = candles[candles.length - 1];
-    lastCandle.close = currentPrice;
-    lastCandle.high = Math.max(lastCandle.high, currentPrice);
-    lastCandle.low = Math.min(lastCandle.low, currentPrice);
-    lastCandle.isBullish = lastCandle.close >= lastCandle.open;
   }
 
   return candles;
 }
 
 /**
- * Atomic Buy/Sell Order Execution with Gas Fee calculation & Real Market Price Impact.
+ * Atomic Buy/Sell Order Execution with Gas Fee calculation & Balanced AMM Price Impact.
  *
- * Price impact model (√-scaled, realistic for small-cap crypto):
- *   BUY  → +impact%  where impact = sqrt(cashSpent)  × 0.025   → capped at +15%
- *   SELL → -impact%  where impact = sqrt(grossCash)  × 0.035   → capped at -30%
- *
- * Larger trades cause proportionally MORE impact (whale behaviour), but the square-root
- * dampens it so it doesn't go vertical — exactly like real thin-orderbook markets.
+ * Constant Product AMM Slippage:
+ *   Impact = Amount / (VirtualLiquidityDepth + Amount) * MaxSlippageFactor
+ *   Virtual liquidity depth = 50.00 Game$
  */
 export async function executeMarketTrade(
   userId: string,
@@ -711,8 +733,6 @@ export async function executeMarketTrade(
 
   markCoinActivity(symbol);
 
-  // NOTE: SQLite does not support row-level FOR UPDATE locks.
-  // We rely on the SQLite transaction (DEFERRED) for atomicity instead.
   const result = await db.transaction(async (trx) => {
     const user = await trx('users').where({ id: userId }).first();
     if (!user) throw new Error('Benutzerkonto nicht gefunden.');
@@ -724,9 +744,9 @@ export async function executeMarketTrade(
     if (!currentPrice || currentPrice <= 0) throw new Error('Ungültiger Kurs – bitte kurz warten und erneut versuchen.');
 
     const userCash = Number(user.game_cash || 0);
+    const virtualLiquidity = 50.0; // 50 Game$ AMM Depth
 
     if (tradeType === 'BUY') {
-      // amountInput = Game$ to spend
       const cashToSpend = amountInput;
       const gasFee = Math.max(0.0001, Math.round((0.0005 + cashToSpend * 0.001) * 10000) / 10000);
       const totalRequiredCash = Math.round((cashToSpend + gasFee) * 10000) / 10000;
@@ -740,9 +760,8 @@ export async function executeMarketTrade(
       const tokensAcquired = Math.round((cashToSpend / currentPrice) * 1000000) / 1000000;
       if (tokensAcquired <= 0) throw new Error('Kaufbetrag zu gering – bitte größeren Betrag eingeben.');
 
-      // BUY price impact: √(cashSpent) × 0.025, capped at +15%
-      const rawImpact = Math.sqrt(cashToSpend) * 0.025;
-      const priceImpact = Math.min(0.15, rawImpact);
+      // Realistic AMM Buy Slippage: Amount / (Depth + Amount) * 0.08
+      const priceImpact = (cashToSpend / (virtualLiquidity + cashToSpend)) * 0.08;
       const newPrice = Math.max(0.00000001, Math.round((currentPrice * (1 + priceImpact)) * 1e12) / 1e12);
 
       await trx('users').where({ id: userId }).update({ game_cash: Math.round((userCash - totalRequiredCash) * 10000) / 10000 });
@@ -814,7 +833,6 @@ export async function executeMarketTrade(
       };
 
     } else {
-      // SELL: amountInput = token count to sell
       const tokensToSell = amountInput;
 
       const portfolio = await trx('user_portfolios').where({ user_id: userId, coin_symbol: symbol }).first();
@@ -829,10 +847,7 @@ export async function executeMarketTrade(
         );
       }
 
-      // Sell exactly what they have if the difference is rounding dust
       const actualSell = Math.min(tokensToSell, currentTokenBalance);
-
-      // Precise gross cash using full floating-point price
       const grossCash = Math.round(actualSell * currentPrice * 10000) / 10000;
       if (grossCash < 0.00001) {
         throw new Error('Der Verkaufswert ist zu gering (unter dem Mindestbetrag). Bitte größere Menge wählen.');
@@ -841,11 +856,8 @@ export async function executeMarketTrade(
       const gasFee = Math.max(0.0001, Math.round((0.0005 + grossCash * 0.001) * 10000) / 10000);
       const netCashReceived = Math.max(0, Math.round((grossCash - gasFee) * 10000) / 10000);
 
-      // SELL price impact: √(grossCash) × 0.035, capped at -30%
-      // A whale selling 10 Game$ worth → √10 × 0.035 ≈ 11% drop
-      // A small sell of 0.01 Game$ worth → √0.01 × 0.035 ≈ 0.35% drop  
-      const rawImpact = Math.sqrt(grossCash) * 0.035;
-      const priceImpact = Math.min(0.30, rawImpact);
+      // Realistic AMM Sell Slippage: Amount / (Depth + Amount) * 0.08
+      const priceImpact = (grossCash / (virtualLiquidity + grossCash)) * 0.08;
       const newPrice = Math.max(0.00000001, Math.round((currentPrice * (1 - priceImpact)) * 1e12) / 1e12);
 
       await trx('users').where({ id: userId }).update({
