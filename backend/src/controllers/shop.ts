@@ -148,7 +148,7 @@ export async function fulfillProductOrder(userId: string, productId: string, ord
  */
 function verifyWalletSignature(req: Request): boolean {
   const signature = req.headers['x-pure-wallet-signature'] as string;
-  if (!signature) return false;
+  if (!signature || typeof signature !== 'string') return false;
 
   const bodyStr = JSON.stringify(req.body);
   const expected = crypto
@@ -156,7 +156,11 @@ function verifyWalletSignature(req: Request): boolean {
     .update(bodyStr)
     .digest('hex');
 
-  return crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected));
+  const sigBuf = Buffer.from(signature);
+  const expBuf = Buffer.from(expected);
+  if (sigBuf.length !== expBuf.length) return false;
+
+  return crypto.timingSafeEqual(sigBuf, expBuf);
 }
 
 // ============================================================================
@@ -426,6 +430,11 @@ export async function pushAddressPool(req: Request, res: Response) {
       return res.status(400).json({ error: 'addresses array is required' });
     }
 
+    // Clear existing unused pool addresses for this coin so obsolete/seed addresses don't linger
+    await db('wallet_address_pool')
+      .where({ coin: coinCode, is_used: false })
+      .delete();
+
     let added = 0;
     for (const addr of addresses) {
       try {
@@ -437,14 +446,17 @@ export async function pushAddressPool(req: Request, res: Response) {
             is_used: false,
           })
           .onConflict('address')
-          .ignore();
+          .merge({
+            address_index: addr.index,
+            is_used: false,
+          });
         added++;
       } catch (err) {
         // Ignored
       }
     }
 
-    console.log(`[Shop] Pool sync complete. Loaded addresses for ${coinCode}.`);
+    console.log(`[Shop] Pool sync complete. Loaded ${added} active addresses for ${coinCode}.`);
 
     return res.json({ success: true, count: addresses.length });
   } catch (error) {

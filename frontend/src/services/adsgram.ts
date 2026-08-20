@@ -35,11 +35,13 @@ export async function showRewardedAd(): Promise<ShowAdResponse> {
     };
   }
 
+  const isDebug = Boolean(import.meta.env.DEV) || import.meta.env.VITE_ADSGRAM_DEBUG === 'true';
+
   return new Promise((resolve) => {
     try {
       const AdController = adsgram.init({
         blockId,
-        debug: Boolean(import.meta.env.DEV),
+        debug: isDebug,
       });
 
       AdController.show()

@@ -1,11 +1,19 @@
 import axios from 'axios';
 
+const rateCache: Record<string, { rate: number; expiresAt: number }> = {};
+const RATE_CACHE_TTL_MS = 60 * 1000; // 60 seconds
+
 /**
  * Fetches the current coin exchange rate in EUR.
- * Supports LTC, BTC, ETH, SOL. Safe bulletproof fallbacks.
+ * Supports LTC, BTC, ETH, SOL. Safe bulletproof fallbacks with 60s in-memory caching.
  */
 export async function getCoinEurRate(coin: string): Promise<number> {
   const coinCode = (coin || 'LTC').toUpperCase();
+  const now = Date.now();
+
+  if (rateCache[coinCode] && rateCache[coinCode].expiresAt > now) {
+    return rateCache[coinCode].rate;
+  }
   
   const fallbacks: Record<string, number> = { 
     LTC: 70.0, 
@@ -36,6 +44,7 @@ export async function getCoinEurRate(coin: string): Promise<number> {
     const res = await axios.get(`https://api.coingecko.com/api/v3/simple/price?ids=${coingeckoId}&vs_currencies=eur`, { timeout: 3000 });
     const fetched = Number(res.data?.[coingeckoId]?.eur);
     if (fetched && !isNaN(fetched) && fetched > 0) {
+      rateCache[coinCode] = { rate: fetched, expiresAt: now + RATE_CACHE_TTL_MS };
       return fetched;
     }
   } catch (err: any) {
@@ -47,6 +56,7 @@ export async function getCoinEurRate(coin: string): Promise<number> {
     const res = await axios.get(`https://api.binance.com/api/v3/ticker/price?symbol=${binanceSymbol}`, { timeout: 3000 });
     const fetched = parseFloat(res.data?.price);
     if (fetched && !isNaN(fetched) && fetched > 0) {
+      rateCache[coinCode] = { rate: fetched, expiresAt: now + RATE_CACHE_TTL_MS };
       return fetched;
     }
   } catch (err: any) {
@@ -54,5 +64,7 @@ export async function getCoinEurRate(coin: string): Promise<number> {
   }
 
   // 3. Hardcoded safe fallbacks
-  return fallbacks[coinCode] || 70.0;
+  const fallbackVal = fallbacks[coinCode] || 70.0;
+  rateCache[coinCode] = { rate: fallbackVal, expiresAt: now + RATE_CACHE_TTL_MS };
+  return fallbackVal;
 }
