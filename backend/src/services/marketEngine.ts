@@ -713,7 +713,7 @@ export async function executeMarketTrade(
 
   // NOTE: SQLite does not support row-level FOR UPDATE locks.
   // We rely on the SQLite transaction (DEFERRED) for atomicity instead.
-  return await db.transaction(async (trx) => {
+  const result = await db.transaction(async (trx) => {
     const user = await trx('users').where({ id: userId }).first();
     if (!user) throw new Error('Benutzerkonto nicht gefunden.');
 
@@ -895,13 +895,10 @@ export async function executeMarketTrade(
         created_at: new Date(),
       });
 
-      // Record realized profit for season stats
+      // Calculate realized profit for season stats
       const avgBuyPrice = Number(portfolio?.avg_buy_price || currentPrice);
       const costBasis = actualSell * avgBuyPrice;
       const netTradeProfit = grossCash - costBasis - gasFee;
-      if (netTradeProfit > 0) {
-        await recordUserMarketProfit(userId, netTradeProfit);
-      }
 
       console.log(
         `[Market Trade SELL]: ${actualSell.toLocaleString('de-DE')} $${symbol} → ${grossCash.toFixed(6)} Game$ gross, -${(priceImpact * 100).toFixed(2)}% impact, Net: ${netCashReceived.toFixed(4)} Game$. New Price: ${newPrice.toFixed(10)} $`
@@ -916,8 +913,20 @@ export async function executeMarketTrade(
         priceImpactPercent: sellImpactPercent,
         newCashBalance: Math.round((userCash + netCashReceived) * 10000) / 10000,
         newPrice,
+        netTradeProfit: netTradeProfit > 0 ? netTradeProfit : 0,
       };
     }
   });
+
+  // Record realized profit for season stats outside the transaction
+  if (result && result.tradeType === 'SELL' && (result as any).netTradeProfit > 0) {
+    try {
+      await recordUserMarketProfit(userId, (result as any).netTradeProfit);
+    } catch (e: any) {
+      console.warn('[Market Trade]: Could not record season market profit:', e.message);
+    }
+  }
+
+  return result;
 }
 

@@ -12,19 +12,27 @@ export async function up(knex: Knex): Promise<void> {
     const hasRevenueShare = await knex.schema.hasColumn('seasons', 'revenue_share_percent');
     const hasSeasonNumber = await knex.schema.hasColumn('seasons', 'season_number');
 
+    const hasDurationDays = await knex.schema.hasColumn('seasons', 'duration_days');
+    const hasTop10Share = await knex.schema.hasColumn('seasons', 'top10_share_percent');
+    const hasActive20Share = await knex.schema.hasColumn('seasons', 'active20_share_percent');
+    const hasRandomShare = await knex.schema.hasColumn('seasons', 'random_share_percent');
+    const hasStartedAt = await knex.schema.hasColumn('seasons', 'started_at');
+    const hasSettledAt = await knex.schema.hasColumn('seasons', 'settled_at');
+    const hasUpdatedAt = await knex.schema.hasColumn('seasons', 'updated_at');
+
     await knex.schema.alterTable('seasons', (table) => {
       if (!hasSeasonNumber) table.integer('season_number').defaultTo(0);
       if (!hasStatus) table.string('status').defaultTo('preparing'); // 'preparing', 'active', 'ended', 'settled'
       if (!hasTargetAmount) table.decimal('target_amount', 10, 2).defaultTo(1000.00);
       if (!hasCurrentPot) table.decimal('current_pot', 10, 2).defaultTo(0.00);
       if (!hasRevenueShare) table.decimal('revenue_share_percent', 5, 2).defaultTo(30.00);
-      table.integer('duration_days').defaultTo(30);
-      table.decimal('top10_share_percent', 5, 2).defaultTo(60.00);
-      table.decimal('active20_share_percent', 5, 2).defaultTo(20.00);
-      table.decimal('random_share_percent', 5, 2).defaultTo(20.00);
-      table.timestamp('started_at').nullable();
-      table.timestamp('settled_at').nullable();
-      table.timestamp('updated_at').nullable();
+      if (!hasDurationDays) table.integer('duration_days').defaultTo(30);
+      if (!hasTop10Share) table.decimal('top10_share_percent', 5, 2).defaultTo(60.00);
+      if (!hasActive20Share) table.decimal('active20_share_percent', 5, 2).defaultTo(20.00);
+      if (!hasRandomShare) table.decimal('random_share_percent', 5, 2).defaultTo(20.00);
+      if (!hasStartedAt) table.timestamp('started_at').nullable();
+      if (!hasSettledAt) table.timestamp('settled_at').nullable();
+      if (!hasUpdatedAt) table.timestamp('updated_at').nullable();
     });
   } else {
     await knex.schema.createTable('seasons', (table) => {

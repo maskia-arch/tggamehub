@@ -2,37 +2,41 @@ import type { Knex } from 'knex';
 
 export async function up(knex: Knex): Promise<void> {
   // Create Wallet Address Pool Table
-  await knex.schema.createTable('wallet_address_pool', (table) => {
-    table.increments('id').primary();
-    table.string('coin').notNullable();
-    table.string('address').notNullable().unique();
-    table.integer('address_index').notNullable();
-    table.boolean('is_used').defaultTo(false);
-    table.timestamp('created_at').defaultTo(knex.fn.now());
+  if (!(await knex.schema.hasTable('wallet_address_pool'))) {
+    await knex.schema.createTable('wallet_address_pool', (table) => {
+      table.increments('id').primary();
+      table.string('coin').notNullable();
+      table.string('address').notNullable().unique();
+      table.integer('address_index').notNullable();
+      table.boolean('is_used').defaultTo(false);
+      table.timestamp('created_at').defaultTo(knex.fn.now());
 
-    table.index(['coin']);
-    table.index(['address']);
-    table.index(['is_used']);
-  });
+      table.index(['coin']);
+      table.index(['address']);
+      table.index(['is_used']);
+    });
+  }
 
   // Create Shop Orders Table
-  await knex.schema.createTable('shop_orders', (table) => {
-    table.string('id').primary(); // Unique order ID (e.g. order_12345)
-    table.string('user_id').notNullable().references('id').inTable('users').onDelete('CASCADE');
-    table.string('product_id').notNullable();
-    table.decimal('amount_eur', 10, 2).notNullable();
-    table.decimal('amount_crypto', 18, 8).notNullable();
-    table.string('coin').notNullable();
-    table.string('address').notNullable().references('address').inTable('wallet_address_pool').onDelete('RESTRICT');
-    table.string('status').defaultTo('pending'); // 'pending', 'paid', 'partially_paid', 'expired', 'detected'
-    table.timestamp('expires_at').notNullable();
-    table.timestamp('created_at').defaultTo(knex.fn.now());
-    table.timestamp('paid_at').nullable();
+  if (!(await knex.schema.hasTable('shop_orders'))) {
+    await knex.schema.createTable('shop_orders', (table) => {
+      table.string('id').primary(); // Unique order ID (e.g. order_12345)
+      table.string('user_id').notNullable();
+      table.string('product_id').notNullable();
+      table.decimal('amount_eur', 10, 2).notNullable();
+      table.decimal('amount_crypto', 18, 8).notNullable();
+      table.string('coin').notNullable();
+      table.string('address').notNullable();
+      table.string('status').defaultTo('pending'); // 'pending', 'paid', 'partially_paid', 'expired', 'detected'
+      table.timestamp('expires_at').notNullable();
+      table.timestamp('created_at').defaultTo(knex.fn.now());
+      table.timestamp('paid_at').nullable();
 
-    table.index(['user_id']);
-    table.index(['address']);
-    table.index(['status']);
-  });
+      table.index(['user_id']);
+      table.index(['address']);
+      table.index(['status']);
+    });
+  }
 
   // Seed initial pre-derived HD fallback addresses per coin to guarantee 100% offline checkout availability
   const initialPool = [
