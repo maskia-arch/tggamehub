@@ -1,0 +1,79 @@
+# ==========================================
+# TG GAME HUB - Comprehensive .gitignore
+# ==========================================
+
+# 1. Environment & Credentials
+.env
+.env.*
+!.env.example
+!.env.*.example
+*.pem
+*.key
+*.crt
+*.pfx
+*.p12
+*.asc
+*.keystore
+id_rsa*
+id_ed25519*
+
+# 2. Database & Local Storage Files
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+*.sqlite-wal
+*.sqlite-shm
+local.db
+wallet.db
+tggamehub_wallet.db
+
+# 3. Pure Wallet & Private Key Isolation
+pure-wallet/
+hub-wallet/
+wallet/
+data/
+keys/
+*.seed
+*.mnemonic
+
+# 4. Dependencies & Packages
+node_modules/
+**/node_modules/
+jspm_packages/
+web_stage/
+.pnpm-store/
+
+# 5. Build & Compilation Output
+dist/
+**/dist/
+build/
+**/build/
+out/
+**/out/
+.vite/
+*.tsbuildinfo
+
+# 6. Logs & Debug Output
+*.log
+**/logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# 7. OS & IDE Metadata
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+*.swo

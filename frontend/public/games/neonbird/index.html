@@ -1,0 +1,984 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Neon Bird: Cyber Hub</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800;900&display=swap" rel="stylesheet">
+  <style>
+    html, body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      background: radial-gradient(circle, #0e1326 0%, #05070f 100%);
+      color: #fff;
+      font-family: 'Outfit', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      overflow: hidden;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    #gameContainer {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      max-width: 480px;
+      background-color: #05070f;
+      overflow: hidden;
+      margin: 0 auto;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      background: transparent;
+    }
+
+    /* Screen overlays */
+    .overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: rgba(5, 7, 15, 0.85);
+      backdrop-filter: blur(12px);
+      z-index: 10;
+      text-align: center;
+      padding: 24px;
+      box-sizing: border-box;
+      transition: opacity 0.3s ease;
+    }
+
+    h1 {
+      margin: 0 0 10px 0;
+      font-size: 32px;
+      font-weight: 900;
+      background: linear-gradient(135deg, #00f2fe 0%, #4facfe 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      letter-spacing: -0.5px;
+      text-shadow: 0 0 20px rgba(0, 242, 254, 0.3);
+    }
+
+    p {
+      font-size: 13px;
+      color: #9ca3af;
+      margin: 0 0 30px 0;
+      line-height: 1.6;
+      max-width: 280px;
+    }
+
+    .btn {
+      background: linear-gradient(135deg, #00f2fe 0%, #4facfe 100%);
+      border: none;
+      color: #000;
+      font-size: 14px;
+      font-weight: 800;
+      padding: 14px 34px;
+      border-radius: 14px;
+      cursor: pointer;
+      box-shadow: 0 0 20px rgba(0, 242, 254, 0.4);
+      transition: all 0.2s ease;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+    }
+
+    .btn:active {
+      transform: scale(0.95);
+      box-shadow: 0 0 5px rgba(0, 242, 254, 0.2);
+    }
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: #dfdfdf;
+      box-shadow: none;
+      margin-top: 12px;
+    }
+
+    .btn-secondary:active {
+      background: rgba(255, 255, 255, 0.1);
+      color: #fff;
+    }
+
+    .score-label {
+      font-size: 13px;
+      color: #9ca3af;
+      margin-bottom: 5px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .score-value {
+      font-size: 46px;
+      font-weight: 900;
+      color: #ff007f;
+      text-shadow: 0 0 20px rgba(255, 0, 127, 0.5);
+      margin-bottom: 30px;
+    }
+
+    .controls-guide {
+      display: flex;
+      justify-content: space-around;
+      width: 100%;
+      margin-bottom: 35px;
+      font-size: 11px;
+      color: #6b7280;
+    }
+
+    .guide-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .key-cap {
+      background: rgba(255, 255, 255, 0.07);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 8px;
+      padding: 6px 12px;
+      font-family: monospace;
+      font-weight: bold;
+      color: #f3f4f6;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.5);
+    }
+
+    /* Sound & Music Controls */
+    .audio-controls {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      z-index: 50;
+      display: flex;
+      gap: 8px;
+    }
+
+    .audio-btn {
+      background: rgba(5, 7, 15, 0.7);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: #fff;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 15px;
+      backdrop-filter: blur(5px);
+      transition: all 0.2s;
+      user-select: none;
+      position: relative;
+    }
+
+    .audio-btn:active {
+      transform: scale(0.9);
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    .audio-btn.muted {
+      opacity: 0.55;
+      border-color: rgba(255, 0, 127, 0.3);
+      color: #9ca3af;
+    }
+
+    .audio-btn.muted::after {
+      content: '';
+      position: absolute;
+      width: 22px;
+      height: 2px;
+      background: #ff007f;
+      transform: rotate(45deg);
+      border-radius: 2px;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="gameContainer">
+    <!-- Start Screen Overlay -->
+    <div id="startScreen" class="overlay">
+      <div style="font-size: 40px; margin-bottom: 5px;">🐦⚡</div>
+      <h1>Neon Bird</h1>
+      <p>Fliege sicher durch die leuchtenden Neon-Rohre. Weiche Hindernissen aus und jage den Highscore!</p>
+      
+      <div class="controls-guide">
+        <div class="guide-item">
+          <span class="key-cap">LEERTASTE / ◀</span>
+          <span>Steuerung (Tastatur)</span>
+        </div>
+        <div class="guide-item">
+          <span class="key-cap">Tippen</span>
+          <span>Steuerung (Touch/Maus)</span>
+        </div>
+      </div>
+
+      <button class="btn" id="startBtn">Flug starten</button>
+    </div>
+
+    <!-- Game Over Screen Overlay -->
+    <div id="gameOverScreen" class="overlay" style="display: none;">
+      <h1 style="color: #ff007f; text-shadow: 0 0 20px rgba(255, 0, 127, 0.4);">Abgestürzt</h1>
+      <div class="score-label">Überstandene Rohre:</div>
+      <div class="score-value" id="finalScore">0</div>
+      
+      <button class="btn" id="retryBtn">Nochmal spielen</button>
+      <button class="btn btn-secondary" id="backMenuBtn">Spiel verlassen</button>
+    </div>
+
+    <!-- Audio controls (SFX & Music separate) -->
+    <div class="audio-controls">
+      <button id="sfxBtn" class="audio-btn" title="Soundeffekte (S)">🔊</button>
+      <button id="musicBtn" class="audio-btn" title="Musik (M)">🎵</button>
+    </div>
+
+    <!-- Game Canvas -->
+    <canvas id="gameCanvas" width="360" height="550"></canvas>
+  </div>
+
+  <!-- Compressed Gymnopedie No 1 Notes (MIDI mapped note sequence) -->
+  <script>
+    const GYMNOPEDIE_NOTES = [[43,0,2.571],[66,0.857,1.714],[62,0.857,1.714],[59,0.857,1.714],[38,2.571,2.571],[66,3.429,1.714],[61,3.429,1.714],[57,3.429,1.714],[43,5.143,2.571],[66,6,1.714],[62,6,1.714],[59,6,1.714],[38,7.714,2.571],[66,8.571,1.714],[61,8.571,1.714],[57,8.571,1.714],[43,10.286,2.571],[78,11.143,0.857],[66,11.143,1.714],[62,11.143,1.714],[59,11.143,1.714],[81,12,0.857],[79,12.857,0.857],[38,12.857,2.571],[78,13.714,0.857],[66,13.714,1.714],[61,13.714,1.714],[57,13.714,1.714],[73,14.571,0.857],[71,15.429,0.857],[43,15.429,2.571],[73,16.286,0.857],[66,16.286,1.714],[62,16.286,1.714],[59,16.286,1.714],[74,17.143,0.857],[69,18,2.357],[38,18,2.571],[61,18.857,1.714],[57,18.857,1.714],[43,20.571,2.571],[66,21.429,1.714],[62,21.429,1.714],[59,21.429,1.714],[38,23.143,2.571],[66,24,1.714],[61,24,1.714],[57,24,1.714],[43,25.714,2.571],[66,26.571,1.714],[62,26.571,1.714],[59,26.571,1.714],[38,28.286,2.571],[66,29.143,1.714],[61,29.143,1.714],[57,29.143,1.714],[43,30.857,2.571],[78,31.714,0.857],[66,31.714,1.714],[62,31.714,1.714],[59,31.714,1.714],[81,32.571,0.857],[79,33.429,0.857],[38,33.429,2.571],[78,34.286,0.857],[66,34.286,1.714],[61,34.286,1.714],[57,34.286,1.714],[73,35.143,0.857],[71,36,0.857],[43,36,2.571],[73,36.857,0.857],[66,36.857,1.714],[62,36.857,1.714],[59,36.857,1.714],[74,37.714,0.857],[69,38.571,2.571],[38,38.571,2.571],[66,39.429,1.714],[61,39.429,1.714],[57,39.429,1.714],[73,41.143,2.571],[42,41.143,2.571],[66,42,1.714],[61,42,1.714],[57,42,1.714],[78,43.714,2.571],[35,43.714,2.571],[66,44.571,1.714],[62,44.571,1.714],[59,44.571,1.714],[40,46.286,2.571],[64,46.286,7.286],[59,47.143,1.714],[55,47.143,1.714],[40,48.857,2.571],[67,49.714,1.714],[62,49.714,1.714],[59,49.714,1.714],[38,51.429,2.571],[62,52.286,1.714],[57,52.286,1.714],[53,52.286,1.714],[69,54,0.857],[33,54,2.571],[71,54.857,0.857],[64,54.857,1.714],[60,54.857,1.714],[57,54.857,1.714],[72,55.714,0.857],[76,56.571,0.857],[38,56.571,2.571],[74,57.429,0.857],[64,57.429,1.714],[59,57.429,1.714],[55,57.429,1.714],[71,58.286,0.857],[74,59.143,0.857],[38,59.143,2.571],[72,60,0.857],[64,60,1.714],[59,60,1.714],[55,60,1.714],[50,60,1.714],[71,60.857,0.857],[38,61.714,2.571],[74,61.714,4.071],[62,62.571,1.714],[57,62.571,1.714],[52,62.571,1.714],[48,62.571,1.714],[38,64.286,2.571],[62,65.143,1.714],[57,65.143,1.714],[54,65.143,1.714],[48,65.143,1.714],[74,66,0.857],[76,66.857,0.857],[38,66.857,2.571],[77,67.714,0.857],[65,67.714,1.714],[60,67.714,1.714],[57,67.714,1.714],[79,68.571,0.857],[81,69.429,0.857],[38,69.429,2.571],[72,70.286,0.857],[64,70.286,1.714],[60,70.286,1.714],[57,70.286,1.714],[74,71.143,0.857],[76,72,0.857],[38,72,2.571],[74,72.857,0.857],[64,72.857,1.714],[59,72.857,1.714],[55,72.857,1.714],[50,72.857,1.714],[71,73.714,0.857],[38,74.571,2.571],[74,74.571,4.071],[62,75.428,1.714],[57,75.428,1.714],[52,75.428,1.714],[48,75.428,1.714],[38,77.143,2.571],[62,78,1.714],[57,78,1.714],[54,78,1.714],[48,78,1.714],[74,78.857,0.857],[79,79.714,2.571],[40,79.714,2.571],[67,80.571,1.714],[64,80.571,1.714],[59,80.571,1.714],[78,82.286,2.571],[42,82.286,2.571],[66,83.143,1.714],[61,83.143,1.714],[57,83.143,1.714],[71,84.857,0.857],[35,84.857,2.571],[69,85.714,0.857],[66,85.714,1.714],[62,85.714,1.714],[59,85.714,1.714],[71,86.571,0.857],[73,87.428,0.857],[40,87.428,2.571],[74,88.286,0.857],[69,88.286,1.714],[64,88.286,1.714],[61,88.286,1.714],[76,89.143,0.857],[73,90,0.857],[40,90,2.571],[74,90.857,0.857],[69,90.857,1.714],[61,90.857,1.714],[57,90.857,1.714],[76,91.714,0.857],[66,92.571,1.714],[40,92.571,2.571],[62,93.428,0.857],[57,93.428,0.857],[47,93.428,0.857],[67,94.286,0.857],[62,94.286,0.857],[59,94.286,0.857],[52,94.286,0.857],[72,95.143,2.357],[55,95.143,2.571],[45,95.143,2.571],[69,95.143,2.571],[64,95.143,2.571],[60,95.143,2.571],[50,97.714,2.571],[45,97.714,2.571],[38,97.714,2.571],[69,97.714,2.571],[66,97.714,2.571],[62,97.714,2.571],[74,97.714,2.571],[43,100.286,2.571],[66,101.143,1.714],[62,101.143,1.714],[59,101.143,1.714],[38,102.857,2.571],[66,103.714,1.714],[61,103.714,1.714],[57,103.714,1.714],[43,105.428,2.571],[66,106.286,1.714],[62,106.286,1.714],[59,106.286,1.714],[38,108,2.571],[66,108.857,1.714],[61,108.857,1.714],[57,108.857,1.714],[43,110.571,2.571],[78,111.428,0.857],[66,111.428,1.714],[62,111.428,1.714],[59,111.428,1.714],[81,112.286,0.857],[79,113.143,0.857],[38,113.143,2.571],[78,114,0.857],[66,114,1.714],[61,114,1.714],[57,114,1.714],[73,114.857,0.857],[71,115.714,0.857],[43,115.714,2.571],[73,116.571,0.857],[66,116.571,1.714],[62,116.571,1.714],[59,116.571,1.714],[74,117.428,0.857],[69,118.286,2.357],[38,118.286,2.571],[61,119.143,1.714],[57,119.143,1.714],[43,120.857,2.571],[66,121.714,1.714],[62,121.714,1.714],[59,121.714,1.714],[38,123.428,2.571],[66,124.286,1.714],[61,124.286,1.714],[57,124.286,1.714],[43,126,2.571],[66,126.857,1.714],[62,126.857,1.714],[59,126.857,1.714],[38,128.571,2.571],[66,129.428,1.714],[61,129.428,1.714],[57,129.428,1.714],[43,131.143,2.571],[78,132,0.857],[66,132,1.714],[62,132,1.714],[59,132,1.714],[81,132.857,0.857],[79,133.714,0.857],[38,133.714,2.571],[78,134.571,0.857],[66,134.571,1.714],[61,134.571,1.714],[57,134.571,1.714],[73,135.428,0.857],[71,136.286,0.857],[43,136.286,2.571],[73,137.143,0.857],[66,137.143,1.714],[62,137.143,1.714],[59,137.143,1.714],[74,138,0.857],[69,138.857,2.571],[38,138.857,2.571],[66,139.714,1.714],[61,139.714,1.714],[57,139.714,1.714],[73,141.428,2.571],[42,141.428,2.571],[66,142.286,1.714],[61,142.286,1.714],[57,142.286,1.714],[78,144,2.571],[35,144,2.571],[66,144.857,1.714],[62,144.857,1.714],[59,144.857,1.714],[40,146.571,2.571],[64,146.571,7.286],[59,147.428,1.714],[55,147.428,1.714],[40,149.143,2.571],[67,150,1.714],[62,150,1.714],[59,150,1.714],[38,151.714,2.571],[62,152.571,1.714],[57,152.571,1.714],[53,152.571,1.714],[69,154.286,0.857],[33,154.286,2.571],[71,155.143,0.857],[64,155.143,1.714],[60,155.143,1.714],[57,155.143,1.714],[72,156,0.857],[76,156.857,0.857],[38,156.857,2.571],[74,157.714,0.857],[64,157.714,1.714],[59,157.714,1.714],[55,157.714,1.714],[71,158.571,0.857],[74,159.428,0.857],[38,159.428,2.571],[72,160.286,0.857],[64,160.286,1.714],[59,160.286,1.714],[55,160.286,1.714],[50,160.286,1.714],[71,161.143,0.857],[38,162,2.571],[74,162,4.071],[62,162.857,1.714],[57,162.857,1.714],[52,162.857,1.714],[48,162.857,1.714],[38,164.571,2.571],[62,165.428,1.714],[57,165.428,1.714],[54,165.428,1.714],[48,165.428,1.714],[74,166.286,0.857],[76,167.143,0.857],[38,167.143,2.571],[77,168,0.857],[65,168,1.714],[60,168,1.714],[57,168,1.714],[79,168.857,0.857],[81,169.714,0.857],[38,169.714,2.571],[72,170.571,0.857],[64,170.571,1.714],[60,170.571,1.714],[57,170.571,1.714],[74,171.428,0.857],[76,172.286,0.857],[38,172.286,2.571],[74,173.143,0.857],[64,173.143,1.714],[59,173.143,1.714],[55,173.143,1.714],[50,173.143,1.714],[71,174,0.857],[38,174.857,2.571],[74,174.857,4.071],[62,175.714,1.714],[57,175.714,1.714],[52,175.714,1.714],[48,175.714,1.714],[38,177.428,2.571],[62,178.286,1.714],[57,178.286,1.714],[54,178.286,1.714],[48,178.286,1.714],[74,179.143,0.857],[79,180,2.571],[40,180,2.571],[67,180.857,1.714],[64,180.857,1.714],[59,180.857,1.714],[77,182.571,2.571],[40,182.571,2.571],[69,183.428,1.714],[65,183.428,1.714],[62,183.428,1.714],[57,183.428,1.714],[71,185.143,0.857],[40,185.143,2.571],[72,186,0.857],[65,186,1.714],[60,186,1.714],[57,186,1.714],[77,186.857,0.857],[76,187.714,0.857],[40,187.714,2.571],[74,188.571,0.857],[69,188.571,1.714],[64,188.571,1.714],[60,188.571,1.714],[72,189.428,0.857],[76,190.286,0.857],[40,190.286,2.571],[74,191.143,0.857],[69,191.143,1.714],[60,191.143,1.714],[57,191.143,1.714],[72,192,0.857],[65,192.857,1.714],[40,192.857,2.571],[57,193.714,0.857],[47,193.714,0.857],[62,193.714,0.857],[67,194.571,0.857],[62,194.571,0.857],[59,194.571,0.857],[52,194.571,0.857],[55,195.428,2.357],[45,195.428,2.357],[69,195.428,2.357],[64,195.428,2.357],[60,195.428,2.357],[72,195.428,2.357],[50,198,7.929],[45,198,7.929],[38,198,7.929],[69,198,7.929],[65,198,7.929],[62,198,7.929],[74,198,7.929]];
+  </script>
+
+  <script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    
+    // Screens
+    const startScreen = document.getElementById('startScreen');
+    const gameOverScreen = document.getElementById('gameOverScreen');
+    const finalScoreEl = document.getElementById('finalScore');
+    
+    // Buttons
+    const startBtn = document.getElementById('startBtn');
+    const backMenuBtn = document.getElementById('backMenuBtn');
+    const retryBtn = document.getElementById('retryBtn');
+    const sfxBtn = document.getElementById('sfxBtn');
+    const musicBtn = document.getElementById('musicBtn');
+
+    // Game Variables
+    let bird;
+    let pipes = [];
+    let particles = [];
+    let score = 0;
+    let gameState = 'start'; // 'start', 'playing', 'gameover'
+    let animationFrameId;
+    let totalJumps = 0;
+    let roundStartTime = 0;
+    let roundDuration = 0;
+    let lastPipeScoreId = -1;
+
+    // Physics constants
+    const GRAVITY = 0.35;
+    const FLAP_STRENGTH = -6.5;
+    const PIPE_SPEED = 2.2;
+    const PIPE_SPACING = 200; // Pixels between pipes
+    const PIPE_GAP = 140; // Gap height for the bird to fly through
+    const PIPE_WIDTH = 52;
+
+    class SoundSynth {
+      constructor() {
+        this.ctx = null;
+        this.bgMusicTimer = null;
+        this.musicPlaying = false;
+        
+        // Load independent mute settings from localStorage
+        try {
+          this.isSfxMuted = localStorage.getItem('tggamehub_sfx_muted') === 'true';
+          this.isMusicMuted = localStorage.getItem('tggamehub_music_muted') === 'true';
+        } catch(e) {
+          this.isSfxMuted = false;
+          this.isMusicMuted = false;
+        }
+
+        // Sequencer tracking
+        this.notePointer = 0;
+        this.startTime = 0;
+        this.lookAhead = 0.2; // schedule 200ms in advance
+        this.scheduleInterval = 80; // run scheduler every 80ms
+        
+        // Active synthesizers tracking (for clean releases on stop)
+        this.activeOscillators = [];
+
+        this.updateButtons();
+      }
+
+      init() {
+        if (this.ctx) return;
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (AudioContext) {
+          this.ctx = new AudioContext();
+        }
+      }
+
+      updateButtons() {
+        if (sfxBtn) {
+          sfxBtn.innerHTML = this.isSfxMuted ? '🔇' : '🔊';
+          sfxBtn.className = 'audio-btn' + (this.isSfxMuted ? ' muted' : '');
+          sfxBtn.title = this.isSfxMuted ? 'Soundeffekte einschalten (S)' : 'Soundeffekte stummschalten (S)';
+        }
+        if (musicBtn) {
+          musicBtn.innerHTML = '🎵';
+          musicBtn.className = 'audio-btn' + (this.isMusicMuted ? ' muted' : '');
+          musicBtn.title = this.isMusicMuted ? 'Musik einschalten (M)' : 'Musik stummschalten (M)';
+        }
+      }
+
+      toggleSfx() {
+        this.isSfxMuted = !this.isSfxMuted;
+        try {
+          localStorage.setItem('tggamehub_sfx_muted', this.isSfxMuted ? 'true' : 'false');
+        } catch(e) {}
+        this.updateButtons();
+      }
+
+      toggleMusic() {
+        this.isMusicMuted = !this.isMusicMuted;
+        try {
+          localStorage.setItem('tggamehub_music_muted', this.isMusicMuted ? 'true' : 'false');
+        } catch(e) {}
+        this.updateButtons();
+
+        if (this.isMusicMuted) {
+          this.stopMusic();
+        } else {
+          if (gameState === 'playing') {
+            this.startMusic();
+          }
+        }
+      }
+
+      // Procedural sound effect: Flap wings
+      playFlap() {
+        this.init();
+        if (!this.ctx || this.isSfxMuted) return;
+        if (this.ctx.state === 'suspended') this.ctx.resume();
+
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        
+        osc.type = 'triangle';
+        // Sweep pitch upward for a cute flutter chirping sound
+        osc.frequency.setValueAtTime(280, this.ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(650, this.ctx.currentTime + 0.08);
+        
+        gain.gain.setValueAtTime(0.08, this.ctx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.001, this.ctx.currentTime + 0.08);
+        
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.08);
+      }
+
+      // Procedural sound effect: Pass pipe score chime
+      playPoint() {
+        this.init();
+        if (!this.ctx || this.isSfxMuted) return;
+        if (this.ctx.state === 'suspended') this.ctx.resume();
+
+        const now = this.ctx.currentTime;
+        
+        // Classic retro synth coin chime (two offset notes)
+        const playChimeNote = (freq, delay, vol) => {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(freq, now + delay);
+          
+          gain.gain.setValueAtTime(vol, now + delay);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + delay + 0.16);
+          
+          osc.start(now + delay);
+          osc.stop(now + delay + 0.18);
+        };
+
+        playChimeNote(659.25, 0, 0.06); // E5
+        playChimeNote(880.00, 0.07, 0.06); // A5
+      }
+
+      // Procedural sound effect: Crash
+      playCrash() {
+        this.init();
+        if (!this.ctx || this.isSfxMuted) return;
+        if (this.ctx.state === 'suspended') this.ctx.resume();
+
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        
+        osc.type = 'sawtooth';
+        // Deep descending frequency crash rumble
+        osc.frequency.setValueAtTime(180, this.ctx.currentTime);
+        osc.frequency.linearRampToValueAtTime(45, this.ctx.currentTime + 0.5);
+        
+        gain.gain.setValueAtTime(0.12, this.ctx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.001, this.ctx.currentTime + 0.55);
+        
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.55);
+      }
+
+      // Procedural sound effect: Game Over
+      playGameOver() {
+        this.init();
+        if (!this.ctx || this.isSfxMuted) return;
+        if (this.ctx.state === 'suspended') this.ctx.resume();
+
+        const now = this.ctx.currentTime;
+        const playSadNote = (freq, delay, duration) => {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(freq, now + delay);
+          
+          gain.gain.setValueAtTime(0.07, now + delay);
+          gain.gain.linearRampToValueAtTime(0.001, now + delay + duration);
+          
+          osc.start(now + delay);
+          osc.stop(now + delay + duration);
+        };
+
+        // Descending sad triad
+        playSadNote(329.63, 0, 0.25); // E4
+        playSadNote(293.66, 0.2, 0.25); // D4
+        playSadNote(220.00, 0.4, 0.55); // A3
+      }
+
+      // Web Audio MIDI Player: Soft piano synth voicing note generator
+      playSynthNote(midiNote, time, duration) {
+        if (!this.ctx || this.isMusicMuted) return;
+
+        const osc = this.ctx.createOscillator();
+        const subOsc = this.ctx.createOscillator();
+        const gainNode = this.ctx.createGain();
+        const filter = this.ctx.createBiquadFilter();
+
+        osc.connect(filter);
+        subOsc.connect(filter);
+        filter.connect(gainNode);
+        gainNode.connect(this.ctx.destination);
+
+        const freq = 440 * Math.pow(2, (midiNote - 69) / 12);
+        
+        // Multi-timbral synth setups based on pitch registers
+        if (midiNote < 60) {
+          // Warm Left-hand Bass & Chords (Warm Rhodes Tone)
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(freq, time);
+          
+          // Soften chords to remove brassiness
+          filter.type = 'lowpass';
+          filter.frequency.setValueAtTime(320, time);
+
+          // Lush slow-release envelope representing Satie's sustain pedal
+          const chordVol = 0.016;
+          gainNode.gain.setValueAtTime(0, time);
+          gainNode.gain.linearRampToValueAtTime(chordVol, time + 0.05); // Soft attack
+          gainNode.gain.exponentialRampToValueAtTime(0.0001, time + duration + 1.8); // Long release ringing
+        } else {
+          // Delicate Right-hand Melody (Vibrant Bell-like Keyboard)
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(freq, time);
+
+          // Add a subtle sine harmonic an octave above for a glass-like shine
+          subOsc.type = 'sine';
+          subOsc.frequency.setValueAtTime(freq * 2, time);
+
+          filter.type = 'lowpass';
+          filter.frequency.setValueAtTime(1200, time);
+
+          const melodyVol = 0.026;
+          gainNode.gain.setValueAtTime(0, time);
+          gainNode.gain.linearRampToValueAtTime(melodyVol, time + 0.02); // Faster attack for melody clarity
+          gainNode.gain.exponentialRampToValueAtTime(0.0001, time + duration + 1.2);
+        }
+
+        osc.start(time);
+        osc.stop(time + duration + 2.0);
+        subOsc.start(time);
+        subOsc.stop(time + duration + 2.0);
+
+        this.activeOscillators.push(osc, subOsc);
+      }
+
+      startMusic() {
+        this.init();
+        if (!this.ctx || this.isMusicMuted || this.musicPlaying) return;
+        this.musicPlaying = true;
+        
+        if (this.ctx.state === 'suspended') this.ctx.resume();
+        
+        this.notePointer = 0;
+        this.startTime = this.ctx.currentTime;
+        
+        // Run look-ahead scheduler
+        const scheduler = () => {
+          if (!this.musicPlaying || this.isMusicMuted) return;
+          const now = this.ctx.currentTime - this.startTime;
+          
+          while (this.notePointer < GYMNOPEDIE_NOTES.length) {
+            const note = GYMNOPEDIE_NOTES[this.notePointer];
+            const noteStart = note[1];
+            
+            if (noteStart < now + this.lookAhead) {
+              this.playSynthNote(note[0], this.startTime + noteStart, note[2]);
+              this.notePointer++;
+            } else {
+              break;
+            }
+          }
+
+          // Loop piece once finished
+          if (this.notePointer >= GYMNOPEDIE_NOTES.length) {
+            const lastNote = GYMNOPEDIE_NOTES[GYMNOPEDIE_NOTES.length - 1];
+            const pieceEnd = lastNote[1] + lastNote[2] + 1.5;
+            if (now > pieceEnd) {
+              this.notePointer = 0;
+              this.startTime = this.ctx.currentTime;
+            }
+          }
+        };
+
+        this.bgMusicTimer = setInterval(scheduler, this.scheduleInterval);
+      }
+
+      stopMusic() {
+        this.musicPlaying = false;
+        if (this.bgMusicTimer) {
+          clearInterval(this.bgMusicTimer);
+          this.bgMusicTimer = null;
+        }
+        
+        // Stop any active oscillators immediately
+        this.activeOscillators.forEach(osc => {
+          try { osc.stop(); } catch(e) {}
+        });
+        this.activeOscillators = [];
+      }
+    }
+
+    const soundManager = new SoundSynth();
+
+    sfxBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      soundManager.toggleSfx();
+    });
+
+    musicBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      soundManager.toggleMusic();
+    });
+
+    class NeonBird {
+      constructor() {
+        this.x = 90;
+        this.y = 250;
+        this.width = 30;
+        this.height = 24;
+        this.vy = 0;
+        this.angle = 0;
+        this.wingTimer = 0;
+      }
+
+      flap() {
+        this.vy = FLAP_STRENGTH;
+        soundManager.playFlap();
+        
+        // Spawn energetic flap sparks
+        for (let i = 0; i < 4; i++) {
+          particles.push(new TrailParticle(
+            this.x, 
+            this.y + this.height/2, 
+            -1.5 - Math.random() * 2, 
+            (Math.random() - 0.5) * 2, 
+            '#ffd358'
+          ));
+        }
+      }
+
+      update() {
+        this.vy += GRAVITY;
+        this.y += this.vy;
+        this.wingTimer += 0.15;
+
+        // Velocity-based rotation angle
+        this.angle = Math.min(Math.PI / 4, Math.max(-Math.PI / 7, this.vy * 0.08));
+
+        // Spawn constant flight trailing exhaust
+        if (Math.random() < 0.35) {
+          particles.push(new TrailParticle(
+            this.x,
+            this.y + this.height/2 + (Math.sin(this.wingTimer) * 5),
+            -1.0 - Math.random() * 1.5,
+            (Math.random() - 0.5) * 0.8,
+            Math.random() < 0.5 ? '#00f2fe' : '#ff007f'
+          ));
+        }
+      }
+
+      draw() {
+        ctx.save();
+        ctx.translate(this.x + this.width / 2, this.y + this.height / 2);
+        ctx.rotate(this.angle);
+
+        // Core Glowing Cyberpunk Bird Wing/Body
+        ctx.shadowBlur = 12;
+        ctx.shadowColor = '#00f2fe';
+        ctx.strokeStyle = '#00f2fe';
+        ctx.lineWidth = 3.5;
+
+        // Main Body Outline
+        ctx.beginPath();
+        // Head / body circle curve
+        ctx.arc(0, 0, 10, 0, Math.PI * 2);
+        ctx.stroke();
+
+        // Glowing Eye
+        ctx.fillStyle = '#fff';
+        ctx.beginPath();
+        ctx.arc(3, -3, 2, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Neon Beak (Orange/Yellow Glow)
+        ctx.shadowColor = '#ffd358';
+        ctx.strokeStyle = '#ffd358';
+        ctx.beginPath();
+        ctx.moveTo(9, -2);
+        ctx.lineTo(16, 1);
+        ctx.lineTo(9, 4);
+        ctx.closePath();
+        ctx.stroke();
+
+        // Flapping Cyber Wing (sine wave flap rotation)
+        const wingOffset = Math.sin(this.wingTimer) * 8;
+        ctx.shadowColor = '#ff007f';
+        ctx.strokeStyle = '#ff007f';
+        ctx.beginPath();
+        ctx.moveTo(-5, 0);
+        ctx.lineTo(-14, wingOffset - 4);
+        ctx.lineTo(-8, wingOffset + 2);
+        ctx.closePath();
+        ctx.stroke();
+
+        ctx.restore();
+      }
+    }
+
+    class NeonPipe {
+      constructor(x, id) {
+        this.x = x;
+        this.id = id;
+        this.width = PIPE_WIDTH;
+        
+        // Randomize the height partition between top & bottom pipes
+        const minHeight = 50;
+        const maxHeight = canvas.height - PIPE_GAP - minHeight;
+        this.topHeight = Math.floor(Math.random() * (maxHeight - minHeight)) + minHeight;
+        this.bottomY = this.topHeight + PIPE_GAP;
+        this.bottomHeight = canvas.height - this.bottomY;
+        
+        this.passed = false;
+        
+        // Choose glowing neon color (alternates between pink and green)
+        this.color = id % 2 === 0 ? '#ff007f' : '#39ff14';
+      }
+
+      update() {
+        this.x -= PIPE_SPEED;
+      }
+
+      draw() {
+        ctx.save();
+        ctx.shadowBlur = 14;
+        ctx.shadowColor = this.color;
+        ctx.strokeStyle = this.color;
+        ctx.lineWidth = 3.5;
+
+        // Draw top pipe structure
+        ctx.beginPath();
+        ctx.roundRect(this.x, -10, this.width, this.topHeight + 10, [0, 0, 8, 8]);
+        ctx.stroke();
+
+        // Draw top pipe lip cap
+        ctx.fillStyle = '#05070f';
+        ctx.beginPath();
+        ctx.roundRect(this.x - 4, this.topHeight - 16, this.width + 8, 16, 5);
+        ctx.fill();
+        ctx.stroke();
+
+        // Draw bottom pipe structure
+        ctx.beginPath();
+        ctx.roundRect(this.x, this.bottomY, this.width, this.bottomHeight + 10, [8, 8, 0, 0]);
+        ctx.stroke();
+
+        // Draw bottom pipe lip cap
+        ctx.beginPath();
+        ctx.roundRect(this.x - 4, this.bottomY, this.width + 8, 16, 5);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.restore();
+      }
+    }
+
+    class TrailParticle {
+      constructor(x, y, vx, vy, color) {
+        this.x = x;
+        this.y = y;
+        this.vx = vx;
+        this.vy = vy;
+        this.size = Math.random() * 3 + 1.5;
+        this.color = color;
+        this.alpha = 1;
+        this.decay = 0.03 + Math.random() * 0.02;
+      }
+
+      update() {
+        this.x += this.vx;
+        this.y += this.vy;
+        this.alpha -= this.decay;
+      }
+
+      draw() {
+        ctx.save();
+        ctx.globalAlpha = this.alpha;
+        ctx.shadowBlur = 8;
+        ctx.shadowColor = this.color;
+        ctx.fillStyle = this.color;
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+    }
+
+    function initGame() {
+      bird = new NeonBird();
+      pipes = [];
+      particles = [];
+      score = 0;
+      totalJumps = 0;
+      roundStartTime = Date.now();
+      lastPipeScoreId = -1;
+
+      // Spawn first pipe
+      pipes.push(new NeonPipe(canvas.width + 100, 0));
+    }
+
+    function update() {
+      bird.update();
+
+      // Spawn next pipes based on spacing
+      if (pipes.length > 0) {
+        const lastPipe = pipes[pipes.length - 1];
+        if (lastPipe.x < canvas.width - PIPE_SPACING) {
+          pipes.push(new NeonPipe(canvas.width, lastPipe.id + 1));
+        }
+      }
+
+      // Update pipes
+      pipes.forEach(p => {
+        p.update();
+        
+        // Pass pipe point check
+        if (!p.passed && p.x + p.width / 2 < bird.x) {
+          p.passed = true;
+          score++;
+          soundManager.playPoint();
+        }
+      });
+
+      // Filter offscreen pipes
+      pipes = pipes.filter(p => p.x > -PIPE_WIDTH - 20);
+
+      // Collisions check
+      pipes.forEach(p => {
+        // Broad phase bounding box
+        if (bird.x + bird.width - 2 > p.x && bird.x + 2 < p.x + p.width) {
+          // Check collision with top pipe
+          if (bird.y + 2 < p.topHeight) {
+            triggerGameOver();
+          }
+          // Check collision with bottom pipe
+          if (bird.y + bird.height - 2 > p.bottomY) {
+            triggerGameOver();
+          }
+        }
+      });
+
+      // Ceiling and floor bounds death check
+      if (bird.y > canvas.height + 40 || bird.y < -60) {
+        triggerGameOver();
+      }
+
+      // Update trail/burst particles
+      particles.forEach(p => p.update());
+      particles = particles.filter(p => p.alpha > 0);
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      
+      // Draw grid-like scanner background
+      ctx.strokeStyle = 'rgba(0, 242, 254, 0.03)';
+      ctx.lineWidth = 1;
+      for (let i = 0; i < canvas.width; i += 20) {
+        ctx.beginPath();
+        ctx.moveTo(i, 0);
+        ctx.lineTo(i, canvas.height);
+        ctx.stroke();
+      }
+      for (let j = 0; j < canvas.height; j += 20) {
+        ctx.beginPath();
+        ctx.moveTo(0, j);
+        ctx.lineTo(canvas.width, j);
+        ctx.stroke();
+      }
+
+      // Draw game entities
+      pipes.forEach(p => p.draw());
+      bird.draw();
+      particles.forEach(p => p.draw());
+
+      // Draw score counter
+      ctx.save();
+      ctx.fillStyle = '#ff007f';
+      ctx.font = '900 24px "Outfit", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.shadowBlur = 10;
+      ctx.shadowColor = 'rgba(255, 0, 127, 0.4)';
+      ctx.fillText(score.toLocaleString(), canvas.width / 2, 44);
+      ctx.restore();
+    }
+
+    function gameLoop() {
+      if (gameState !== 'playing') return;
+      update();
+      draw();
+      animationFrameId = requestAnimationFrame(gameLoop);
+    }
+
+    // Tamper-Proof Client-Side Security Payload Generator
+    function getSecurityPayload() {
+      roundDuration = (Date.now() - roundStartTime) / 1000;
+      
+      // Calculate check digit signature to protect integrity
+      const secretModifier = 4721;
+      const signature = Math.round((score * 77) + (totalJumps * 13) + (roundDuration * 1.5) + secretModifier);
+      
+      return {
+        gameCode: 'neonbird_neon_v1',
+        flapCount: totalJumps,
+        durationSeconds: roundDuration,
+        clientIntegritySig: signature,
+        pipesPassed: score
+      };
+    }
+
+    function triggerGameOver() {
+      gameState = 'gameover';
+      cancelAnimationFrame(animationFrameId);
+      soundManager.playCrash();
+      setTimeout(() => soundManager.playGameOver(), 180);
+      soundManager.stopMusic();
+      
+      finalScoreEl.innerText = score.toLocaleString();
+      gameOverScreen.style.display = 'flex';
+      
+      // Automatically post score to parent frame wrapper silently in background
+      window.parent.postMessage({
+        type: 'SUBMIT_SCORE',
+        score: score,
+        validationPayload: getSecurityPayload()
+      }, '*');
+    }
+
+    // Jump Trigger Event
+    function handleFlapInput() {
+      if (gameState !== 'playing') return;
+      bird.flap();
+      totalJumps++;
+    }
+
+    // Keyboard bindings
+    window.addEventListener('keydown', (e) => {
+      if (e.code === 'Space' || e.code === 'ArrowUp') {
+        e.preventDefault();
+        handleFlapInput();
+      }
+      if (e.code === 'KeyM') {
+        soundManager.toggleMusic();
+      }
+      if (e.code === 'KeyS') {
+        soundManager.toggleSfx();
+      }
+    });
+
+    // Touch and mouse click flap bindings
+    canvas.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      handleFlapInput();
+    });
+    canvas.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      handleFlapInput();
+    });
+
+    // Button integrations
+    startBtn.addEventListener('click', () => {
+      startScreen.style.display = 'none';
+      gameState = 'playing';
+      soundManager.init();
+      soundManager.startMusic();
+      initGame();
+      gameLoop();
+    });
+
+    retryBtn.addEventListener('click', () => {
+      gameOverScreen.style.display = 'none';
+      // Trigger instant restart with energy validation request
+      window.parent.postMessage({
+        type: 'SUBMIT_SCORE_AND_RETRY',
+        score: score,
+        validationPayload: getSecurityPayload()
+      }, '*');
+    });
+
+    backMenuBtn.addEventListener('click', () => {
+      window.parent.postMessage({
+        type: 'CLOSE_GAME'
+      }, '*');
+    });
+
+    // Draw initial cover
+    ctx.fillStyle = '#05070f';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  </script>
+</body>
+</html>

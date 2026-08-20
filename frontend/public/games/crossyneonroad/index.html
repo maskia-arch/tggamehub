@@ -1,0 +1,2053 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Crossy Neon Road: Cyber Hub</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800;900&display=swap" rel="stylesheet">
+  <style>
+    html, body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      background: radial-gradient(circle, #0e1326 0%, #05070f 100%);
+      color: #fff;
+      font-family: 'Outfit', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      overflow: hidden;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    #gameContainer {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      max-width: 480px;
+      background-color: #05070f;
+      overflow: hidden;
+      margin: 0 auto;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      background: transparent;
+    }
+
+    /* Screen overlays */
+    .overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: rgba(5, 7, 15, 0.85);
+      backdrop-filter: blur(12px);
+      z-index: 10;
+      text-align: center;
+      padding: 24px;
+      box-sizing: border-box;
+      transition: opacity 0.3s ease;
+    }
+
+    h1 {
+      margin: 0 0 10px 0;
+      font-size: 32px;
+      font-weight: 900;
+      background: linear-gradient(135deg, #00f2fe 0%, #4facfe 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      letter-spacing: -0.5px;
+      text-shadow: 0 0 20px rgba(0, 242, 254, 0.3);
+    }
+
+    p {
+      font-size: 13px;
+      color: #9ca3af;
+      margin: 0 0 20px 0;
+      line-height: 1.6;
+      max-width: 280px;
+    }
+
+    .btn {
+      background: linear-gradient(135deg, #00f2fe 0%, #4facfe 100%);
+      border: none;
+      color: #000;
+      font-size: 14px;
+      font-weight: 800;
+      padding: 14px 34px;
+      border-radius: 14px;
+      cursor: pointer;
+      box-shadow: 0 0 20px rgba(0, 242, 254, 0.4);
+      transition: all 0.2s ease;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+    }
+
+    .btn:active {
+      transform: scale(0.95);
+      box-shadow: 0 0 5px rgba(0, 242, 254, 0.2);
+    }
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: #dfdfdf;
+      box-shadow: none;
+      margin-top: 12px;
+    }
+
+    .btn-secondary:active {
+      background: rgba(255, 255, 255, 0.1);
+      color: #fff;
+    }
+
+    .score-label {
+      font-size: 13px;
+      color: #9ca3af;
+      margin-bottom: 5px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .score-value {
+      font-size: 46px;
+      font-weight: 900;
+      color: #ff007f;
+      text-shadow: 0 0 20px rgba(255, 0, 127, 0.5);
+      margin-bottom: 30px;
+    }
+
+    .controls-guide {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      width: 100%;
+      margin-bottom: 25px;
+      font-size: 11px;
+      color: #6b7280;
+      align-items: center;
+    }
+
+    .guide-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .key-cap {
+      background: rgba(255, 255, 255, 0.07);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 8px;
+      padding: 4px 10px;
+      font-family: monospace;
+      font-weight: bold;
+      color: #f3f4f6;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.5);
+    }
+
+    /* Sound & Music Controls */
+    .audio-controls {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      z-index: 50;
+      display: flex;
+      gap: 8px;
+    }
+
+    .audio-btn {
+      background: rgba(5, 7, 15, 0.7);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: #fff;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 15px;
+      backdrop-filter: blur(5px);
+      transition: all 0.2s;
+      user-select: none;
+      position: relative;
+    }
+
+    .audio-btn:active {
+      transform: scale(0.9);
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    .audio-btn.muted {
+      opacity: 0.55;
+      border-color: rgba(255, 0, 127, 0.3);
+      color: #9ca3af;
+    }
+
+    .audio-btn.muted::after {
+      content: '';
+      position: absolute;
+      width: 22px;
+      height: 2px;
+      background: #ff007f;
+      transform: rotate(45deg);
+      border-radius: 2px;
+    }
+
+    /* Virtual D-pad Overlay */
+    #dpad {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 130px;
+      height: 130px;
+      z-index: 5;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      grid-template-rows: repeat(3, 1fr);
+      pointer-events: none;
+      opacity: 0.45;
+      transition: opacity 0.2s;
+    }
+    
+    #dpad:hover, #dpad:active {
+      opacity: 0.85;
+    }
+
+    .dpad-btn {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1.5px solid rgba(0, 242, 254, 0.3);
+      border-radius: 12px;
+      color: #00f2fe;
+      font-size: 18px;
+      font-weight: 900;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      pointer-events: auto;
+      box-shadow: 0 0 10px rgba(0, 242, 254, 0.1);
+      transition: all 0.1s;
+    }
+
+    .dpad-btn:active {
+      background: rgba(0, 242, 254, 0.25);
+      border-color: #00f2fe;
+      transform: scale(0.95);
+      box-shadow: 0 0 15px rgba(0, 242, 254, 0.4);
+    }
+
+    .dpad-up { grid-column: 2; grid-row: 1; }
+    .dpad-left { grid-column: 1; grid-row: 2; }
+    .dpad-down { grid-column: 2; grid-row: 3; }
+    .dpad-right { grid-column: 3; grid-row: 2; }
+  </style>
+</head>
+<body>
+
+  <div id="gameContainer">
+    <!-- Start Screen Overlay -->
+    <div id="startScreen" class="overlay">
+      <div style="font-size: 40px; margin-bottom: 5px;">🐔⚡</div>
+      <h1>Crossy Neon Road</h1>
+      <p>Hilf dem Neon-Huhn, verkehrsreiche Straßen, reißende Flüsse und Schienen zu überqueren!</p>
+      
+      <div class="controls-guide">
+        <div class="guide-item">
+          <span class="key-cap">▲ ▼ ◀ ▶ / WASD</span>
+          <span>Steuerung (Tastatur)</span>
+        </div>
+        <div class="guide-item">
+          <span class="key-cap">Wischen / D-Pad</span>
+          <span>Steuerung (Touch/Mobile)</span>
+        </div>
+      </div>
+
+      <button class="btn" id="startBtn">Hopfen starten</button>
+    </div>
+
+    <!-- Game Over Screen Overlay -->
+    <div id="gameOverScreen" class="overlay" style="display: none;">
+      <h1 style="color: #ff007f; text-shadow: 0 0 20px rgba(255, 0, 127, 0.4);">Überfahren</h1>
+      <div class="score-label">Zurückgelegte Meter:</div>
+      <div class="score-value" id="finalScore">0</div>
+      
+      <button class="btn" id="retryBtn">Nochmal spielen</button>
+      <button class="btn btn-secondary" id="backMenuBtn">Spiel verlassen</button>
+    </div>
+
+    <!-- Audio controls (SFX & Music separate) -->
+    <div class="audio-controls">
+      <button id="sfxBtn" class="audio-btn" title="Soundeffekte (S)">🔊</button>
+      <button id="musicBtn" class="audio-btn" title="Musik (M)">🎵</button>
+    </div>
+
+    <!-- Virtual D-pad Overlay -->
+    <div id="dpad" style="display: none;">
+      <button class="dpad-btn dpad-up" id="btnUp">▲</button>
+      <button class="dpad-btn dpad-left" id="btnLeft">◀</button>
+      <button class="dpad-btn dpad-down" id="btnDown">▼</button>
+      <button class="dpad-btn dpad-right" id="btnRight">▶</button>
+    </div>
+
+    <!-- Game Canvas -->
+    <canvas id="gameCanvas" width="360" height="550"></canvas>
+  </div>
+
+  <script>
+    // Procedural Music Array Generator: Rondo Alla Turca by W.A. Mozart
+    // Format: [midiNote, timeInBeats, durationInBeats]
+    function generateRondoNotes() {
+      const notes = [];
+      const bpm = 128;
+      const beatDur = 60 / bpm; // Beat length in seconds
+
+      // Melody notes (RH)
+      // A-minor main theme
+      const addThemeA = (startBeat) => {
+        // Pickup (sixteenth notes)
+        notes.push([71, startBeat + 0.00, 0.23]); // B4
+        notes.push([69, startBeat + 0.25, 0.23]); // A4
+        notes.push([68, startBeat + 0.50, 0.23]); // G#4
+        notes.push([69, startBeat + 0.75, 0.23]); // A4
+
+        // Measure 1
+        notes.push([72, startBeat + 1.00, 0.48]); // C5
+        notes.push([74, startBeat + 1.50, 0.23]); // D5
+        notes.push([72, startBeat + 1.75, 0.23]); // C5
+        notes.push([71, startBeat + 2.00, 0.23]); // B4
+        notes.push([72, startBeat + 2.25, 0.23]); // C5
+
+        // Measure 2
+        notes.push([76, startBeat + 2.50, 0.48]); // E5
+        notes.push([77, startBeat + 3.00, 0.23]); // F5
+        notes.push([76, startBeat + 3.25, 0.23]); // E5
+        notes.push([75, startBeat + 3.50, 0.23]); // D#5
+        notes.push([76, startBeat + 3.75, 0.23]); // E5
+
+        // Measure 3
+        notes.push([83, startBeat + 4.00, 0.23]); // B5
+        notes.push([81, startBeat + 4.25, 0.23]); // A5
+        notes.push([80, startBeat + 4.50, 0.23]); // G#5
+        notes.push([81, startBeat + 4.75, 0.23]); // A5
+        notes.push([83, startBeat + 5.00, 0.23]); // B5
+        notes.push([81, startBeat + 5.25, 0.23]); // A5
+
+        // Measure 4
+        notes.push([80, startBeat + 5.50, 0.23]); // G#5
+        notes.push([81, startBeat + 5.75, 0.23]); // A5
+        notes.push([84, startBeat + 6.00, 0.23]); // C6
+        notes.push([81, startBeat + 6.25, 0.23]); // A5
+
+        // Measure 5
+        notes.push([80, startBeat + 6.50, 0.23]); // G#5
+        notes.push([81, startBeat + 6.75, 0.23]); // A5
+        notes.push([84, startBeat + 7.00, 0.23]); // C6
+        notes.push([81, startBeat + 7.25, 0.23]); // A5
+
+        // Measure 6
+        notes.push([80, startBeat + 7.50, 0.23]); // G#5
+        notes.push([81, startBeat + 7.75, 0.23]); // A5
+        notes.push([84, startBeat + 8.00, 0.23]); // C6
+        notes.push([81, startBeat + 8.25, 0.23]); // A5
+
+        // Measure 7
+        notes.push([83, startBeat + 8.50, 0.23]); // B5
+        notes.push([81, startBeat + 8.75, 0.23]); // A5
+        notes.push([80, startBeat + 9.00, 0.23]); // G#5
+        notes.push([81, startBeat + 9.25, 0.23]); // A5
+        notes.push([83, startBeat + 9.50, 0.23]); // B5
+        notes.push([81, startBeat + 9.75, 0.23]); // A5
+
+        // Measure 8 (Cadence)
+        notes.push([76, startBeat + 10.00, 0.48]); // E5
+        notes.push([74, startBeat + 10.50, 0.23]); // D5
+        notes.push([72, startBeat + 10.75, 0.23]); // C5
+        notes.push([71, startBeat + 11.00, 0.23]); // B4
+        notes.push([69, startBeat + 11.25, 0.23]); // A4
+        notes.push([71, startBeat + 11.50, 0.48]); // B4
+        notes.push([69, startBeat + 12.00, 0.98]); // A4
+      };
+
+      // A-major Turkish March main chorus
+      const addThemeB = (startBeat) => {
+        // Pickup (sixteenths)
+        notes.push([73, startBeat + 0.00, 0.23]); // C#5
+        notes.push([74, startBeat + 0.25, 0.23]); // D5
+        notes.push([76, startBeat + 0.50, 0.23]); // E5
+
+        // Measure 1
+        notes.push([78, startBeat + 0.75, 0.23]); // F#5
+        notes.push([76, startBeat + 1.00, 0.48]); // E5
+        notes.push([74, startBeat + 1.50, 0.23]); // D5
+        notes.push([73, startBeat + 1.75, 0.23]); // C#5
+        notes.push([74, startBeat + 2.00, 0.23]); // D5
+
+        // Measure 2
+        notes.push([76, startBeat + 2.25, 0.23]); // E5
+        notes.push([73, startBeat + 2.50, 0.48]); // C#5
+        notes.push([71, startBeat + 3.00, 0.23]); // B4
+        notes.push([69, startBeat + 3.25, 0.23]); // A4
+        notes.push([71, startBeat + 3.50, 0.23]); // B4
+
+        // Measure 3
+        notes.push([73, startBeat + 3.75, 0.23]); // C#5
+        notes.push([69, startBeat + 4.00, 0.48]); // A4
+        notes.push([68, startBeat + 4.50, 0.23]); // G#4
+        notes.push([66, startBeat + 4.75, 0.23]); // F#4
+        notes.push([68, startBeat + 5.00, 0.23]); // G#4
+
+        // Measure 4
+        notes.push([69, startBeat + 5.25, 0.23]); // A4
+        notes.push([64, startBeat + 5.50, 0.48]); // E4
+        notes.push([73, startBeat + 6.00, 0.23]); // C#5
+        notes.push([74, startBeat + 6.25, 0.23]); // D5
+        notes.push([76, startBeat + 6.50, 0.23]); // E5
+
+        // Repeat phrase with alternative ending
+        // Measure 5
+        notes.push([78, startBeat + 6.75, 0.23]); // F#5
+        notes.push([76, startBeat + 7.00, 0.48]); // E5
+        notes.push([74, startBeat + 7.50, 0.23]); // D5
+        notes.push([73, startBeat + 7.75, 0.23]); // C#5
+        notes.push([74, startBeat + 8.00, 0.23]); // D5
+
+        // Measure 6
+        notes.push([76, startBeat + 8.25, 0.23]); // E5
+        notes.push([73, startBeat + 8.50, 0.48]); // C#5
+        notes.push([71, startBeat + 9.00, 0.23]); // B4
+        notes.push([69, startBeat + 9.25, 0.23]); // A4
+        notes.push([71, startBeat + 9.50, 0.23]); // B4
+
+        // Measure 7
+        notes.push([73, startBeat + 9.75, 0.23]); // C#5
+        notes.push([71, startBeat + 10.00, 0.48]); // B4
+        notes.push([69, startBeat + 10.50, 0.23]); // A4
+        notes.push([68, startBeat + 10.75, 0.23]); // G#4
+        notes.push([69, startBeat + 11.00, 0.23]); // A4
+
+        // Measure 8
+        notes.push([71, startBeat + 11.25, 0.23]); // B4
+        notes.push([69, startBeat + 11.50, 0.48]); // A4
+        notes.push([69, startBeat + 12.00, 0.98]); // A4
+      };
+
+      // Generate left-hand bass/chord march accompaniment
+      const addBassMarch = (startBeat, chordType, durationBeats) => {
+        // Alternating Bass / Chord on beats
+        for (let b = 1; b < durationBeats; b++) {
+          const t = startBeat + b;
+          if (b % 2 === 1) {
+            // Bass Note
+            const root = chordType === 'Am' ? 45 : 45; // A2
+            notes.push([root, t, 0.48]);
+          } else {
+            // Chord
+            if (chordType === 'Am') {
+              notes.push([57, t, 0.48]); // A3
+              notes.push([60, t, 0.48]); // C4
+              notes.push([64, t, 0.48]); // E4
+            } else if (chordType === 'A') {
+              notes.push([57, t, 0.48]); // A3
+              notes.push([61, t, 0.48]); // C#4
+              notes.push([64, t, 0.48]); // E4
+            } else if (chordType === 'E') {
+              notes.push([52, t, 0.48]); // E2
+              notes.push([59, t, 0.48]); // B3
+              notes.push([64, t, 0.48]); // E4
+            }
+          }
+        }
+      };
+
+      // Sequence Structure: Section A (13 beats) + Section B (13 beats)
+      addThemeA(0);
+      addBassMarch(0, 'Am', 13);
+
+      addThemeB(13);
+      addBassMarch(13, 'A', 13);
+
+      // Convert all beat times and durations into absolute seconds based on BPM
+      return notes.map(n => [n[0], n[1] * beatDur, n[2] * beatDur]);
+    }
+
+    const RONDO_NOTES = generateRondoNotes();
+  </script>
+
+  <script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    
+    // Screens & UI
+    const startScreen = document.getElementById('startScreen');
+    const gameOverScreen = document.getElementById('gameOverScreen');
+    const finalScoreEl = document.getElementById('finalScore');
+    const dpad = document.getElementById('dpad');
+    
+    // Buttons
+    const startBtn = document.getElementById('startBtn');
+    const backMenuBtn = document.getElementById('backMenuBtn');
+    const retryBtn = document.getElementById('retryBtn');
+    const muteBtn = document.getElementById('muteBtn');
+    
+    // Virtual Dpad Buttons
+    const btnUp = document.getElementById('btnUp');
+    const btnLeft = document.getElementById('btnLeft');
+    const btnDown = document.getElementById('btnDown');
+    const btnRight = document.getElementById('btnRight');
+
+    // Game Constants
+    const ROW_HEIGHT = 40;
+    const GRID_COLS = 9;
+    const COL_WIDTH = 360 / GRID_COLS; // 40px
+    const TARGET_FPS = 60;
+
+    // Game Variables
+    let player;
+    let rows = {}; // Key: row index, Value: Row object
+    let particles = [];
+    let score = 0;
+    let lives = 3;
+    let gameState = 'start'; // 'start', 'playing', 'gameover'
+    let animationFrameId;
+    let totalHops = 0;
+    let roundStartTime = 0;
+    let roundDuration = 0;
+    let cameraY = 0;
+    let maxRowReached = 0;
+
+    // Sound Synthesizer using Web Audio API
+    class SoundSynth {
+      constructor() {
+        this.ctx = null;
+        this.bgMusicTimer = null;
+        this.musicPlaying = false;
+
+        // Load independent mute settings
+        try {
+          this.isSfxMuted = localStorage.getItem('tggamehub_sfx_muted') === 'true';
+          this.isMusicMuted = localStorage.getItem('tggamehub_music_muted') === 'true';
+        } catch(e) {
+          this.isSfxMuted = false;
+          this.isMusicMuted = false;
+        }
+        
+        // Sequencer tracking
+        this.notePointer = 0;
+        this.startTime = 0;
+        this.lookAhead = 0.2;
+        this.scheduleInterval = 80;
+        
+        this.activeOscillators = [];
+        this.updateButtons();
+      }
+
+      init() {
+        if (this.ctx) return;
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (AudioContext) {
+          this.ctx = new AudioContext();
+        }
+      }
+
+      updateButtons() {
+        const sfxBtn = document.getElementById('sfxBtn');
+        const musicBtn = document.getElementById('musicBtn');
+        if (sfxBtn) {
+          sfxBtn.innerHTML = this.isSfxMuted ? '🔇' : '🔊';
+          sfxBtn.className = 'audio-btn' + (this.isSfxMuted ? ' muted' : '');
+          sfxBtn.title = this.isSfxMuted ? 'Soundeffekte einschalten (S)' : 'Soundeffekte stummschalten (S)';
+        }
+        if (musicBtn) {
+          musicBtn.innerHTML = '🎵';
+          musicBtn.className = 'audio-btn' + (this.isMusicMuted ? ' muted' : '');
+          musicBtn.title = this.isMusicMuted ? 'Musik einschalten (M)' : 'Musik stummschalten (M)';
+        }
+      }
+
+      toggleSfx() {
+        this.isSfxMuted = !this.isSfxMuted;
+        try { localStorage.setItem('tggamehub_sfx_muted', this.isSfxMuted ? 'true' : 'false'); } catch(e) {}
+        this.updateButtons();
+      }
+
+      toggleMusic() {
+        this.isMusicMuted = !this.isMusicMuted;
+        try { localStorage.setItem('tggamehub_music_muted', this.isMusicMuted ? 'true' : 'false'); } catch(e) {}
+        this.updateButtons();
+        if (this.isMusicMuted) {
+          this.stopMusic();
+        } else if (gameState === 'playing') {
+          this.startMusic();
+        }
+      }
+
+      playHop() {
+        this.init();
+        if (!this.ctx || this.isSfxMuted) return;
+        if (this.ctx.state === 'suspended') this.ctx.resume();
+
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(300, this.ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(750, this.ctx.currentTime + 0.08);
+        gain.gain.setValueAtTime(0.06, this.ctx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.001, this.ctx.currentTime + 0.08);
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.08);
+      }
+
+      playCoin() {
+        this.init();
+        if (!this.ctx || this.isSfxMuted) return;
+        if (this.ctx.state === 'suspended') this.ctx.resume();
+
+        const now = this.ctx.currentTime;
+        const playChimeNote = (freq, delay, vol) => {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(freq, now + delay);
+          gain.gain.setValueAtTime(vol, now + delay);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + delay + 0.15);
+          osc.start(now + delay);
+          osc.stop(now + delay + 0.16);
+        };
+
+        playChimeNote(880.00, 0, 0.05);
+        playChimeNote(1046.50, 0.06, 0.05);
+      }
+
+      playShield() {
+        this.init();
+        if (!this.ctx || this.isSfxMuted) return;
+        if (this.ctx.state === 'suspended') this.ctx.resume();
+
+        const now = this.ctx.currentTime;
+        const playLaserNote = (freqStart, freqEnd, delay, vol) => {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(freqStart, now + delay);
+          osc.frequency.exponentialRampToValueAtTime(freqEnd, now + delay + 0.25);
+          gain.gain.setValueAtTime(vol, now + delay);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + delay + 0.25);
+          osc.start(now + delay);
+          osc.stop(now + delay + 0.26);
+        };
+
+        playLaserNote(400, 1200, 0, 0.04);
+        playLaserNote(600, 1600, 0.08, 0.04);
+      }
+
+      playCrash() {
+        this.init();
+        if (!this.ctx || this.isSfxMuted) return;
+        if (this.ctx.state === 'suspended') this.ctx.resume();
+
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(140, this.ctx.currentTime);
+        osc.frequency.linearRampToValueAtTime(30, this.ctx.currentTime + 0.45);
+        gain.gain.setValueAtTime(0.12, this.ctx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.001, this.ctx.currentTime + 0.48);
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.48);
+      }
+
+      playSplash() {
+        this.init();
+        if (!this.ctx || this.isSfxMuted) return;
+        if (this.ctx.state === 'suspended') this.ctx.resume();
+
+        const bufferSize = this.ctx.sampleRate * 0.35;
+        const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+
+        const noiseNode = this.ctx.createBufferSource();
+        noiseNode.buffer = buffer;
+        const filter = this.ctx.createBiquadFilter();
+        filter.type = 'bandpass';
+        filter.Q.value = 4.0;
+        filter.frequency.setValueAtTime(800, this.ctx.currentTime);
+        filter.frequency.exponentialRampToValueAtTime(200, this.ctx.currentTime + 0.3);
+        const gain = this.ctx.createGain();
+        gain.gain.setValueAtTime(0.12, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.35);
+        noiseNode.connect(filter);
+        filter.connect(gain);
+        gain.connect(this.ctx.destination);
+        noiseNode.start();
+        noiseNode.stop(this.ctx.currentTime + 0.35);
+      }
+
+      playTrainWarning() {
+        this.init();
+        if (!this.ctx || this.isSfxMuted) return;
+        if (this.ctx.state === 'suspended') this.ctx.resume();
+
+        const playBeep = (freq, delay) => {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(freq, this.ctx.currentTime + delay);
+          gain.gain.setValueAtTime(0.05, this.ctx.currentTime + delay);
+          gain.gain.setValueAtTime(0.001, this.ctx.currentTime + delay + 0.12);
+          osc.start(this.ctx.currentTime + delay);
+          osc.stop(this.ctx.currentTime + delay + 0.15);
+        };
+
+        playBeep(987.77, 0);
+        playBeep(987.77, 0.22);
+      }
+
+      playGameOver() {
+        this.init();
+        if (!this.ctx || this.isSfxMuted) return;
+        if (this.ctx.state === 'suspended') this.ctx.resume();
+
+        const now = this.ctx.currentTime;
+        const playSadNote = (freq, delay, duration) => {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(freq, now + delay);
+          gain.gain.setValueAtTime(0.06, now + delay);
+          gain.gain.linearRampToValueAtTime(0.001, now + delay + duration);
+          osc.start(now + delay);
+          osc.stop(now + delay + duration);
+        };
+
+        playSadNote(329.63, 0, 0.25);
+        playSadNote(293.66, 0.2, 0.25);
+        playSadNote(220.00, 0.4, 0.6);
+      }
+
+      playSynthNote(midiNote, time, duration) {
+        if (!this.ctx || this.isMusicMuted) return;
+
+        const osc = this.ctx.createOscillator();
+        const subOsc = this.ctx.createOscillator();
+        const gainNode = this.ctx.createGain();
+        const filter = this.ctx.createBiquadFilter();
+
+        osc.connect(filter);
+        subOsc.connect(filter);
+        filter.connect(gainNode);
+        gainNode.connect(this.ctx.destination);
+
+        const freq = 440 * Math.pow(2, (midiNote - 69) / 12);
+        
+        if (midiNote < 60) {
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(freq, time);
+          filter.type = 'lowpass';
+          filter.frequency.setValueAtTime(250, time);
+          const bassVol = 0.018;
+          gainNode.gain.setValueAtTime(0, time);
+          gainNode.gain.linearRampToValueAtTime(bassVol, time + 0.03);
+          gainNode.gain.exponentialRampToValueAtTime(0.0001, time + duration - 0.01);
+        } else {
+          osc.type = 'square';
+          osc.frequency.setValueAtTime(freq, time);
+          subOsc.type = 'sine';
+          subOsc.frequency.setValueAtTime(freq / 2, time);
+          filter.type = 'lowpass';
+          filter.frequency.setValueAtTime(1000, time);
+          const melodyVol = 0.018;
+          gainNode.gain.setValueAtTime(0, time);
+          gainNode.gain.linearRampToValueAtTime(melodyVol, time + 0.01);
+          gainNode.gain.exponentialRampToValueAtTime(0.0001, time + duration - 0.01);
+        }
+
+        osc.start(time);
+        osc.stop(time + duration + 0.05);
+        subOsc.start(time);
+        subOsc.stop(time + duration + 0.05);
+        this.activeOscillators.push(osc, subOsc);
+      }
+
+      startMusic() {
+        this.init();
+        if (!this.ctx || this.isMusicMuted || this.musicPlaying) return;
+        this.musicPlaying = true;
+        if (this.ctx.state === 'suspended') this.ctx.resume();
+        this.notePointer = 0;
+        this.startTime = this.ctx.currentTime;
+
+        const scheduler = () => {
+          if (!this.musicPlaying || this.isMusicMuted) return;
+          const now = this.ctx.currentTime - this.startTime;
+          while (this.notePointer < RONDO_NOTES.length) {
+            const note = RONDO_NOTES[this.notePointer];
+            const noteStart = note[1];
+            if (noteStart < now + this.lookAhead) {
+              this.playSynthNote(note[0], this.startTime + noteStart, note[2]);
+              this.notePointer++;
+            } else {
+              break;
+            }
+          }
+          if (this.notePointer >= RONDO_NOTES.length) {
+            const lastNote = RONDO_NOTES[RONDO_NOTES.length - 1];
+            const pieceEnd = lastNote[1] + lastNote[2] + 1.5;
+            if (now > pieceEnd) {
+              this.notePointer = 0;
+              this.startTime = this.ctx.currentTime;
+            }
+          }
+        };
+
+        this.bgMusicTimer = setInterval(scheduler, this.scheduleInterval);
+      }
+
+      stopMusic() {
+        this.musicPlaying = false;
+        if (this.bgMusicTimer) {
+          clearInterval(this.bgMusicTimer);
+          this.bgMusicTimer = null;
+        }
+        this.activeOscillators.forEach(osc => {
+          try { osc.stop(); } catch(e) {}
+        });
+        this.activeOscillators = [];
+      }
+    }
+
+    const soundManager = new SoundSynth();
+
+    document.getElementById('sfxBtn').addEventListener('click', (e) => { e.stopPropagation(); soundManager.toggleSfx(); });
+    document.getElementById('musicBtn').addEventListener('click', (e) => { e.stopPropagation(); soundManager.toggleMusic(); });
+
+    // Particles System
+    class SparkParticle {
+      constructor(x, y, color) {
+        this.x = x;
+        this.y = y;
+        this.vx = (Math.random() - 0.5) * 5;
+        this.vy = (Math.random() - 0.5) * 5;
+        this.radius = 2 + Math.random() * 3;
+        this.color = color;
+        this.alpha = 1.0;
+        this.decay = 0.02 + Math.random() * 0.03;
+      }
+
+      update() {
+        this.x += this.vx;
+        this.y += this.vy;
+        this.alpha -= this.decay;
+      }
+
+      draw() {
+        ctx.save();
+        ctx.globalAlpha = this.alpha;
+        ctx.shadowBlur = 8;
+        ctx.shadowColor = this.color;
+        ctx.fillStyle = this.color;
+        ctx.beginPath();
+        ctx.arc(this.x, canvas.height - (this.y - cameraY), this.radius, 0, Math.PI*2);
+        ctx.fill();
+        ctx.restore();
+      }
+    }
+
+    // Dynamic Road/River lanes obstacle generator
+    class Obstacle {
+      constructor(rowIdx, type, isLeftToRight, speed, index = 0, total = 1) {
+        this.rowIdx = rowIdx;
+        this.y = rowIdx * ROW_HEIGHT + ROW_HEIGHT/2;
+        this.isLeftToRight = isLeftToRight;
+        this.speed = speed;
+        this.dir = isLeftToRight ? 1 : -1;
+        this.type = type; // 'car' or 'log'
+        
+        // Random dimensions & colors
+        if (type === 'car') {
+          this.width = 45 + Math.random() * 35; // width 45-80
+          this.height = 24;
+          const carColors = ['#ff00ff', '#ff5e00', '#00f2fe', '#39ff14', '#ffff00'];
+          this.color = carColors[Math.floor(Math.random() * carColors.length)];
+        } else {
+          // Log
+          this.width = 65 + Math.random() * 50; // width 65-115
+          this.height = 22;
+          this.color = '#bf8a3d'; // glowing neon light brown/gold
+        }
+
+        // Evenly space out obstacles to prevent overlap
+        const loopWidth = canvas.width + 240; // Spacing path from -120 to canvas.width + 120
+        const segment = loopWidth / total;
+        const jitter = (Math.random() - 0.5) * (type === 'car' ? 25 : 12);
+        
+        if (this.isLeftToRight) {
+          this.x = -120 + index * segment + jitter;
+        } else {
+          this.x = canvas.width + 120 - index * segment + jitter;
+        }
+      }
+
+      update() {
+        this.x += this.speed * this.dir;
+        
+        // Wrapping at fixed boundaries to preserve spacing perfectly
+        if (this.dir === 1 && this.x > canvas.width + 120) {
+          this.x = -120;
+        } else if (this.dir === -1 && this.x < -120) {
+          this.x = canvas.width + 120;
+        }
+      }
+
+      draw() {
+        ctx.save();
+        ctx.strokeStyle = this.color;
+        ctx.lineWidth = 2.5;
+        ctx.shadowBlur = 10;
+        ctx.shadowColor = this.color;
+        
+        const screenY = canvas.height - (this.y - cameraY);
+        
+        if (this.type === 'car') {
+          // Draw Neon Car Box outline
+          ctx.strokeRect(this.x, screenY - this.height/2, this.width, this.height);
+          
+          // Headlights glow
+          ctx.beginPath();
+          ctx.shadowBlur = 15;
+          ctx.fillStyle = '#fff';
+          if (this.dir === 1) {
+            // Front is right
+            ctx.arc(this.x + this.width, screenY - 6, 2.5, 0, Math.PI*2);
+            ctx.arc(this.x + this.width, screenY + 6, 2.5, 0, Math.PI*2);
+          } else {
+            // Front is left
+            ctx.arc(this.x, screenY - 6, 2.5, 0, Math.PI*2);
+            ctx.arc(this.x, screenY + 6, 2.5, 0, Math.PI*2);
+          }
+          ctx.fill();
+        } else {
+          // Raft / Floating logs (3 wooden logs lashed together with glowing ropes)
+          const logCount = 3;
+          const logHeight = this.height / logCount;
+          
+          ctx.save();
+          // Draw a soft glowing wood backdrop
+          ctx.fillStyle = 'rgba(235, 160, 60, 0.1)';
+          ctx.fillRect(this.x, screenY - this.height/2, this.width, this.height);
+          
+          // Draw each individual log of the raft
+          ctx.strokeStyle = this.color;
+          ctx.lineWidth = 1.8;
+          ctx.shadowBlur = 8;
+          ctx.shadowColor = this.color;
+          
+          for (let i = 0; i < logCount; i++) {
+            const ly = screenY - this.height/2 + i * logHeight + logHeight/2;
+            
+            // Draw log body
+            ctx.strokeRect(this.x + 2, ly - logHeight/2 + 1, this.width - 4, logHeight - 2);
+            
+            // Draw inner wood grain lines
+            ctx.beginPath();
+            ctx.lineWidth = 0.8;
+            ctx.moveTo(this.x + 12, ly);
+            ctx.lineTo(this.x + this.width - 12, ly);
+            ctx.stroke();
+          }
+          
+          // Draw lashing ropes wrapping around the logs (neon white bands)
+          ctx.strokeStyle = '#fff';
+          ctx.shadowColor = '#fff';
+          ctx.lineWidth = 2;
+          ctx.shadowBlur = 6;
+          ctx.beginPath();
+          // Left rope
+          ctx.moveTo(this.x + 12, screenY - this.height/2 - 1);
+          ctx.lineTo(this.x + 12, screenY + this.height/2 + 1);
+          // Right rope
+          ctx.moveTo(this.x + this.width - 12, screenY - this.height/2 - 1);
+          ctx.lineTo(this.x + this.width - 12, screenY + this.height/2 + 1);
+          ctx.stroke();
+          
+          // Draw trailing white wake water ripple (foam wave behind the log)
+          ctx.strokeStyle = 'rgba(0, 242, 254, 0.45)';
+          ctx.shadowColor = '#00f2fe';
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          if (this.dir === 1) {
+            // Moving right, trail is on the left
+            ctx.moveTo(this.x - 4, screenY - this.height/2);
+            ctx.quadraticCurveTo(this.x - 12, screenY, this.x - 4, screenY + this.height/2);
+          } else {
+            // Moving left, trail is on the right
+            ctx.moveTo(this.x + this.width + 4, screenY - this.height/2);
+            ctx.quadraticCurveTo(this.x + this.width + 12, screenY, this.x + this.width + 4, screenY + this.height/2);
+          }
+          ctx.stroke();
+          ctx.restore();
+        }
+        ctx.restore();
+      }
+    }
+
+    // Lane Row definition
+    class Row {
+      constructor(idx) {
+        this.idx = idx;
+        this.y = idx * ROW_HEIGHT;
+        this.type = 'safe'; // 'safe', 'road', 'river', 'rail'
+        this.obstacles = [];
+        this.item = null; // { col, type: 'heart'/'star'/'shield', collected: false, rot: 0 }
+        
+        // Alert states for rail
+        this.trainActive = false;
+        this.trainX = -400;
+        this.trainDirection = Math.random() < 0.5 ? 1 : -1;
+        this.trainSpeed = 16.5;
+        this.warningTimer = 0;
+        this.warningActive = false;
+        this.timeToTrain = 180 + Math.random() * 200; // frames
+        
+        // Randomize row type (avoid index 0,1,2 for safety at start)
+        if (idx > 2) {
+          const r = Math.random();
+          // Adjust probability based on index (difficulty scale)
+          if (r < 0.3) {
+            this.type = 'safe';
+          } else if (r < 0.65) {
+            this.type = 'road';
+          } else if (r < 0.88) {
+            this.type = 'river';
+          } else {
+            this.type = 'rail';
+          }
+        }
+
+        // Enforce alternating rules/safety
+        // (Prevent placing too many rivers or train tracks together)
+        if (this.type === 'river') {
+          // If previous was river, don't allow too many consecutive rivers
+          let consecutiveRivers = 0;
+          for (let prevIdx = idx - 1; prevIdx >= idx - 3; prevIdx--) {
+            if (rows[prevIdx] && rows[prevIdx].type === 'river') {
+              consecutiveRivers++;
+            }
+          }
+          if (consecutiveRivers >= 3) {
+            this.type = 'safe';
+          }
+        } else if (this.type === 'rail') {
+          // No consecutive rails
+          if (rows[idx - 1] && rows[idx - 1].type === 'rail') {
+            this.type = 'road';
+          }
+        }
+
+        // Initialize obstacles for road/river
+        if (this.type === 'road') {
+          const isLeftToRight = Math.random() < 0.5;
+          // Scale speed based on row index (difficulty)
+          const baseSpeed = 1.0 + Math.min(2.5, idx * 0.03);
+          const laneSpeed = baseSpeed + Math.random() * 0.8;
+          // Spawn 2-3 cars
+          const carCount = Math.random() < 0.6 ? 2 : 3;
+          for (let i = 0; i < carCount; i++) {
+            this.obstacles.push(new Obstacle(idx, 'car', isLeftToRight, laneSpeed, i, carCount));
+          }
+        } else if (this.type === 'river') {
+          const isLeftToRight = Math.random() < 0.5;
+          const baseSpeed = 0.7 + Math.min(1.5, idx * 0.02);
+          const laneSpeed = baseSpeed + Math.random() * 0.5;
+          // Spawn 3 logs
+          for (let i = 0; i < 3; i++) {
+            this.obstacles.push(new Obstacle(idx, 'log', isLeftToRight, laneSpeed, i, 3));
+          }
+        }
+
+        // Spawning Collectibles in Safe rows
+        if (this.type === 'safe' && idx > 2 && Math.random() < 0.28) {
+          const types = ['star', 'star', 'star', 'heart', 'shield'];
+          const randType = types[Math.floor(Math.random() * types.length)];
+          this.item = {
+            col: Math.floor(Math.random() * GRID_COLS),
+            type: randType,
+            collected: false,
+            rot: Math.random() * Math.PI
+          };
+        }
+      }
+
+      update() {
+        // Update regular obstacles
+        this.obstacles.forEach(obs => obs.update());
+
+        // Update items (rotation)
+        if (this.item && !this.item.collected) {
+          this.item.rot += 0.035;
+        }
+
+        // Rail Row train logistics
+        if (this.type === 'rail') {
+          if (!this.trainActive) {
+            this.timeToTrain--;
+            if (this.timeToTrain <= 75) {
+              this.warningActive = true;
+              this.warningTimer++;
+              // Play warning beep periodically
+              if (this.warningTimer % 35 === 0) {
+                soundManager.playTrainWarning();
+              }
+            }
+            if (this.timeToTrain <= 0) {
+              this.trainActive = true;
+              this.warningActive = false;
+              this.warningTimer = 0;
+              // Reset train pos
+              this.trainX = this.trainDirection === 1 ? -600 : canvas.width + 100;
+            }
+          } else {
+            // Train is active
+            this.trainX += this.trainSpeed * this.trainDirection;
+            
+            // Check if train is off-screen
+            if ((this.trainDirection === 1 && this.trainX > canvas.width + 200) ||
+                (this.trainDirection === -1 && this.trainX < -700)) {
+              this.trainActive = false;
+              this.timeToTrain = 250 + Math.random() * 250 - Math.min(100, this.idx * 0.8);
+            }
+          }
+        }
+      }
+
+      draw() {
+        // Draw Lane background & bounds
+        ctx.save();
+        const screenYCenter = canvas.height - (this.y + ROW_HEIGHT/2 - cameraY);
+        
+        if (this.type === 'safe') {
+          // Grass dark green-blue lane
+          ctx.fillStyle = '#06130d';
+          ctx.fillRect(0, screenYCenter - ROW_HEIGHT/2, canvas.width, ROW_HEIGHT);
+          
+          // Glowing green lane borders
+          ctx.strokeStyle = '#39ff14';
+          ctx.shadowColor = '#39ff14';
+          ctx.shadowBlur = 6;
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.moveTo(0, screenYCenter - ROW_HEIGHT/2);
+          ctx.lineTo(canvas.width, screenYCenter - ROW_HEIGHT/2);
+          ctx.stroke();
+          
+          // Draw tiny green grid ticks
+          ctx.shadowBlur = 0;
+          ctx.strokeStyle = 'rgba(57, 255, 20, 0.12)';
+          ctx.lineWidth = 0.8;
+          for (let c = 1; c < GRID_COLS; c++) {
+            ctx.beginPath();
+            ctx.moveTo(c * COL_WIDTH, screenYCenter - ROW_HEIGHT/2);
+            ctx.lineTo(c * COL_WIDTH, screenYCenter + ROW_HEIGHT/2);
+            ctx.stroke();
+          }
+
+          // Draw random glowing vector grass clumps (2 per safe lane)
+          ctx.save();
+          ctx.strokeStyle = '#39ff14';
+          ctx.shadowColor = '#39ff14';
+          ctx.shadowBlur = 5;
+          ctx.lineWidth = 1.5;
+          for (let i = 0; i < 2; i++) {
+            // Seeded deterministic positions based on row index
+            const gx = ((this.idx * 133 + i * 187) % (canvas.width - 40)) + 20;
+            const gy = this.y + ROW_HEIGHT - 12 - ((this.idx * 47 + i * 29) % 12);
+            const screenGy = canvas.height - (gy - cameraY);
+            
+            // Draw dual blade grass vector clump
+            ctx.beginPath();
+            ctx.moveTo(gx - 3, screenGy + 4);
+            ctx.lineTo(gx - 1, screenGy - 3);
+            ctx.lineTo(gx, screenGy + 4);
+            ctx.moveTo(gx, screenGy + 4);
+            ctx.lineTo(gx + 2, screenGy - 4);
+            ctx.stroke();
+          }
+          ctx.restore();
+        } else if (this.type === 'road') {
+          // Asphalt road with neon borders
+          ctx.fillStyle = '#060812';
+          ctx.fillRect(0, screenYCenter - ROW_HEIGHT/2, canvas.width, ROW_HEIGHT);
+          
+          // Outer borders (neon pink)
+          ctx.strokeStyle = 'rgba(255, 0, 127, 0.38)';
+          ctx.shadowColor = 'rgba(255, 0, 127, 0.4)';
+          ctx.shadowBlur = 6;
+          ctx.lineWidth = 2.0;
+          ctx.beginPath();
+          ctx.moveTo(0, screenYCenter - ROW_HEIGHT/2);
+          ctx.lineTo(canvas.width, screenYCenter - ROW_HEIGHT/2);
+          ctx.moveTo(0, screenYCenter + ROW_HEIGHT/2);
+          ctx.lineTo(canvas.width, screenYCenter + ROW_HEIGHT/2);
+          ctx.stroke();
+          
+          // Dashed lane marker (neon yellow)
+          ctx.shadowBlur = 0;
+          ctx.strokeStyle = 'rgba(255, 255, 0, 0.22)';
+          ctx.setLineDash([12, 12]);
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(0, screenYCenter);
+          ctx.lineTo(canvas.width, screenYCenter);
+          ctx.stroke();
+        } else if (this.type === 'river') {
+          // Neon river lane: deep blue-cyan gradient
+          const riverGrad = ctx.createLinearGradient(0, screenYCenter - ROW_HEIGHT/2, 0, screenYCenter + ROW_HEIGHT/2);
+          riverGrad.addColorStop(0, '#001330');
+          riverGrad.addColorStop(0.5, '#00081c');
+          riverGrad.addColorStop(1, '#001330');
+          ctx.fillStyle = riverGrad;
+          ctx.fillRect(0, screenYCenter - ROW_HEIGHT/2, canvas.width, ROW_HEIGHT);
+          
+          // Bright cyan glowing river borders
+          ctx.strokeStyle = '#0088ff';
+          ctx.shadowColor = '#0088ff';
+          ctx.shadowBlur = 8;
+          ctx.lineWidth = 2.5;
+          ctx.beginPath();
+          ctx.moveTo(0, screenYCenter - ROW_HEIGHT/2);
+          ctx.lineTo(canvas.width, screenYCenter - ROW_HEIGHT/2);
+          ctx.moveTo(0, screenYCenter + ROW_HEIGHT/2);
+          ctx.lineTo(canvas.width, screenYCenter + ROW_HEIGHT/2);
+          ctx.stroke();
+          
+          // Animated flowing horizontal water waves
+          ctx.shadowBlur = 0;
+          ctx.strokeStyle = 'rgba(0, 242, 254, 0.25)';
+          ctx.lineWidth = 1.2;
+          const scroll = (Date.now() * 0.045) % 90;
+          ctx.beginPath();
+          // Wave 1 flowing right
+          ctx.moveTo(-90 + scroll, screenYCenter - 10);
+          for (let x = -90; x <= canvas.width + 90; x += 30) {
+            ctx.lineTo(x + scroll, screenYCenter - 10 + Math.sin((x + scroll) * 0.05) * 3);
+          }
+          // Wave 2 flowing left
+          ctx.moveTo(canvas.width + 90 - scroll, screenYCenter + 10);
+          for (let x = canvas.width + 90; x >= -90; x -= 30) {
+            ctx.lineTo(x - scroll, screenYCenter + 10 + Math.cos((x - scroll) * 0.05) * 3);
+          }
+          ctx.stroke();
+
+          // Draw little floating water circles/bubbles
+          ctx.fillStyle = 'rgba(0, 242, 254, 0.15)';
+          const bubbleTime = Date.now() * 0.002;
+          for (let i = 0; i < 3; i++) {
+            const bx = ((this.idx * 79 + i * 115) + bubbleTime * 35) % (canvas.width + 40) - 20;
+            const by = screenYCenter - ROW_HEIGHT/2 + 8 + (i * 11);
+            ctx.beginPath();
+            ctx.arc(bx, by, 1.2 + Math.sin(bubbleTime + i) * 0.4, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        } else if (this.type === 'rail') {
+          // Train tracks
+          ctx.fillStyle = '#0f0f16';
+          ctx.fillRect(0, screenYCenter - ROW_HEIGHT/2, canvas.width, ROW_HEIGHT);
+          
+          // Rail beds (sleepers)
+          ctx.strokeStyle = 'rgba(255, 255, 255, 0.07)';
+          ctx.lineWidth = 3.5;
+          for (let i = 8; i < canvas.width; i += 20) {
+            ctx.beginPath();
+            ctx.moveTo(i, screenYCenter - ROW_HEIGHT/2 + 6);
+            ctx.lineTo(i, screenYCenter + ROW_HEIGHT/2 - 6);
+            ctx.stroke();
+          }
+          
+          // Rails themselves
+          ctx.strokeStyle = '#4e5b70';
+          ctx.lineWidth = 3.0;
+          ctx.beginPath();
+          ctx.moveTo(0, screenYCenter - ROW_HEIGHT/2 + 8);
+          ctx.lineTo(canvas.width, screenYCenter - ROW_HEIGHT/2 + 8);
+          ctx.moveTo(0, screenYCenter + ROW_HEIGHT/2 - 8);
+          ctx.lineTo(canvas.width, screenYCenter + ROW_HEIGHT/2 - 8);
+          ctx.stroke();
+
+          // Railroad warning crosses drawn at the sides (yellow vector X)
+          ctx.save();
+          ctx.strokeStyle = '#ffff00';
+          ctx.shadowColor = '#ffff00';
+          ctx.shadowBlur = 6;
+          ctx.lineWidth = 2;
+          const drawCross = (cx, cy) => {
+            ctx.beginPath();
+            ctx.moveTo(cx - 5, cy - 5);
+            ctx.lineTo(cx + 5, cy + 5);
+            ctx.moveTo(cx + 5, cy - 5);
+            ctx.lineTo(cx - 5, cy + 5);
+            ctx.stroke();
+          };
+          drawCross(15, screenYCenter);
+          drawCross(canvas.width - 15, screenYCenter);
+          ctx.restore();
+          
+          // Warning indicator light
+          if (this.warningActive) {
+            const glowPulse = Math.abs(Math.sin(Date.now() * 0.015));
+            ctx.beginPath();
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = '#ff003c';
+            ctx.fillStyle = `rgba(255, 0, 60, ${0.3 + glowPulse * 0.7})`;
+            // Left light
+            ctx.arc(20, screenYCenter, 8, 0, Math.PI*2);
+            // Right light
+            ctx.arc(canvas.width - 20, screenYCenter, 8, 0, Math.PI*2);
+            ctx.fill();
+          }
+        }
+        ctx.restore();
+
+        // Draw logs/vehicles
+        this.obstacles.forEach(obs => obs.draw());
+
+        // Draw train
+        if (this.type === 'rail' && this.trainActive) {
+          ctx.save();
+          ctx.fillStyle = 'rgba(255, 0, 60, 0.9)';
+          ctx.strokeStyle = '#fff';
+          ctx.lineWidth = 3;
+          ctx.shadowBlur = 20;
+          ctx.shadowColor = '#ff003c';
+          
+          // Super long futuristic cargo train laser outline
+          ctx.fillRect(this.trainX, screenYCenter - (ROW_HEIGHT - 8)/2, 480, ROW_HEIGHT - 8);
+          ctx.strokeRect(this.trainX, screenYCenter - (ROW_HEIGHT - 8)/2, 480, ROW_HEIGHT - 8);
+          
+          // Cab windows
+          ctx.fillStyle = '#00f2fe';
+          ctx.shadowBlur = 10;
+          ctx.shadowColor = '#00f2fe';
+          if (this.trainDirection === 1) {
+            ctx.fillRect(this.trainX + 460, screenYCenter - (ROW_HEIGHT - 16)/2, 12, ROW_HEIGHT - 16);
+          } else {
+            ctx.fillRect(this.trainX + 8, screenYCenter - (ROW_HEIGHT - 16)/2, 12, ROW_HEIGHT - 16);
+          }
+          ctx.restore();
+        }
+
+        // Draw Collectible
+        if (this.item && !this.item.collected) {
+          ctx.save();
+          const itemX = this.item.col * COL_WIDTH + COL_WIDTH/2;
+          const itemY = screenYCenter;
+          
+          ctx.translate(itemX, itemY);
+          ctx.rotate(this.item.rot);
+          
+          if (this.item.type === 'star') {
+            ctx.strokeStyle = '#ffff00';
+            ctx.fillStyle = 'rgba(255, 255, 0, 0.15)';
+            ctx.shadowColor = '#ffff00';
+            ctx.shadowBlur = 12;
+            ctx.lineWidth = 2;
+            
+            ctx.beginPath();
+            for (let i = 0; i < 5; i++) {
+              ctx.lineTo(Math.cos((18 + i * 72) * Math.PI / 180) * 10, -Math.sin((18 + i * 72) * Math.PI / 180) * 10);
+              ctx.lineTo(Math.cos((54 + i * 72) * Math.PI / 180) * 5, -Math.sin((54 + i * 72) * Math.PI / 180) * 5);
+            }
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+          } else if (this.item.type === 'heart') {
+            ctx.strokeStyle = '#ff0055';
+            ctx.fillStyle = 'rgba(255, 0, 85, 0.2)';
+            ctx.shadowColor = '#ff0055';
+            ctx.shadowBlur = 12;
+            ctx.lineWidth = 2;
+            
+            const pulse = 1.0 + Math.sin(Date.now() * 0.01) * 0.1;
+            ctx.scale(pulse, pulse);
+            
+            ctx.beginPath();
+            ctx.moveTo(0, 4);
+            ctx.bezierCurveTo(-8, -2, -8, -10, 0, -6);
+            ctx.bezierCurveTo(8, -10, 8, -2, 0, 4);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+          } else if (this.item.type === 'shield') {
+            ctx.strokeStyle = '#00ffff';
+            ctx.fillStyle = 'rgba(0, 255, 255, 0.15)';
+            ctx.shadowColor = '#00ffff';
+            ctx.shadowBlur = 12;
+            ctx.lineWidth = 2;
+            
+            ctx.beginPath();
+            for (let i = 0; i < 6; i++) {
+              const angle = (i * 60) * Math.PI / 180;
+              ctx.lineTo(Math.cos(angle) * 9, Math.sin(angle) * 9);
+            }
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+          }
+          ctx.restore();
+        }
+      }
+    }
+
+    // Player logic (Neon Chicken)
+    class NeonChicken {
+      constructor() {
+        this.col = 4;
+        this.row = 1;
+        this.targetX = this.col * COL_WIDTH + COL_WIDTH/2;
+        this.targetY = this.row * ROW_HEIGHT + ROW_HEIGHT/2;
+        
+        this.x = this.targetX;
+        this.y = this.targetY;
+        
+        this.radius = 12;
+        this.hopTimer = 0;
+        this.hopMaxFrames = 10;
+        this.facing = 'up'; // 'up', 'down', 'left', 'right'
+        
+        // Invincibility state
+        this.shieldTime = 0; // frames
+        this.blinkTimer = 0;
+        this.invulnerableTimer = 0; // post hit invincibility
+      }
+
+      move(dir) {
+        if (gameState !== 'playing' || this.hopTimer > 0) return;
+        
+        // Realign column index based on floating x position if on a river
+        const currentRow = rows[this.row];
+        if (currentRow && currentRow.type === 'river') {
+          this.col = Math.max(0, Math.min(GRID_COLS - 1, Math.round((this.x - COL_WIDTH / 2) / COL_WIDTH)));
+        }
+
+        let newCol = this.col;
+        let newRow = this.row;
+        this.facing = dir;
+
+        if (dir === 'up') newRow++;
+        else if (dir === 'down') newRow--;
+        else if (dir === 'left') newCol--;
+        else if (dir === 'right') newCol++;
+
+        // Left-Right clamps
+        if (newCol < 0 || newCol >= GRID_COLS) return;
+        
+        // Lower limit (cannot go below row 0)
+        if (newRow < 0) return;
+
+        // Valid move! Initiate hop
+        this.col = newCol;
+        this.row = newRow;
+        this.targetX = this.col * COL_WIDTH + COL_WIDTH/2;
+        this.targetY = this.row * ROW_HEIGHT + ROW_HEIGHT/2;
+        
+        this.hopTimer = this.hopMaxFrames;
+        totalHops++;
+        
+        soundManager.playHop();
+
+        // Spawn hop particles
+        for (let i = 0; i < 5; i++) {
+          particles.push(new SparkParticle(this.x, this.y, '#ffff00'));
+        }
+
+        // Keep track of score metrics
+        if (this.row - 1 > score) {
+          score = this.row - 1;
+        }
+      }
+
+      update() {
+        // Interpolate position smoothly
+        if (this.hopTimer > 0) {
+          this.hopTimer--;
+        }
+        
+        // Smooth lerp positions
+        this.x += (this.targetX - this.x) * 0.28;
+        this.y += (this.targetY - this.y) * 0.28;
+
+        // Timers
+        if (this.shieldTime > 0) this.shieldTime--;
+        if (this.invulnerableTimer > 0) this.invulnerableTimer--;
+        this.blinkTimer++;
+
+        // River log carry logic
+        const currentRow = rows[this.row];
+        if (currentRow && currentRow.type === 'river' && this.hopTimer === 0) {
+          let onLog = false;
+          let logCarrier = null;
+
+          currentRow.obstacles.forEach(log => {
+            if (this.x >= log.x - 5 && this.x <= log.x + log.width + 5) {
+              onLog = true;
+              logCarrier = log;
+            }
+          });
+
+          if (onLog && logCarrier) {
+            // Carry player with log speed
+            const shift = logCarrier.speed * logCarrier.dir;
+            this.targetX += shift;
+            this.x += shift;
+            
+            // Continuous column tracking while floating
+            this.col = Math.max(0, Math.min(GRID_COLS - 1, Math.round((this.x - COL_WIDTH / 2) / COL_WIDTH)));
+            
+            // Check off-screen river boundaries
+            if (this.x < 0 || this.x > canvas.width) {
+              this.die('river');
+            }
+          } else {
+            // Drowned in river
+            this.die('river');
+          }
+        }
+      }
+
+      die(reason) {
+        if (this.shieldTime > 0 || this.invulnerableTimer > 0) return; // Immune
+
+        lives--;
+        if (lives <= 0) {
+          // Explode particle splash
+          for (let i = 0; i < 28; i++) {
+            particles.push(new SparkParticle(this.x, this.y, '#ff003c'));
+          }
+          triggerGameOver();
+        } else {
+          // Lose 1 life but respawn / get invulnerable frames
+          soundManager.playCrash();
+          this.invulnerableTimer = 90; // 1.5s invulnerable
+          
+          if (reason === 'river') {
+            soundManager.playSplash();
+            // Reset back to nearest safe row
+            let safeRow = this.row;
+            while (safeRow > 0 && (!rows[safeRow] || rows[safeRow].type === 'river')) {
+              safeRow--;
+            }
+            this.row = safeRow;
+            this.col = 4;
+            this.targetX = this.col * COL_WIDTH + COL_WIDTH/2;
+            this.targetY = this.row * ROW_HEIGHT + ROW_HEIGHT/2;
+            this.x = this.targetX;
+            this.y = this.targetY;
+          } else {
+            // Knock back slightly
+            this.row = Math.max(0, this.row - 1);
+            this.targetY = this.row * ROW_HEIGHT + ROW_HEIGHT/2;
+          }
+          
+          // Spawn feedback particles
+          for (let i = 0; i < 15; i++) {
+            particles.push(new SparkParticle(this.x, this.y, '#ff00ff'));
+          }
+        }
+      }
+
+      draw() {
+        // Flashing visibility if invulnerable
+        if (this.invulnerableTimer > 0 && Math.floor(this.blinkTimer / 5) % 2 === 0) {
+          return;
+        }
+
+        ctx.save();
+        
+        // Calculate hop jump offset for visual height
+        let jumpHeight = 0;
+        if (this.hopTimer > 0) {
+          // parabolic arch path
+          const progress = 1.0 - (this.hopTimer / this.hopMaxFrames);
+          jumpHeight = Math.sin(progress * Math.PI) * 15;
+        }
+
+        // Invert Y coordinate
+        const screenYGround = canvas.height - (this.y - cameraY);
+        const screenYChicken = canvas.height - (this.y + jumpHeight - cameraY);
+
+        // Draw shadow under chicken
+        ctx.fillStyle = 'rgba(0,0,0,0.35)';
+        ctx.beginPath();
+        // Shadow shrinks at peak height
+        const shadowRadius = Math.max(4, this.radius - jumpHeight * 0.4);
+        ctx.arc(this.x, screenYGround, shadowRadius, 0, Math.PI*2);
+        ctx.fill();
+
+        // Translate to animated position
+        ctx.translate(this.x, screenYChicken);
+
+        // Rotation based on facing
+        if (this.facing === 'down') ctx.rotate(Math.PI);
+        else if (this.facing === 'left') ctx.rotate(-Math.PI / 2);
+        else if (this.facing === 'right') ctx.rotate(Math.PI / 2);
+
+        // Glowing shield ring if active
+        if (this.shieldTime > 0) {
+          ctx.save();
+          ctx.strokeStyle = '#00ffff';
+          ctx.shadowBlur = 18;
+          ctx.shadowColor = '#00ffff';
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.arc(0, 0, this.radius + 6, 0, Math.PI*2);
+          ctx.stroke();
+          ctx.restore();
+        }
+
+        // DRAW CHICKEN VECTOR BODY
+        ctx.strokeStyle = '#ffff00'; // neon yellow
+        ctx.lineWidth = 3.0;
+        ctx.shadowBlur = 12;
+        ctx.shadowColor = '#ffff00';
+        
+        // Body (Circle)
+        ctx.fillStyle = '#05070f';
+        ctx.beginPath();
+        ctx.arc(0, 0, this.radius, 0, Math.PI*2);
+        ctx.fill();
+        ctx.stroke();
+
+        // Wings Outline (glowing side ellipses)
+        ctx.strokeStyle = '#00ffff'; // neon cyan
+        ctx.shadowColor = '#00ffff';
+        ctx.beginPath();
+        // Left Wing
+        ctx.ellipse(-this.radius, 0, 3.5, 6, 0, 0, Math.PI*2);
+        // Right Wing
+        ctx.ellipse(this.radius, 0, 3.5, 6, 0, 0, Math.PI*2);
+        ctx.stroke();
+
+        // Red Comb (glowing top crest)
+        ctx.strokeStyle = '#ff003c';
+        ctx.shadowColor = '#ff003c';
+        ctx.beginPath();
+        ctx.moveTo(-4, -this.radius);
+        ctx.lineTo(0, -this.radius - 6);
+        ctx.lineTo(4, -this.radius);
+        ctx.stroke();
+
+        // Orange Beak (facing front / top of head)
+        ctx.strokeStyle = '#ff6c00';
+        ctx.shadowColor = '#ff6c00';
+        ctx.beginPath();
+        ctx.moveTo(-3.5, -this.radius + 2);
+        ctx.lineTo(0, -this.radius - 3.5);
+        ctx.lineTo(3.5, -this.radius + 2);
+        ctx.stroke();
+
+        // Eyes
+        ctx.fillStyle = '#fff';
+        ctx.shadowBlur = 0;
+        ctx.beginPath();
+        ctx.arc(-4, -4, 1.8, 0, Math.PI*2);
+        ctx.arc(4, -4, 1.8, 0, Math.PI*2);
+        ctx.fill();
+
+        ctx.restore();
+      }
+    }
+
+    // Dynamic infinite level row manager
+    function getOrCreateRow(rowIdx) {
+      if (!rows[rowIdx]) {
+        rows[rowIdx] = new Row(rowIdx);
+      }
+      return rows[rowIdx];
+    }
+
+    // Populate rows initially
+    function initRows() {
+      rows = {};
+      // Pad behind player
+      for (let i = -5; i <= 16; i++) {
+        // Enforce safety at start rows
+        if (i <= 2) {
+          const row = new Row(i);
+          row.type = 'safe';
+          row.item = null;
+          rows[i] = row;
+        } else {
+          getOrCreateRow(i);
+        }
+      }
+    }
+
+    function initGame() {
+      player = new NeonChicken();
+      initRows();
+      particles = [];
+      score = 0;
+      lives = 3;
+      cameraY = 0;
+      maxRowReached = 0;
+      totalHops = 0;
+      roundStartTime = Date.now();
+      
+      // Show virtual dpad for touch users
+      if ('ontouchstart' in window) {
+        dpad.style.display = 'grid';
+      }
+    }
+
+    function update() {
+      player.update();
+
+      // Dynamically generate rows ahead and delete rows far behind camera
+      const currentMinRow = Math.floor(cameraY / ROW_HEIGHT) - 6;
+      const currentMaxRow = Math.floor((cameraY + canvas.height) / ROW_HEIGHT) + 6;
+      
+      // Clean up old rows
+      Object.keys(rows).forEach(key => {
+        const idx = parseInt(key, 10);
+        if (idx < currentMinRow) {
+          delete rows[key];
+        }
+      });
+
+      // Generate new rows
+      for (let i = currentMinRow; i <= currentMaxRow; i++) {
+        getOrCreateRow(i);
+      }
+
+      // Update rows
+      Object.values(rows).forEach(row => row.update());
+
+      // Update particles
+      particles.forEach(p => p.update());
+      particles = particles.filter(p => p.alpha > 0);
+
+      // Smooth camera follow target row
+      const cameraTargetY = (player.row * ROW_HEIGHT) - 340;
+      // Scroll camera smoothly, never scrolling back downwards
+      if (cameraTargetY > cameraY) {
+        cameraY += (cameraTargetY - cameraY) * 0.085;
+      }
+
+      // Check if player falls off bottom of the screen (slow speed death)
+      if (player.y - cameraY < 15) {
+        player.die('fallsOff');
+      }
+
+      // Check collision with items
+      const currentRow = rows[player.row];
+      if (currentRow && currentRow.item && !currentRow.item.collected && player.hopTimer === 0) {
+        const itemX = currentRow.item.col * COL_WIDTH + COL_WIDTH/2;
+        if (Math.abs(player.x - itemX) < 18) {
+          // Collected!
+          currentRow.item.collected = true;
+          const type = currentRow.item.type;
+          
+          if (type === 'star') {
+            score += 15; // Star coin gives +15 score points
+            soundManager.playCoin();
+            // Golden spark explosion
+            for (let i = 0; i < 10; i++) {
+              particles.push(new SparkParticle(player.x, player.y, '#ffff00'));
+            }
+          } else if (type === 'heart') {
+            lives = Math.min(3, lives + 1); // Max 3 lives
+            soundManager.playCoin();
+            // Pink heart sparks
+            for (let i = 0; i < 12; i++) {
+              particles.push(new SparkParticle(player.x, player.y, '#ff0088'));
+            }
+          } else if (type === 'shield') {
+            player.shieldTime = 300; // 5 seconds at 60fps
+            soundManager.playShield();
+            // Cyan shield sparks
+            for (let i = 0; i < 15; i++) {
+              particles.push(new SparkParticle(player.x, player.y, '#00ffff'));
+            }
+          }
+        }
+      }
+
+      // Check collision with obstacles (cars, train) on current row
+      if (currentRow && player.hopTimer === 0) {
+        // Cars collision check
+        if (currentRow.type === 'road') {
+          currentRow.obstacles.forEach(car => {
+            const playerLeft = player.x - player.radius + 2;
+            const playerRight = player.x + player.radius - 2;
+            const carLeft = car.x;
+            const carRight = car.x + car.width;
+            
+            if (playerRight > carLeft && playerLeft < carRight) {
+              if (player.shieldTime > 0) {
+                // Destroy car!
+                soundManager.playCrash();
+                // Spawn car scrap particles
+                for (let i = 0; i < 14; i++) {
+                  particles.push(new SparkParticle(car.x + car.width/2, car.y, car.color));
+                }
+                // Push car off-screen so it resets
+                car.x = car.dir === 1 ? canvas.width + 100 : -car.width - 100;
+              } else {
+                player.die('car');
+              }
+            }
+          });
+        }
+        
+        // Train collision check
+        if (currentRow.type === 'rail' && currentRow.trainActive) {
+          const playerLeft = player.x - player.radius + 3;
+          const playerRight = player.x + player.radius - 3;
+          const trainLeft = currentRow.trainX;
+          const trainRight = currentRow.trainX + 480;
+          
+          if (playerRight > trainLeft && playerLeft < trainRight) {
+            player.die('train');
+          }
+        }
+      }
+    }
+
+    function draw() {
+      // Clear with dark space backdrop
+      ctx.fillStyle = '#05070f';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Draw rows
+      Object.values(rows).forEach(row => row.draw());
+
+      // Draw player
+      player.draw();
+
+      // Draw particles
+      particles.forEach(p => p.draw());
+
+      // DRAW IN-GAME HEADS-UP DISPLAY (HUD)
+      // Background glow bar
+      ctx.save();
+      ctx.fillStyle = 'rgba(5, 7, 15, 0.75)';
+      ctx.fillRect(0, 0, canvas.width, 50);
+      
+      // Bottom border for HUD
+      ctx.strokeStyle = 'rgba(0, 242, 254, 0.15)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(0, 50);
+      ctx.lineTo(canvas.width, 50);
+      ctx.stroke();
+
+      // Draw Score (Neon Pink glow)
+      ctx.fillStyle = '#ff007f';
+      ctx.font = '900 20px "Outfit", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+      ctx.textAlign = 'left';
+      ctx.shadowBlur = 10;
+      ctx.shadowColor = 'rgba(255, 0, 127, 0.4)';
+      ctx.fillText(`${score.toLocaleString()} m`, 16, 32);
+
+      // Draw Lives (Neon Red hearts)
+      ctx.shadowColor = '#ff0044';
+      ctx.fillStyle = '#ff0044';
+      ctx.shadowBlur = 10;
+      ctx.font = '16px "Outfit"';
+      ctx.textAlign = 'right';
+      let heartsStr = '';
+      for (let i = 0; i < lives; i++) {
+        heartsStr += '❤️ ';
+      }
+      ctx.fillText(heartsStr, canvas.width - 16, 31);
+
+      // Draw Shield duration bar if active
+      if (player && player.shieldTime > 0) {
+        ctx.shadowColor = '#00ffff';
+        ctx.fillStyle = '#00ffff';
+        ctx.shadowBlur = 8;
+        const width = (player.shieldTime / 300) * 80;
+        ctx.fillRect(16, 40, width, 4);
+      }
+      ctx.restore();
+    }
+
+    let lastFrameTime = 0;
+    function gameLoop(timestamp) {
+      if (gameState !== 'playing') return;
+      
+      // Throttle/Cap FPS to 60fps to ensure uniform speeds
+      const elapsed = timestamp - lastFrameTime;
+      if (elapsed >= 1000 / TARGET_FPS) {
+        update();
+        draw();
+        lastFrameTime = timestamp - (elapsed % (1000 / TARGET_FPS));
+      }
+      
+      animationFrameId = requestAnimationFrame(gameLoop);
+    }
+
+    // Security payload for score verification
+    function getSecurityPayload() {
+      roundDuration = (Date.now() - roundStartTime) / 1000;
+      const secretModifier = 8291;
+      const signature = Math.round((score * 63) + (totalHops * 17) + (roundDuration * 2.2) + secretModifier);
+      
+      return {
+        gameCode: 'crossy_neon_road_v1',
+        hopCount: totalHops,
+        durationSeconds: roundDuration,
+        clientIntegritySig: signature,
+        distanceReached: score
+      };
+    }
+
+    function triggerGameOver() {
+      gameState = 'gameover';
+      cancelAnimationFrame(animationFrameId);
+      soundManager.playCrash();
+      setTimeout(() => soundManager.playGameOver(), 180);
+      soundManager.stopMusic();
+      
+      // Hide virtual D-pad
+      dpad.style.display = 'none';
+
+      finalScoreEl.innerText = score.toLocaleString();
+      gameOverScreen.style.display = 'flex';
+      
+      // Post score back to parent GameWrapper
+      window.parent.postMessage({
+        type: 'SUBMIT_SCORE',
+        score: score,
+        validationPayload: getSecurityPayload()
+      }, '*');
+    }
+
+    function movePlayer(dir) {
+      if (gameState === 'playing' && player) {
+        player.move(dir);
+      }
+    }
+
+    // Swipe controls for mobile
+    let touchStartX = 0;
+    let touchStartY = 0;
+    canvas.addEventListener('touchstart', (e) => {
+      touchStartX = e.touches[0].clientX;
+      touchStartY = e.touches[0].clientY;
+    }, { passive: true });
+
+    canvas.addEventListener('touchend', (e) => {
+      if (gameState !== 'playing') return;
+      const dx = e.changedTouches[0].clientX - touchStartX;
+      const dy = e.changedTouches[0].clientY - touchStartY;
+      const absX = Math.abs(dx);
+      const absY = Math.abs(dy);
+
+      if (Math.max(absX, absY) > 30) { // minimum threshold of 30px swipe
+        if (absX > absY) {
+          if (dx > 0) movePlayer('right');
+          else movePlayer('left');
+        } else {
+          if (dy > 0) movePlayer('down');
+          else movePlayer('up');
+        }
+      }
+    }, { passive: true });
+
+    // Keyboard bindings (Arrow Keys & WASD + Audio Keys)
+    window.addEventListener('keydown', (e) => {
+      if (e.code === 'KeyM') {
+        soundManager.toggleMusic();
+        return;
+      }
+      if (e.code === 'KeyS') {
+        // Only toggle SFX when not playing (to avoid conflict with movement)
+        if (gameState !== 'playing') {
+          soundManager.toggleSfx();
+          return;
+        }
+      }
+      
+      if (gameState !== 'playing') return;
+      
+      if (e.code === 'ArrowUp' || e.code === 'KeyW') {
+        e.preventDefault();
+        movePlayer('up');
+      } else if (e.code === 'ArrowDown' || e.code === 'KeyS') {
+        e.preventDefault();
+        movePlayer('down');
+      } else if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
+        e.preventDefault();
+        movePlayer('left');
+      } else if (e.code === 'ArrowRight' || e.code === 'KeyD') {
+        e.preventDefault();
+        movePlayer('right');
+      }
+    });
+
+    // Touch Dpad Click integrations
+    btnUp.addEventListener('click', (e) => { e.preventDefault(); movePlayer('up'); });
+    btnLeft.addEventListener('click', (e) => { e.preventDefault(); movePlayer('left'); });
+    btnDown.addEventListener('click', (e) => { e.preventDefault(); movePlayer('down'); });
+    btnRight.addEventListener('click', (e) => { e.preventDefault(); movePlayer('right'); });
+
+    // Start & Retry buttons
+    startBtn.addEventListener('click', () => {
+      startScreen.style.display = 'none';
+      gameState = 'playing';
+      soundManager.init();
+      soundManager.startMusic();
+      initGame();
+      // Start loop
+      lastFrameTime = performance.now();
+      animationFrameId = requestAnimationFrame(gameLoop);
+    });
+
+    retryBtn.addEventListener('click', () => {
+      gameOverScreen.style.display = 'none';
+      // Request new energy-consumed session instantly
+      window.parent.postMessage({
+        type: 'SUBMIT_SCORE_AND_RETRY',
+        score: score,
+        validationPayload: getSecurityPayload()
+      }, '*');
+    });
+
+    backMenuBtn.addEventListener('click', () => {
+      window.parent.postMessage({
+        type: 'CLOSE_GAME'
+      }, '*');
+    });
+
+    // Draw initial cover background
+    ctx.fillStyle = '#05070f';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  </script>
+</body>
+</html>

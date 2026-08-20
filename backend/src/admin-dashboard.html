@@ -1,0 +1,1377 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TG Game Hub — Admin Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;700&display=swap">
+  <style>
+    :root {
+      --bg: #05070f;
+      --surface: #0a0e1a;
+      --surface2: #0f1623;
+      --border: rgba(255,255,255,0.07);
+      --border-focus: rgba(0,242,254,0.35);
+      --cyan: #00f2fe;
+      --cyan-dim: rgba(0,242,254,0.15);
+      --gold: #fbbf24;
+      --gold-dim: rgba(251,191,36,0.12);
+      --green: #4ade80;
+      --green-dim: rgba(74,222,128,0.1);
+      --red: #f87171;
+      --red-dim: rgba(239,68,68,0.1);
+      --purple: #a78bfa;
+      --purple-dim: rgba(167,139,250,0.1);
+      --text: #f1f5f9;
+      --text-muted: rgba(255,255,255,0.4);
+      --text-dim: rgba(255,255,255,0.2);
+      --radius: 16px;
+      --radius-sm: 10px;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+    a { color: var(--cyan); text-decoration: none; }
+    code, .mono { font-family: 'JetBrains Mono', monospace; }
+
+    /* ── Login Screen ─────────────────────────────────────────────────────── */
+    #login-screen {
+      display: flex; align-items: center; justify-content: center;
+      min-height: 100vh; padding: 24px;
+    }
+    #login-box {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 24px; padding: 40px 36px;
+      width: 100%; max-width: 380px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+    }
+    #login-box h1 { font-size: 22px; font-weight: 900; margin-bottom: 6px; }
+    #login-box p { font-size: 13px; color: var(--text-muted); margin-bottom: 28px; }
+    #login-box input[type="password"] {
+      width: 100%; padding: 13px 16px;
+      background: rgba(0,0,0,0.35);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm); color: var(--text);
+      font-family: 'Inter', sans-serif; font-size: 14px;
+      margin-bottom: 12px; outline: none; transition: border-color 0.2s;
+    }
+    #login-box input[type="password"]:focus { border-color: var(--border-focus); }
+    #login-btn {
+      width: 100%; padding: 13px;
+      background: linear-gradient(135deg, #00f2fe, #00c8ff);
+      border: none; border-radius: var(--radius-sm);
+      color: #000; font-weight: 800; font-size: 14px;
+      cursor: pointer; transition: opacity 0.2s;
+    }
+    #login-btn:hover { opacity: 0.9; }
+    #login-error { color: var(--red); font-size: 12px; margin-top: 10px; display: none; }
+
+    /* ── App Shell ────────────────────────────────────────────────────────── */
+    #app { display: block; min-height: 100vh; }
+
+    /* ── Sidebar ──────────────────────────────────────────────────────────── */
+    #sidebar {
+      position: fixed; top: 0; left: 0; bottom: 0; width: 230px;
+      background: var(--surface2);
+      border-right: 1px solid var(--border);
+      display: flex; flex-direction: column; z-index: 100;
+      padding: 0;
+    }
+    #sidebar-logo {
+      padding: 22px 20px 18px;
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 10px;
+    }
+    #sidebar-logo .logo-icon {
+      width: 36px; height: 36px; border-radius: 10px;
+      background: linear-gradient(135deg, var(--cyan-dim), rgba(139,92,246,0.15));
+      border: 1px solid rgba(0,242,254,0.25);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px;
+    }
+    #sidebar-logo .logo-text { font-size: 14px; font-weight: 800; }
+    #sidebar-logo .logo-sub { font-size: 10px; color: var(--text-muted); }
+    #env-badge {
+      display: inline-block; margin-top: 4px;
+      padding: 2px 8px; border-radius: 6px; font-size: 9px; font-weight: 800;
+      text-transform: uppercase; letter-spacing: 0.08em;
+    }
+    #env-badge.dev { background: rgba(74,222,128,0.12); color: var(--green); border: 1px solid rgba(74,222,128,0.25); }
+    #env-badge.prod { background: rgba(239,68,68,0.1); color: var(--red); border: 1px solid rgba(239,68,68,0.25); }
+
+    #sidebar-nav { flex: 1; padding: 12px 10px; display: flex; flex-direction: column; gap: 3px; overflow-y: auto; }
+    .nav-section-label {
+      font-size: 9px; font-weight: 700; color: var(--text-dim);
+      text-transform: uppercase; letter-spacing: 0.12em;
+      padding: 10px 10px 4px;
+    }
+    .nav-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 12px; border-radius: var(--radius-sm);
+      cursor: pointer; transition: all 0.15s;
+      color: var(--text-muted); font-size: 13px; font-weight: 600;
+      border: 1px solid transparent;
+    }
+    .nav-item:hover { background: rgba(255,255,255,0.04); color: var(--text); }
+    .nav-item.active {
+      background: var(--cyan-dim);
+      border-color: rgba(0,242,254,0.2);
+      color: var(--cyan);
+    }
+    .nav-item .nav-icon { font-size: 16px; width: 20px; text-align: center; }
+    #sidebar-footer {
+      padding: 14px 18px;
+      border-top: 1px solid var(--border);
+      font-size: 11px; color: var(--text-dim);
+    }
+    #sidebar-footer span { display: block; font-weight: 700; color: var(--text-muted); margin-bottom: 2px; }
+
+    /* ── Main content ─────────────────────────────────────────────────────── */
+    #main { margin-left: 230px; padding: 28px 28px 60px; }
+    .page { display: none; }
+    .page.active { display: block; }
+
+    /* ── Page header ──────────────────────────────────────────────────────── */
+    .page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; gap: 16px; flex-wrap: wrap; }
+    .page-title { font-size: 22px; font-weight: 900; }
+    .page-subtitle { font-size: 13px; color: var(--text-muted); margin-top: 3px; }
+    .refresh-btn {
+      display: flex; align-items: center; gap: 6px;
+      padding: 8px 16px; border-radius: var(--radius-sm);
+      background: rgba(255,255,255,0.05);
+      border: 1px solid var(--border);
+      color: var(--text-muted); font-size: 12px; font-weight: 700;
+      cursor: pointer; transition: all 0.2s;
+    }
+    .refresh-btn:hover { background: var(--cyan-dim); border-color: rgba(0,242,254,0.2); color: var(--cyan); }
+
+    /* ── Stat cards grid ──────────────────────────────────────────────────── */
+    .stats-grid {
+      display: grid; gap: 14px;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      margin-bottom: 24px;
+    }
+    .stat-card {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 18px;
+      position: relative; overflow: hidden;
+    }
+    .stat-card::before {
+      content: '';
+      position: absolute; top: -20px; right: -20px;
+      width: 80px; height: 80px; border-radius: 50%;
+      background: var(--card-glow, rgba(0,242,254,0.06));
+      pointer-events: none;
+    }
+    .stat-card .stat-icon { font-size: 22px; margin-bottom: 12px; }
+    .stat-card .stat-label { font-size: 10px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 4px; }
+    .stat-card .stat-value { font-size: 28px; font-weight: 900; line-height: 1; color: var(--card-color, var(--cyan)); }
+    .stat-card .stat-sub { font-size: 11px; color: var(--text-dim); margin-top: 4px; }
+    .stat-card.cyan { --card-color: var(--cyan); --card-glow: rgba(0,242,254,0.06); }
+    .stat-card.gold  { --card-color: var(--gold); --card-glow: rgba(251,191,36,0.06); }
+    .stat-card.green { --card-color: var(--green); --card-glow: rgba(74,222,128,0.06); }
+    .stat-card.red   { --card-color: var(--red); --card-glow: rgba(239,68,68,0.06); }
+    .stat-card.purple { --card-color: var(--purple); --card-glow: rgba(167,139,250,0.06); }
+
+    /* ── Panel ────────────────────────────────────────────────────────────── */
+    .panel {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      margin-bottom: 20px;
+    }
+    .panel-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+      gap: 12px; flex-wrap: wrap;
+    }
+    .panel-title { font-size: 14px; font-weight: 800; display: flex; align-items: center; gap: 8px; }
+    .panel-body { padding: 20px; }
+
+    /* ── Table ────────────────────────────────────────────────────────────── */
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    thead th {
+      text-align: left; padding: 10px 12px;
+      font-size: 10px; font-weight: 700; color: var(--text-dim);
+      text-transform: uppercase; letter-spacing: 0.1em;
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+    }
+    tbody tr { border-bottom: 1px solid rgba(255,255,255,0.03); transition: background 0.15s; }
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:hover { background: rgba(255,255,255,0.02); }
+    tbody td { padding: 10px 12px; color: var(--text); vertical-align: middle; }
+    tbody td.muted { color: var(--text-muted); }
+
+    /* ── Badges ───────────────────────────────────────────────────────────── */
+    .badge {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 3px 8px; border-radius: 6px;
+      font-size: 10px; font-weight: 700; white-space: nowrap;
+    }
+    .badge.paid { background: rgba(74,222,128,0.12); color: var(--green); border: 1px solid rgba(74,222,128,0.25); }
+    .badge.pending { background: rgba(251,191,36,0.1); color: var(--gold); border: 1px solid rgba(251,191,36,0.2); }
+    .badge.expired { background: rgba(239,68,68,0.08); color: var(--red); border: 1px solid rgba(239,68,68,0.2); }
+    .badge.detected { background: rgba(167,139,250,0.1); color: var(--purple); border: 1px solid rgba(167,139,250,0.2); }
+    .badge.dev { background: rgba(74,222,128,0.1); color: var(--green); border: 1px solid rgba(74,222,128,0.2); }
+    .badge.prod { background: rgba(239,68,68,0.08); color: var(--red); border: 1px solid rgba(239,68,68,0.2); }
+
+    /* ── Search / filter bar ──────────────────────────────────────────────── */
+    .filter-bar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+    .filter-bar input, .filter-bar select {
+      padding: 8px 12px;
+      background: rgba(0,0,0,0.3); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); color: var(--text);
+      font-family: 'Inter', sans-serif; font-size: 12px;
+      outline: none; transition: border-color 0.2s;
+    }
+    .filter-bar input:focus, .filter-bar select:focus { border-color: var(--border-focus); }
+    .filter-bar input { min-width: 220px; }
+
+    /* ── Season progress bar ─────────────────────────────────────────────── */
+    .progress-track {
+      background: rgba(255,255,255,0.05); border-radius: 100px; height: 8px; overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%; border-radius: 100px;
+      background: linear-gradient(90deg, var(--cyan), #00c8ff);
+      transition: width 0.8s ease;
+    }
+
+    /* ── Pagination ───────────────────────────────────────────────────────── */
+    .pagination { display: flex; align-items: center; gap: 8px; padding: 14px 20px; border-top: 1px solid var(--border); }
+    .page-btn {
+      padding: 6px 12px; border-radius: 8px;
+      background: rgba(255,255,255,0.04); border: 1px solid var(--border);
+      color: var(--text-muted); font-size: 12px; font-weight: 600;
+      cursor: pointer; transition: all 0.15s;
+    }
+    .page-btn:hover:not(:disabled) { background: var(--cyan-dim); color: var(--cyan); border-color: rgba(0,242,254,0.2); }
+    .page-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+    .page-info { font-size: 12px; color: var(--text-muted); flex: 1; text-align: center; }
+
+    /* ── Pot card ─────────────────────────────────────────────────────────── */
+    .pot-card {
+      background: linear-gradient(135deg, rgba(251,191,36,0.1) 0%, rgba(245,158,11,0.05) 100%);
+      border: 1px solid rgba(251,191,36,0.25);
+      border-radius: var(--radius); padding: 24px;
+      display: flex; align-items: center; gap: 20px; flex-wrap: wrap;
+      margin-bottom: 20px;
+      box-shadow: 0 4px 30px rgba(251,191,36,0.1);
+    }
+    .pot-icon { font-size: 48px; }
+    .pot-info { flex: 1; }
+    .pot-label { font-size: 11px; font-weight: 700; color: rgba(251,191,36,0.6); text-transform: uppercase; letter-spacing: 0.1em; }
+    .pot-value { font-size: 36px; font-weight: 900; color: var(--gold); line-height: 1.1; }
+    .pot-sub { font-size: 12px; color: rgba(255,255,255,0.45); margin-top: 4px; }
+
+    /* ── Rank pill ────────────────────────────────────────────────────────── */
+    .rank-1 { color: var(--gold); font-weight: 900; }
+    .rank-2 { color: #94a3b8; font-weight: 800; }
+    .rank-3 { color: #b45309; font-weight: 800; }
+
+    /* ── Loading spinner ──────────────────────────────────────────────────── */
+    .spinner {
+      display: inline-block; width: 20px; height: 20px;
+      border: 2px solid rgba(255,255,255,0.1);
+      border-top-color: var(--cyan);
+      border-radius: 50%; animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading-row td { text-align: center; padding: 40px; color: var(--text-muted); }
+
+    /* ── Responsive ───────────────────────────────────────────────────────── */
+    @media (max-width: 768px) {
+      #sidebar { display: none; }
+      #main { margin-left: 0; padding: 16px; }
+    }
+
+    /* ── Scrollbar ────────────────────────────────────────────────────────── */
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
+
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    @media (max-width: 1000px) { .two-col { grid-template-columns: 1fr; } }
+
+    .config-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,0.04); }
+    .config-row:last-child { border-bottom: none; }
+    .config-key { font-size: 12px; color: var(--text-muted); font-weight: 600; }
+    .config-val { font-size: 12px; font-weight: 700; color: var(--text); font-family: 'JetBrains Mono', monospace; }
+  </style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<!-- LOGIN SCREEN (production only)                                            -->
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<div id="login-screen" style="display:none">
+  <div id="login-box">
+    <div style="font-size:36px;margin-bottom:12px">🎮</div>
+    <h1>Admin Dashboard</h1>
+    <p>TG Game Hub — Gib dein Admin-Passwort ein</p>
+    <input type="password" id="pw-input" placeholder="Passwort" autocomplete="current-password" />
+    <button id="login-btn">Einloggen</button>
+    <div id="login-error">Falsches Passwort. Bitte erneut versuchen.</div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<!-- APP SHELL                                                                 -->
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<div id="app">
+
+  <!-- Sidebar -->
+  <nav id="sidebar">
+    <div id="sidebar-logo">
+      <div class="logo-icon">🎮</div>
+      <div>
+        <div class="logo-text">Game Hub</div>
+        <div class="logo-sub">Admin Dashboard</div>
+        <span id="env-badge" class="sidebar-env">—</span>
+      </div>
+    </div>
+
+    <div id="sidebar-nav">
+      <div class="nav-section-label">Übersicht</div>
+      <div class="nav-item active" data-page="overview">
+        <span class="nav-icon">📊</span> Übersicht
+      </div>
+      <div class="nav-item" data-page="season">
+        <span class="nav-icon">🏆</span> Season &amp; Pot
+      </div>
+
+      <div class="nav-section-label" style="margin-top:8px">Daten</div>
+      <div class="nav-item" data-page="players">
+        <span class="nav-icon">👥</span> Spieler
+      </div>
+      <div class="nav-item" data-page="orders">
+        <span class="nav-icon">🛒</span> Shop-Bestellungen
+      </div>
+
+      <div class="nav-section-label" style="margin-top:8px">System</div>
+      <div class="nav-item" data-page="config">
+        <span class="nav-icon">⚙️</span> Konfiguration
+      </div>
+    </div>
+
+    <div id="sidebar-footer">
+      <span>Letztes Update</span>
+      <div id="last-update">—</div>
+    </div>
+  </nav>
+
+  <!-- Main content -->
+  <main id="main">
+
+    <!-- ── Overview ─────────────────────────────────────────────────────── -->
+    <div class="page active" id="page-overview">
+      <div class="page-header">
+        <div>
+          <div class="page-title">📊 Übersicht</div>
+          <div class="page-subtitle">Echtzeit-Statistiken der Plattform</div>
+        </div>
+        <button class="refresh-btn" onclick="loadOverview()">↻ Aktualisieren</button>
+      </div>
+
+      <div class="stats-grid" id="overview-stats">
+        <div class="stat-card cyan"><div class="spinner"></div></div>
+      </div>
+
+      <div class="two-col">
+        <div class="panel">
+          <div class="panel-header"><div class="panel-title">🎮 Spiele nach Aktivität</div></div>
+          <div class="panel-body" id="games-table-body">
+            <div style="color:var(--text-muted);font-size:12px">Lädt...</div>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-header"><div class="panel-title">⚡ Energie-Verteilung</div></div>
+          <div class="panel-body" id="energy-stats-body">
+            <div style="color:var(--text-muted);font-size:12px">Lädt...</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Season & Pot ──────────────────────────────────────────────────── -->
+    <div class="page" id="page-season">
+      <div class="page-header">
+        <div>
+          <div class="page-title">🏆 Season &amp; Pot</div>
+          <div class="page-subtitle">Season-Fortschritt, Pot-Wert und Ranglisten</div>
+        </div>
+        <button class="refresh-btn" onclick="loadSeason()">↻ Aktualisieren</button>
+      </div>
+
+      <div id="season-body">
+        <div style="color:var(--text-muted)">Lädt...</div>
+      </div>
+    </div>
+
+    <!-- ── Players ────────────────────────────────────────────────────────── -->
+    <div class="page" id="page-players">
+      <div class="page-header">
+        <div>
+          <div class="page-title">👥 Spieler</div>
+          <div class="page-subtitle">Alle registrierten Nutzer</div>
+        </div>
+        <button class="refresh-btn" onclick="loadPlayers(1)">↻ Aktualisieren</button>
+      </div>
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">Spielerliste</div>
+          <div class="filter-bar">
+            <input type="text" id="player-search" placeholder="Suche Name, ID, Username…" oninput="debounceSearch()">
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>#</th><th>Name</th><th>Username</th><th>ID</th>
+                <th>⚡</th><th>Runden</th><th>Score</th>
+                <th>Wallet</th><th>Beigetreten</th><th>Status</th><th>Aktion</th>
+              </tr>
+            </thead>
+            <tbody id="players-tbody">
+              <tr class="loading-row"><td colspan="11"><div class="spinner"></div></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="pagination" id="players-pagination"></div>
+      </div>
+    </div>
+
+    <!-- ── Orders ─────────────────────────────────────────────────────────── -->
+    <div class="page" id="page-orders">
+      <div class="page-header">
+        <div>
+          <div class="page-title">🛒 Shop-Bestellungen</div>
+          <div class="page-subtitle">Alle Krypto-Zahlungen</div>
+        </div>
+        <button class="refresh-btn" onclick="loadOrders(1)">↻ Aktualisieren</button>
+      </div>
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">Bestellungen</div>
+          <div class="filter-bar">
+            <select id="order-status-filter" onchange="loadOrders(1)">
+              <option value="">Alle Status</option>
+              <option value="paid">Bezahlt</option>
+              <option value="pending">Ausstehend</option>
+              <option value="expired">Abgelaufen</option>
+              <option value="detected">Erkannt</option>
+            </select>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Bestellung</th><th>Spieler</th><th>Produkt</th>
+                <th>Betrag</th><th>Coin</th><th>Status</th>
+                <th>Erstellt</th><th>Bezahlt</th>
+              </tr>
+            </thead>
+            <tbody id="orders-tbody">
+              <tr class="loading-row"><td colspan="8"><div class="spinner"></div></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="pagination" id="orders-pagination"></div>
+      </div>
+    </div>
+
+    <!-- ── Config ─────────────────────────────────────────────────────────── -->
+    <div class="page" id="page-config">
+      <div class="page-header">
+        <div>
+          <div class="page-title">⚙️ Konfiguration</div>
+          <div class="page-subtitle">Aktive Runtime-Konfiguration des Servers</div>
+        </div>
+        <button class="refresh-btn" onclick="loadConfig()">↻ Aktualisieren</button>
+      </div>
+      <div class="panel" style="max-width:640px">
+        <div class="panel-header"><div class="panel-title">Server-Konfiguration</div></div>
+        <div class="panel-body" id="config-body">
+          <div style="color:var(--text-muted)">Lädt...</div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- Edit Player Modal -->
+<div id="edit-player-modal" style="display:none; position: fixed; inset: 0; z-index: 99999; background: rgba(0,0,0,0.85); backdrop-filter: blur(8px); align-items: center; justify-content: center; padding: 24px;">
+  <div style="background: linear-gradient(180deg, #0f1623 0%, #0a0e18 100%); border: 1px solid var(--border); border-radius: 24px; padding: 28px; width: 100%; max-width: 460px; box-shadow: 0 20px 60px rgba(0,0,0,0.6); position: relative;">
+    
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px;">
+      <div>
+        <h3 style="font-size: 18px; font-weight: 900; color: var(--cyan);">Spieler verwalten</h3>
+        <p style="font-size: 11px; color: var(--text-muted); margin-top: 2px;" id="edit-player-title-id"></p>
+      </div>
+      <button onclick="closeEditPlayerModal()" style="background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 8px; cursor: pointer; color: #aaa;">
+        ✕
+      </button>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 14px; margin-bottom: 24px;">
+      <!-- Display Name -->
+      <div style="display: flex; flex-direction: column; gap: 5px;">
+        <label style="font-size: 10px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em;">Anzeigename</label>
+        <input type="text" id="edit-display-name" style="background: rgba(0,0,0,0.35); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 12px; color: #fff; font-size: 13px; outline: none;" />
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+        <!-- Energy -->
+        <div style="display: flex; flex-direction: column; gap: 5px;">
+          <label style="font-size: 10px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em;">⚡ Energie</label>
+          <input type="number" id="edit-energy" min="0" max="1000" style="background: rgba(0,0,0,0.35); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 12px; color: #fff; font-size: 13px; outline: none;" />
+        </div>
+        <!-- Daily Ad Count -->
+        <div style="display: flex; flex-direction: column; gap: 5px;">
+          <label style="font-size: 10px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em;">📺 Gesehene Ads</label>
+          <input type="number" id="edit-ad-count" min="0" max="100" style="background: rgba(0,0,0,0.35); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 12px; color: #fff; font-size: 13px; outline: none;" />
+        </div>
+      </div>
+
+      <!-- Wallets -->
+      <div style="display: flex; flex-direction: column; gap: 5px;">
+        <label style="font-size: 10px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em;">Litecoin (LTC) Wallet</label>
+        <input type="text" id="edit-wallet-ltc" style="background: rgba(0,0,0,0.35); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 12px; color: #fff; font-size: 13px; outline: none; font-family: monospace;" />
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 5px;">
+        <label style="font-size: 10px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em;">Bitcoin (BTC) Wallet</label>
+        <input type="text" id="edit-wallet-btc" style="background: rgba(0,0,0,0.35); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 12px; color: #fff; font-size: 13px; outline: none; font-family: monospace;" />
+      </div>
+
+      <!-- Adjust Score -->
+      <div style="display: flex; flex-direction: column; gap: 5px;">
+        <label style="font-size: 10px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em;">🏆 Punkte anpassen (Score)</label>
+        <input type="number" id="edit-adjust-score" placeholder="z.B. +500 oder -200" style="background: rgba(0,0,0,0.35); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 12px; color: #fff; font-size: 13px; outline: none;" />
+        <span style="font-size: 9px; color: var(--text-dim);">Wert wird dem Zähler hinzugefügt bzw. abgezogen.</span>
+      </div>
+
+      <!-- Deletion options -->
+      <div style="display: flex; flex-direction: column; gap: 5px;">
+        <label style="font-size: 10px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em;">Kontostatus / Löschung</label>
+        <select id="edit-deletion" style="background: rgba(0,0,0,0.35); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 12px; color: #fff; font-size: 13px; outline: none; -webkit-appearance: none; -moz-appearance: none; appearance: none;">
+          <option value="none">Aktiv (Keine Löschung)</option>
+          <option value="schedule">Kontolöschung planen (in 48h)</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Error container -->
+    <div id="edit-player-error" style="color: var(--red); font-size: 12px; margin-bottom: 14px; display: none;"></div>
+
+    <!-- Footer actions -->
+    <div style="display: flex; gap: 10px;">
+      <button id="edit-player-save-btn" style="flex: 1; padding: 12px; background: linear-gradient(135deg, #00f2fe, #00c8ff); border: none; border-radius: var(--radius-sm); color: #000; font-weight: 800; font-size: 13px; cursor: pointer;">
+        Änderungen speichern
+      </button>
+      <button onclick="closeEditPlayerModal()" style="padding: 12px 18px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: var(--radius-sm); color: #aaa; font-weight: 700; font-size: 13px; cursor: pointer;">
+        Abbrechen
+      </button>
+    </div>
+
+  </div>
+</div>
+
+<!-- AIRDROP INFO MODAL ADMIN -->
+<div id="airdrop-info-modal-admin" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75); backdrop-filter: blur(10px); z-index: 9999; align-items: center; justify-content: center; padding: 20px;">
+  <div style="background: #0d1322; border: 1px solid rgba(0,242,254,0.3); border-radius: 16px; max-width: 480px; width: 100%; padding: 24px; box-shadow: 0 20px 50px rgba(0,0,0,0.8);">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+      <div style="font-weight: 900; font-size: 18px; color: #fff;">ℹ️ Airdrop Auszahlung Details</div>
+      <button onclick="closeAirdropInfoModalAdmin()" style="background: none; border: none; color: #aaa; font-size: 18px; cursor: pointer;">✕</button>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 10px; font-size: 13px; margin-bottom: 20px;">
+      <div style="display: flex; justify-content: space-between; padding: 8px 12px; background: rgba(255,255,255,0.03); border-radius: 8px;">
+        <span style="color: var(--text-muted);">Payout ID:</span> <span id="ad-admin-id" class="mono" style="color: #fff; font-weight: 700;">#—</span>
+      </div>
+      <div style="display: flex; justify-content: space-between; padding: 8px 12px; background: rgba(255,255,255,0.03); border-radius: 8px;">
+        <span style="color: var(--text-muted);">Season / Kategorie:</span> <span id="ad-admin-season" style="color: var(--gold); font-weight: 800;">—</span>
+      </div>
+      <div style="display: flex; justify-content: space-between; padding: 8px 12px; background: rgba(255,255,255,0.03); border-radius: 8px;">
+        <span style="color: var(--text-muted);">Spieler:</span> <span id="ad-admin-player" style="color: #fff; font-weight: 800;">—</span>
+      </div>
+      <div style="display: flex; justify-content: space-between; padding: 8px 12px; background: rgba(255,255,255,0.03); border-radius: 8px;">
+        <span style="color: var(--text-muted);">Betrag (€ / Crypto):</span> <span id="ad-admin-amount" style="color: var(--green); font-weight: 900;">—</span>
+      </div>
+      <div style="display: flex; justify-content: space-between; padding: 8px 12px; background: rgba(255,255,255,0.03); border-radius: 8px;">
+        <span style="color: var(--text-muted);">Status:</span> <span id="ad-admin-status" style="font-weight: 800;">—</span>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; background: rgba(255,255,255,0.03); border-radius: 8px;">
+        <span style="color: var(--text-muted); font-size: 11px; font-weight: 700; text-transform: uppercase;">Hinterlegte Wallet-Adresse:</span>
+        <input type="text" id="ad-admin-address" readonly style="background: rgba(0,0,0,0.4); border: 1px solid var(--border); border-radius: 6px; padding: 6px 10px; color: var(--cyan); font-family: monospace; font-size: 11px; outline: none;" />
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; background: rgba(255,255,255,0.03); border-radius: 8px;">
+        <span style="color: var(--text-muted); font-size: 11px; font-weight: 700; text-transform: uppercase;">Transaktions-ID (TXID):</span>
+        <div style="display: flex; gap: 6px;">
+          <input type="text" id="ad-admin-txid" readonly style="flex: 1; background: rgba(0,0,0,0.4); border: 1px solid var(--border); border-radius: 6px; padding: 6px 10px; color: var(--gold); font-family: monospace; font-size: 11px; outline: none;" />
+          <button onclick="copyAdminTxId()" style="padding: 6px 12px; background: rgba(255,255,255,0.1); border: none; border-radius: 6px; color: #fff; font-size: 11px; font-weight: 700; cursor: pointer;">Kopieren</button>
+        </div>
+      </div>
+    </div>
+
+    <button onclick="closeAirdropInfoModalAdmin()" style="width: 100%; padding: 12px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.1); border-radius: var(--radius-sm); color: #fff; font-weight: 700; font-size: 13px; cursor: pointer;">
+      Schließen
+    </button>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<script>
+  // ── Global State ───────────────────────────────────────────────────────────
+  let API = window.location.origin;
+  if (!API || API === 'null' || API.startsWith('file:') || window.location.port === '5173') {
+    API = 'http://localhost:5000';
+  }
+  let authHeader = '';
+  let isDevMode = false;
+  let searchTimeout = null;
+  let playerPage = 1;
+  let orderPage = 1;
+  let currentPlayers = [];
+  let editingPlayerId = null;
+
+  // ── Utility ────────────────────────────────────────────────────────────────
+  function fmt(n) { return Number(n || 0).toLocaleString('de-DE'); }
+  function numFix(n, decimals = 2) { return Number(n || 0).toFixed(decimals); }
+  function fmtDate(s) { if (!s) return '—'; try { return new Date(s).toLocaleString('de-DE', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' }); } catch { return s; } }
+  function fmtDateShort(s) { if (!s) return '—'; try { return new Date(s).toLocaleDateString('de-DE'); } catch { return s; } }
+
+  function updateLastUpdate() {
+    const el = document.getElementById('last-update');
+    if (el) el.textContent = new Date().toLocaleTimeString('de-DE');
+  }
+
+  async function apiFetch(path) {
+    const headers = { 'Content-Type': 'application/json' };
+    if (authHeader) headers['Authorization'] = authHeader;
+    const url = path.startsWith('http') ? path : (API + path);
+    const res = await fetch(url, { headers });
+    if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
+    return res.json();
+  }
+
+  // ── Navigation ─────────────────────────────────────────────────────────────
+  function showPage(id) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    document.getElementById('page-' + id)?.classList.add('active');
+    document.querySelector(`[data-page="${id}"]`)?.classList.add('active');
+
+    // Lazy load
+    if (id === 'overview') loadOverview();
+    if (id === 'season') loadSeason();
+    if (id === 'players') loadPlayers(1);
+    if (id === 'orders') loadOrders(1);
+    if (id === 'config') loadConfig();
+  }
+
+  document.querySelectorAll('.nav-item').forEach(item => {
+    item.addEventListener('click', () => showPage(item.dataset.page));
+  });
+
+  // ── Auth Init ──────────────────────────────────────────────────────────────
+  async function initDashboard() {
+    const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:';
+    let cfgData;
+    try {
+      cfgData = await apiFetch('/api/admin/config');
+      isDevMode = cfgData.nodeEnv === 'development' || isLocalhost;
+    } catch {
+      isDevMode = isLocalhost;
+    }
+
+    const loginEl = document.getElementById('login-screen');
+    const appEl = document.getElementById('app');
+    const badgeEl = document.getElementById('env-badge');
+
+    if (isDevMode) {
+      if (loginEl) loginEl.style.display = 'none';
+      if (appEl) appEl.style.display = 'block';
+      if (badgeEl) { badgeEl.textContent = 'DEV'; badgeEl.className = 'dev'; }
+      try {
+        showPage('overview');
+      } catch (err) {
+        console.error('Error loading overview page:', err);
+      }
+    } else {
+      if (loginEl) loginEl.style.display = 'flex';
+      if (appEl) appEl.style.display = 'none';
+    }
+  }
+
+  // Login flow
+  document.getElementById('login-btn').addEventListener('click', async () => {
+    const pw = document.getElementById('pw-input').value;
+    if (!pw) return;
+    const encoded = btoa('admin:' + pw);
+    authHeader = 'Basic ' + encoded;
+    try {
+      await apiFetch('/api/admin/config');
+      // Success
+      document.getElementById('login-screen').style.display = 'none';
+      document.getElementById('app').style.display = 'block';
+      document.getElementById('env-badge').textContent = 'PROD';
+      document.getElementById('env-badge').className = 'prod';
+      showPage('overview');
+    } catch {
+      document.getElementById('login-error').style.display = 'block';
+      authHeader = '';
+    }
+  });
+  document.getElementById('pw-input').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('login-btn').click(); });
+
+  // ── Overview ───────────────────────────────────────────────────────────────
+  async function loadOverview() {
+    try {
+      const d = await apiFetch('/api/admin/stats');
+      updateLastUpdate();
+
+      document.getElementById('overview-stats').innerHTML = `
+        <div class="stat-card cyan" style="--card-glow:rgba(0,242,254,0.06)">
+          <div class="stat-icon">👥</div>
+          <div class="stat-label">Gesamt Spieler</div>
+          <div class="stat-value">${fmt(d.users.total)}</div>
+          <div class="stat-sub">+${fmt(d.users.new24h)} heute · +${fmt(d.users.new7d)} diese Woche</div>
+        </div>
+        <div class="stat-card gold">
+          <div class="stat-icon">🎮</div>
+          <div class="stat-label">Gespielte Runden</div>
+          <div class="stat-value">${fmt(d.games.totalRounds)}</div>
+          <div class="stat-sub">${fmt(d.games.rounds24h)} in letzten 24h</div>
+        </div>
+        <div class="stat-card green">
+          <div class="stat-icon">💰</div>
+          <div class="stat-label">Shop-Umsatz</div>
+          <div class="stat-value">${d.shop.totalRevenue} €</div>
+          <div class="stat-sub">${d.shop.paidOrders} bezahlte Orders · ${d.shop.conversionRate}% Conv.</div>
+        </div>
+        <div class="stat-card purple">
+          <div class="stat-icon">🏅</div>
+          <div class="stat-label">Ø Score pro Runde</div>
+          <div class="stat-value">${fmt(d.games.avgScore)}</div>
+          <div class="stat-sub">Gesamt: ${fmt(d.games.totalScore)} Pts</div>
+        </div>
+        <div class="stat-card cyan">
+          <div class="stat-icon">⚡</div>
+          <div class="stat-label">Ø Energie</div>
+          <div class="stat-value">${d.energy.avgEnergy}</div>
+          <div class="stat-sub">${fmt(d.energy.fullEnergyUsers)} voll · ${fmt(d.energy.emptyEnergyUsers)} leer</div>
+        </div>
+        <div class="stat-card gold">
+          <div class="stat-icon">🔗</div>
+          <div class="stat-label">Referrals</div>
+          <div class="stat-value">${fmt(d.users.withReferrals)}</div>
+          <div class="stat-sub">${fmt(d.users.scheduledForDeletion)} Konten zur Löschung</div>
+        </div>
+        <div class="stat-card green">
+          <div class="stat-icon">🔑</div>
+          <div class="stat-label">Wallet-Adressen</div>
+          <div class="stat-value">${fmt(d.crypto.availableAddresses)}</div>
+          <div class="stat-sub">${fmt(d.crypto.usedAddresses)} benutzt · ${fmt(d.crypto.totalAddresses)} gesamt</div>
+        </div>
+        <div class="stat-card purple">
+          <div class="stat-icon">🕹️</div>
+          <div class="stat-label">Aktive Spieler (24h)</div>
+          <div class="stat-value">${fmt(d.games.uniquePlayers24h)}</div>
+          <div class="stat-sub">einzigartige Spieler</div>
+        </div>
+      `;
+
+      // Games table
+      const topGames = d.games.topGames;
+      document.getElementById('games-table-body').innerHTML = topGames.length === 0
+        ? '<div style="color:var(--text-muted);font-size:12px">Keine Daten</div>'
+        : `<div class="table-wrap"><table>
+            <thead><tr><th>Spiel</th><th>Runden</th><th>Total Score</th></tr></thead>
+            <tbody>
+              ${topGames.map(g => `<tr>
+                <td><span style="font-weight:700">${g.gameId}</span></td>
+                <td>${fmt(g.plays)}</td>
+                <td class="mono">${fmt(g.totalScore)}</td>
+              </tr>`).join('')}
+            </tbody>
+          </table></div>`;
+
+      // Energy stats
+      document.getElementById('energy-stats-body').innerHTML = `
+        <div style="display:flex;flex-direction:column;gap:14px">
+          <div>
+            <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:6px">
+              <span style="color:var(--text-muted)">Volle Energie (${d.energy.fullEnergyUsers})</span>
+              <span style="font-weight:700;color:var(--green)">${d.users.total > 0 ? Math.round(d.energy.fullEnergyUsers/d.users.total*100) : 0}%</span>
+            </div>
+            <div class="progress-track">
+              <div class="progress-fill" style="width:${d.users.total > 0 ? Math.round(d.energy.fullEnergyUsers/d.users.total*100) : 0}%;background:linear-gradient(90deg,var(--green),#22c55e)"></div>
+            </div>
+          </div>
+          <div>
+            <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:6px">
+              <span style="color:var(--text-muted)">Keine Energie (${d.energy.emptyEnergyUsers})</span>
+              <span style="font-weight:700;color:var(--red)">${d.users.total > 0 ? Math.round(d.energy.emptyEnergyUsers/d.users.total*100) : 0}%</span>
+            </div>
+            <div class="progress-track">
+              <div class="progress-fill" style="width:${d.users.total > 0 ? Math.round(d.energy.emptyEnergyUsers/d.users.total*100) : 0}%;background:linear-gradient(90deg,var(--red),#ef4444)"></div>
+            </div>
+          </div>
+          <div style="padding-top:8px;border-top:1px solid var(--border)">
+            <div style="font-size:11px;color:var(--text-dim)">Ø Energie pro Spieler</div>
+            <div style="font-size:24px;font-weight:900;color:var(--gold);margin-top:4px">${d.energy.avgEnergy} / 5</div>
+          </div>
+          <div>
+            <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:6px">
+              <span style="color:var(--text-muted)">Shop-Auftrag Conversion</span>
+              <span style="font-weight:700;color:var(--cyan)">${d.shop.conversionRate}%</span>
+            </div>
+            <div class="progress-track">
+              <div class="progress-fill" style="width:${d.shop.conversionRate}%"></div>
+            </div>
+          </div>
+        </div>`;
+    } catch (e) {
+      document.getElementById('overview-stats').innerHTML = `<div class="stat-card red"><div class="stat-icon">⚠️</div><div class="stat-label">Fehler</div><div class="stat-value" style="font-size:13px">${e.message}</div></div>`;
+      if (document.getElementById('games-table-body')) document.getElementById('games-table-body').innerHTML = '<div style="color:var(--text-muted);font-size:12px">Keine Daten verfügbar</div>';
+      if (document.getElementById('energy-stats-body')) document.getElementById('energy-stats-body').innerHTML = '<div style="color:var(--text-muted);font-size:12px">Keine Daten verfügbar</div>';
+    }
+  }
+
+  // ── Season & Airdrop Management ────────────────────────────────────────────
+  async function loadSeason() {
+    const body = document.getElementById('season-body');
+    body.innerHTML = '<div style="color:var(--text-muted);padding:40px;text-align:center"><div class="spinner"></div> Season-Daten werden geladen...</div>';
+    try {
+      const d = await apiFetch('/api/admin/season');
+      updateLastUpdate();
+      const s = d.season;
+      const preview = d.airdropPreview;
+
+      const isPreparing = s.status === 'preparing';
+      const isActive = s.status === 'active';
+
+      body.innerHTML = `
+        <div class="pot-card" style="margin-bottom:20px;background:linear-gradient(135deg, rgba(0,242,254,0.1), rgba(167,139,250,0.06));border:1px solid rgba(0,242,254,0.25)">
+          <div class="pot-icon">🏆</div>
+          <div class="pot-info">
+            <div class="pot-label">Season Pot (Airdrop Pool)</div>
+        <div class="pot-card" style="margin-bottom:20px;background:linear-gradient(135deg, rgba(0,242,254,0.1), rgba(167,139,250,0.06));border:1px solid rgba(0,242,254,0.25)">
+          <div class="pot-icon">🏆</div>
+          <div class="pot-info">
+            <div class="pot-label">Season Pot (Airdrop Pool)</div>
+            <div class="pot-value" style="color:var(--cyan)">${numFix(s.currentPot)} €</div>
+            <div class="pot-sub">Ziel-Pot: ${numFix(s.targetAmount)} € (${s.progressPercent}%) · ${s.revenueSharePercent}% aller Shop-Einnahmen fließen direkt ein</div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-size:11px;color:rgba(255,255,255,0.4);font-weight:700;text-transform:uppercase;letter-spacing:0.08em">Aktuelle Season</div>
+            <div style="font-size:22px;font-weight:900;color:#fff">${s.name}</div>
+            <div style="margin-top:6px">
+              <span class="badge ${isActive ? 'green' : isPreparing ? 'purple' : 'gold'}">
+                ${isActive ? '🚀 OFFIZIELL AKTIV (' + s.daysLeft + ' Tage übrig)' : isPreparing ? '⏳ PRE-SEASON VORBEREITUNG' : '🏁 BEENDET'}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Primary Action Toolbar -->
+        <div class="panel" style="margin-bottom:20px;padding:16px 20px;background:rgba(0,0,0,0.3)">
+          <div style="display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap">
+            <div>
+              <div style="font-weight:800;font-size:14px;color:#fff">Season Aktionen</div>
+              <div style="font-size:11px;color:var(--text-muted);margin-top:2px">
+                ${isPreparing ? (s.isGoalReached ? '✅ 1.000 € Ziel-Marke erreicht! Du kannst die Season jetzt offiziell starten.' : '💡 1.000 € Ziel-Marke noch nicht erreicht. Starten ist jederzeit per Override möglich.') : 'Season läuft aktiv für 30 Tage.'}
+              </div>
+            </div>
+            <div style="display:flex;gap:10px">
+              ${isPreparing ? `
+                <button onclick="startOfficialSeasonAdmin()" style="padding:11px 20px;background:linear-gradient(135deg, #00f2fe, #00c8ff);border:none;border-radius:var(--radius-sm);color:#000;font-weight:900;font-size:13px;cursor:pointer;box-shadow:0 4px 16px rgba(0,242,254,0.25)">
+                  🚀 Season 0 offiziell beginnen (30 Tage)
+                </button>
+              ` : `
+                <button onclick="settleSeasonAdmin()" style="padding:11px 20px;background:linear-gradient(135deg, #fbbf24, #f59e0b);border:none;border-radius:var(--radius-sm);color:#000;font-weight:900;font-size:13px;cursor:pointer;box-shadow:0 4px 16px rgba(251,191,36,0.25)">
+                  🎁 Season beenden & Airdrop auszahlen
+                </button>
+              `}
+            </div>
+          </div>
+        </div>
+
+        <!-- Live Airdrop Distribution Preview Card -->
+        <div class="panel" style="margin-bottom:20px">
+          <div class="panel-header">
+            <div class="panel-title">🎁 Airdrop-Pool Aufteilung (${numFix(s.currentPot)} € Gesamt-Pot)</div>
+          </div>
+          <div class="panel-body">
+            <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));gap:14px">
+              <div style="background:rgba(251,191,36,0.06);border:1px solid rgba(251,191,36,0.2);border-radius:14px;padding:16px">
+                <div style="font-size:10px;font-weight:800;color:var(--gold);text-transform:uppercase">🏆 Top 10 Profit (60%)</div>
+                <div style="font-size:24px;font-weight:900;color:#fff;margin:4px 0">${numFix(preview.top10Pool)} €</div>
+                <div style="font-size:11px;color:var(--text-muted)">Rang 1-10 nach Reingewinn</div>
+              </div>
+              <div style="background:rgba(167,139,250,0.06);border:1px solid rgba(167,139,250,0.2);border-radius:14px;padding:16px">
+                <div style="font-size:10px;font-weight:800;color:var(--purple);text-transform:uppercase">⚡ Top 20 Aktivste (20%)</div>
+                <div style="font-size:24px;font-weight:900;color:#fff;margin:4px 0">${numFix(preview.active20Pool)} €</div>
+                <div style="font-size:11px;color:var(--text-muted)">Gleichmäßig an 20 aktivste Spieler</div>
+              </div>
+              <div style="background:rgba(74,222,128,0.06);border:1px solid rgba(74,222,128,0.2);border-radius:14px;padding:16px">
+                <div style="font-size:10px;font-weight:800;color:var(--green);text-transform:uppercase">🎲 Random Auslosung (20%)</div>
+                <div style="font-size:24px;font-weight:900;color:#fff;margin:4px 0">${numFix(preview.randomPool)} €</div>
+                <div style="font-size:11px;color:var(--text-muted)">Zufallsauslosung unter allen Teilnehmern</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Management Panel -->
+        <div class="panel" style="margin-bottom:20px">
+          <div class="panel-header"><div class="panel-title">⚙️ Season & Pot-Parameter einstellen</div></div>
+          <div class="panel-body">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; align-items: flex-end;">
+              <div style="display: flex; flex-direction: column; gap: 5px;">
+                <label style="font-size: 10px; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">Season Name</label>
+                <input type="text" id="season-edit-name" value="${s.name}" style="background: rgba(0,0,0,0.35); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 8px 12px; color: #fff; font-size: 13px; outline: none;" />
+              </div>
+              <div style="display: flex; flex-direction: column; gap: 5px;">
+                <label style="font-size: 10px; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">Ziel-Betrag (€)</label>
+                <input type="number" step="10" min="1" id="season-edit-target" value="${s.targetAmount}" style="background: rgba(0,0,0,0.35); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 8px 12px; color: #fff; font-size: 13px; outline: none;" />
+              </div>
+              <div style="display: flex; flex-direction: column; gap: 5px;">
+                <label style="font-size: 10px; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">Pot-Stand (€)</label>
+                <input type="number" step="0.01" min="0" id="season-edit-pot" value="${s.currentPot}" style="background: rgba(0,0,0,0.35); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 8px 12px; color: #fff; font-size: 13px; outline: none;" />
+              </div>
+              <div style="display: flex; flex-direction: column; gap: 5px;">
+                <label style="font-size: 10px; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">Umsatz-Anteil (%)</label>
+                <input type="number" step="1" min="0" max="100" id="season-edit-share" value="${s.revenueSharePercent}" style="background: rgba(0,0,0,0.35); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 8px 12px; color: #fff; font-size: 13px; outline: none;" />
+              </div>
+              <div style="display: flex; gap: 6px;">
+                <button onclick="saveSeasonSettings()" style="flex: 1; padding: 10px; background: linear-gradient(135deg, #00f2fe, #00c8ff); border: none; border-radius: var(--radius-sm); color: #000; font-weight: 800; font-size: 12px; cursor: pointer;">
+                  Speichern
+                </button>
+              </div>
+            </div>
+            <div id="season-edit-error" style="color: var(--red); font-size: 11px; margin-top: 10px; display: none;"></div>
+            <div id="season-edit-success" style="color: var(--green); font-size: 11px; margin-top: 10px; display: none;">✓ Einstellungen erfolgreich gespeichert!</div>
+          </div>
+        </div>
+
+        <!-- Leaderboards Section -->
+        <div class="two-col">
+          <div class="panel">
+            <div class="panel-header"><div class="panel-title">🏆 Season Gewinn-Rangliste (Top Profit)</div></div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>#</th><th>Spieler</th><th>Reingewinn</th><th>Runden</th></tr></thead>
+                <tbody>
+                  ${d.profitLeaderboard.length === 0 ? '<tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:24px">Keine Daten in dieser Season</td></tr>' : d.profitLeaderboard.map(e => `
+                    <tr>
+                      <td class="${e.rank<=3?'rank-'+e.rank:''}">${e.rank <= 3 ? ['🥇','🥈','🥉'][e.rank-1] : e.rank}</td>
+                      <td><strong>${e.displayName || e.firstName || 'Anonym'}</strong>${e.username?` <span style="font-size:10px;color:var(--cyan)">@${e.username}</span>`:''}</td>
+                      <td style="font-weight:900;color:var(--cyan)">${numFix(e.netProfit)} $</td>
+                      <td style="color:var(--text-muted)">${fmt(e.totalRounds)}</td>
+                    </tr>`).join('')}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="panel-header"><div class="panel-title">⚡ Aktivste Spieler (Top 20 Runden)</div></div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>#</th><th>Spieler</th><th>Gespielte Runden</th><th>Gewinn</th></tr></thead>
+                <tbody>
+                  ${d.activePlayers.length === 0 ? '<tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:24px">Keine Daten in dieser Season</td></tr>' : d.activePlayers.map(e => `
+                    <tr>
+                      <td class="${e.rank<=3?'rank-'+e.rank:''}">${e.rank <= 3 ? ['🥇','🥈','🥉'][e.rank-1] : e.rank}</td>
+                      <td><strong>${e.displayName || e.firstName || 'Anonym'}</strong>${e.username?` <span style="font-size:10px;color:var(--cyan)">@${e.username}</span>`:''}</td>
+                      <td style="font-weight:900;color:var(--purple)">${fmt(e.totalRounds)}</td>
+                      <td style="color:var(--text-muted)">${numFix(e.netProfit)} $</td>
+                    </tr>`).join('')}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Historic Airdrop Payout Logs Table -->
+        <div class="panel" style="margin-top:20px">
+          <div class="panel-header"><div class="panel-title">🎁 Season Airdrop-Auszahlungen &amp; Status</div></div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Datum / Season</th><th>Spieler</th><th>Kategorie</th><th>Hinterlegte Adresse</th><th>Auszahlung</th><th>Status</th><th>Aktion</th></tr></thead>
+              <tbody>
+                ${d.recentPayouts.length === 0 ? '<tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:24px">Noch keine Airdrops verbucht</td></tr>' : d.recentPayouts.map(p => `
+                  <tr>
+                    <td><div style="font-weight:700">Season ${p.season_id}</div><div style="font-size:10px;color:var(--text-dim)">${fmtDate(p.paid_at || p.created_at)}</div></td>
+                    <td><strong>${p.display_name || p.first_name || 'Anonym'}</strong>${p.username?` <span style="font-size:10px;color:var(--cyan)">@${p.username}</span>`:''}</td>
+                    <td><span class="badge ${p.category==='top10'?'gold':p.category==='active20'?'purple':'green'}">${p.category.toUpperCase()}</span> ${p.rank ? '#' + p.rank : ''}</td>
+                    <td class="mono" style="font-size:11px">${p.wallet_address ? `<span style="color:var(--cyan)">${p.wallet_address}</span>` : '<span style="color:var(--gold);font-weight:700">⚠️ Keine Wallet hinterlegt</span>'}</td>
+                    <td><div style="font-weight:900;color:var(--green)">+${numFix(p.amount_eur)} €</div><div style="font-size:10px;color:var(--text-dim)">≈ ${numFix(p.amount_crypto, 8)} ${p.coin||'LTC'}</div></td>
+                    <td><span class="badge ${p.status === 'completed' || p.paid_at ? 'green' : 'gold'}">${p.status === 'completed' || p.paid_at ? '✅ Abgeschlossen' : '⏳ Offen'}</span></td>
+                    <td>
+                      <button onclick="showAirdropInfoModalAdmin('${p.id}', '${p.season_id}', '${(p.display_name||p.first_name||'Anonym').replace(/'/g, "\\'")}', '${p.category}', '${numFix(p.amount_eur)}', '${numFix(p.amount_crypto, 8)}', '${p.coin||'LTC'}', '${p.wallet_address||''}', '${p.status||'pending'}', '${p.tx_hash||''}')" class="page-btn" style="padding:4px 8px;font-size:11px;margin:0">
+                        ℹ️ Info / TXID
+                      </button>
+                    </td>
+                  </tr>`).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `;
+    } catch (e) {
+      body.innerHTML = `<div style="color:var(--red);padding:20px">Fehler beim Laden der Season-Daten: ${e.message}</div>`;
+    }
+  }
+
+  async function saveSeasonSettings() {
+    const name = document.getElementById('season-edit-name').value.trim();
+    const target = document.getElementById('season-edit-target').value;
+    const pot = document.getElementById('season-edit-pot').value;
+    const share = document.getElementById('season-edit-share').value;
+
+    const errorEl = document.getElementById('season-edit-error');
+    const successEl = document.getElementById('season-edit-success');
+
+    errorEl.style.display = 'none';
+    successEl.style.display = 'none';
+
+    try {
+      const headers = { 'Content-Type': 'application/json' };
+      if (authHeader) headers['Authorization'] = authHeader;
+
+      const res = await fetch(`${API}/api/admin/season`, {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify({
+          name,
+          target_amount: target ? parseFloat(target) : undefined,
+          current_pot: pot ? parseFloat(pot) : undefined,
+          revenue_share_percent: share ? parseFloat(share) : undefined,
+        })
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Fehler beim Speichern.');
+
+      successEl.style.display = 'block';
+      setTimeout(() => loadSeason(), 800);
+    } catch (e) {
+      errorEl.textContent = e.message;
+      errorEl.style.display = 'block';
+    }
+  }
+
+  async function startOfficialSeasonAdmin() {
+    if (!confirm('Möchtest du die Season jetzt offiziell starten? Die Season läuft ab sofort genau 30 Tage.')) return;
+    try {
+      const headers = { 'Content-Type': 'application/json' };
+      if (authHeader) headers['Authorization'] = authHeader;
+
+      const res = await fetch(`${API}/api/admin/season/start`, {
+        method: 'POST',
+        headers,
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Fehler beim Starten der Season.');
+
+      alert(data.message || 'Season gestartet!');
+      loadSeason();
+    } catch (e) {
+      alert('Fehler: ' + e.message);
+    }
+  }
+
+  async function settleSeasonAdmin() {
+    if (!confirm('Möchtest du die aktive Season wirklich beenden und die Airdrops verbuchen? Die Airdrops werden berechnet und die nächste Season vorbereitet.')) return;
+    try {
+      const headers = { 'Content-Type': 'application/json' };
+      if (authHeader) headers['Authorization'] = authHeader;
+
+      const res = await fetch(`${API}/api/admin/season/settle`, {
+        method: 'POST',
+        headers,
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Fehler beim Beenden der Season.');
+
+      alert(data.message || 'Season beendet & Airdrop verbucht!');
+      loadSeason();
+    } catch (e) {
+      alert('Fehler: ' + e.message);
+    }
+  }
+
+  window.saveSeasonSettings = saveSeasonSettings;
+  window.startOfficialSeasonAdmin = startOfficialSeasonAdmin;
+  window.settleSeasonAdmin = settleSeasonAdmin;
+
+  // ── Players ────────────────────────────────────────────────────────────────
+  async function loadPlayers(page) {
+    playerPage = page;
+    const tbody = document.getElementById('players-tbody');
+    tbody.innerHTML = '<tr class="loading-row"><td colspan="11"><div class="spinner"></div></td></tr>';
+    try {
+      const search = document.getElementById('player-search').value.trim();
+      const d = await apiFetch(`/api/admin/users?page=${page}&limit=50${search?'&search='+encodeURIComponent(search):''}`);
+      updateLastUpdate();
+      
+      currentPlayers = d.users || [];
+
+      tbody.innerHTML = d.users.length === 0
+        ? '<tr><td colspan="11" style="text-align:center;color:var(--text-muted);padding:24px">Keine Spieler gefunden</td></tr>'
+        : d.users.map((u, i) => `<tr>
+            <td class="muted">${(page-1)*50 + i + 1}</td>
+            <td><strong>${u.display_name || u.first_name || '—'}</strong></td>
+            <td class="muted">${u.username ? '@'+u.username : '—'}</td>
+            <td class="mono" style="font-size:11px;color:var(--text-dim)">${u.id}</td>
+            <td style="font-weight:800;color:${u.energy_value>=5?'var(--green)':u.energy_value<=0?'var(--red)':'var(--gold)'}">${u.energy_value}</td>
+            <td>${fmt(u.total_rounds||0)}</td>
+            <td style="color:var(--cyan)">${fmt(u.total_score||0)}</td>
+            <td>${(u.wallet_ltc||u.wallet_btc)?'<span class="badge paid">✓ Hinterlegt</span>':'<span style="color:var(--text-dim);font-size:11px">—</span>'}</td>
+            <td class="muted" style="font-size:11px">${fmtDateShort(u.created_at)}</td>
+            <td>${u.deletion_scheduled_at?`<span class="badge expired">🗑 Löschung</span>`:'<span style="color:var(--text-dim);font-size:11px">Aktiv</span>'}</td>
+            <td>
+              <button class="page-btn" onclick="openEditPlayerModal(${i})" style="padding: 4px 8px; font-size: 11px; margin: 0;">✏️ Edit</button>
+            </td>
+          </tr>`).join('');
+
+      renderPagination('players-pagination', d.page, d.pages, loadPlayers);
+    } catch (e) {
+      tbody.innerHTML = `<tr><td colspan="11" style="color:var(--red);padding:20px">Fehler: ${e.message}</td></tr>`;
+    }
+  }
+
+  function debounceSearch() {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => loadPlayers(1), 400);
+  }
+
+  // ── Orders ─────────────────────────────────────────────────────────────────
+  async function loadOrders(page) {
+    orderPage = page;
+    const tbody = document.getElementById('orders-tbody');
+    tbody.innerHTML = '<tr class="loading-row"><td colspan="8"><div class="spinner"></div></td></tr>';
+    try {
+      const status = document.getElementById('order-status-filter').value;
+      const d = await apiFetch(`/api/admin/orders?page=${page}&limit=50${status?'&status='+status:''}`);
+      updateLastUpdate();
+
+      tbody.innerHTML = d.orders.length === 0
+        ? '<tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:24px">Keine Bestellungen</td></tr>'
+        : d.orders.map(o => `<tr>
+            <td class="mono" style="font-size:11px">${o.id.slice(0,18)}…</td>
+            <td><strong>${o.first_name||'—'}</strong>${o.username?` <span style="font-size:10px;color:var(--cyan)">@${o.username}</span>`:''}</td>
+            <td style="font-size:11px">${o.product_id}</td>
+            <td style="font-weight:800">${Number(o.amount_eur).toFixed(2)} €</td>
+            <td class="muted">${o.coin}</td>
+            <td><span class="badge ${o.status}">${o.status}</span></td>
+            <td class="muted" style="font-size:11px">${fmtDate(o.created_at)}</td>
+            <td class="muted" style="font-size:11px">${o.paid_at ? fmtDate(o.paid_at) : '—'}</td>
+          </tr>`).join('');
+
+      renderPagination('orders-pagination', d.page, d.pages, loadOrders);
+    } catch (e) {
+      tbody.innerHTML = `<tr><td colspan="8" style="color:var(--red);padding:20px">Fehler: ${e.message}</td></tr>`;
+    }
+  }
+
+  // ── Config ─────────────────────────────────────────────────────────────────
+  async function loadConfig() {
+    const body = document.getElementById('config-body');
+    try {
+      const d = await apiFetch('/api/admin/config');
+      updateLastUpdate();
+      const rows = [
+        ['Umgebung', `<span class="badge ${d.nodeEnv==='development'?'dev':'prod'}">${d.nodeEnv}</span>`],
+        ['Port', d.port],
+        ['Datenbank', d.isPostgres ? '🐘 PostgreSQL' : '🗄️ SQLite (lokal)'],
+        ['Redis / Leaderboard', d.hasRedis ? '✅ Verbunden' : '⚠️ In-Memory Fallback'],
+        ['Telegram Bot', d.hasTelegramBot ? '✅ Konfiguriert' : '❌ Nicht gesetzt'],
+        ['Max Energie', d.maxEnergy],
+        ['Energie-Auflade-Intervall', `${d.energyRechargeInterval}s (${Math.round(d.energyRechargeInterval/3600*10)/10}h)`],
+        ['Referral Energie-Bonus', `+${d.referralEnergyBonus} ⚡`],
+        ['Frontend URL', `<a href="${d.frontendUrl}" target="_blank" style="font-size:11px">${d.frontendUrl}</a>`],
+      ];
+      body.innerHTML = rows.map(([k, v]) => `
+        <div class="config-row">
+          <div class="config-key">${k}</div>
+          <div class="config-val">${v}</div>
+        </div>`).join('');
+    } catch (e) {
+      body.innerHTML = `<div style="color:var(--red)">Fehler: ${e.message}</div>`;
+    }
+  }
+
+  // ── Pagination helper ──────────────────────────────────────────────────────
+  function renderPagination(containerId, current, total, loadFn) {
+    const el = document.getElementById(containerId);
+    if (total <= 1) { el.innerHTML = ''; return; }
+    el.innerHTML = `
+      <button class="page-btn" onclick="${loadFn.name}(${current-1})" ${current<=1?'disabled':''}>← Zurück</button>
+      <div class="page-info">Seite ${current} / ${total}</div>
+      <button class="page-btn" onclick="${loadFn.name}(${current+1})" ${current>=total?'disabled':''}>Weiter →</button>
+    `;
+  }
+
+  // ── Edit Player Modal Logic ────────────────────────────────────────────────
+  function openEditPlayerModal(index) {
+    const u = currentPlayers[index];
+    if (!u) return;
+
+    editingPlayerId = u.id;
+    document.getElementById('edit-player-title-id').textContent = 'ID: ' + u.id;
+    document.getElementById('edit-display-name').value = u.display_name || u.first_name || '';
+    document.getElementById('edit-energy').value = u.energy_value;
+    document.getElementById('edit-ad-count').value = u.daily_ad_count || 0;
+    document.getElementById('edit-wallet-ltc').value = u.wallet_ltc || '';
+    document.getElementById('edit-wallet-btc').value = u.wallet_btc || '';
+    document.getElementById('edit-adjust-score').value = '';
+    document.getElementById('edit-deletion').value = u.deletion_scheduled_at ? 'schedule' : 'none';
+    document.getElementById('edit-player-error').style.display = 'none';
+
+    // Show modal
+    const modal = document.getElementById('edit-player-modal');
+    modal.style.display = 'flex';
+  }
+
+  function closeEditPlayerModal() {
+    document.getElementById('edit-player-modal').style.display = 'none';
+    editingPlayerId = null;
+  }
+
+  async function savePlayerChanges() {
+    if (!editingPlayerId) return;
+
+    const displayName = document.getElementById('edit-display-name').value.trim();
+    const energy = parseInt(document.getElementById('edit-energy').value, 10);
+    const adCount = parseInt(document.getElementById('edit-ad-count').value, 10);
+    const walletLtc = document.getElementById('edit-wallet-ltc').value.trim();
+    const walletBtc = document.getElementById('edit-wallet-btc').value.trim();
+    const adjustScoreVal = document.getElementById('edit-adjust-score').value.trim();
+    const deletionVal = document.getElementById('edit-deletion').value;
+
+    const body = {
+      display_name: displayName || null,
+      energy_value: isNaN(energy) ? undefined : energy,
+      daily_ad_count: isNaN(adCount) ? undefined : adCount,
+      wallet_ltc: walletLtc || null,
+      wallet_btc: walletBtc || null,
+    };
+
+    if (adjustScoreVal !== '') {
+      const adjustScore = parseInt(adjustScoreVal, 10);
+      if (!isNaN(adjustScore) && adjustScore !== 0) {
+        body.adjust_score = adjustScore;
+      }
+    }
+
+    if (deletionVal === 'none') {
+      body.cancel_deletion = true;
+    } else if (deletionVal === 'schedule') {
+      body.cancel_deletion = false;
+    }
+
+    const saveBtn = document.getElementById('edit-player-save-btn');
+    const errEl = document.getElementById('edit-player-error');
+
+    saveBtn.disabled = true;
+    saveBtn.textContent = 'Wird gespeichert...';
+    errEl.style.display = 'none';
+
+    try {
+      const headers = { 'Content-Type': 'application/json' };
+      if (authHeader) headers['Authorization'] = authHeader;
+
+      const res = await fetch(`${API}/api/admin/users/${editingPlayerId}`, {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify(body)
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Fehler beim Speichern der Änderungen.');
+      }
+
+      closeEditPlayerModal();
+      loadPlayers(playerPage);
+    } catch (e) {
+      errEl.textContent = e.message;
+      errEl.style.display = 'block';
+    } finally {
+      saveBtn.disabled = false;
+      saveBtn.textContent = 'Änderungen speichern';
+    }
+  }
+
+  // Attach event listener
+  document.getElementById('edit-player-save-btn').addEventListener('click', savePlayerChanges);
+
+  // ── Airdrop Info Modal ──────────────────────────────────────────────────────
+  function showAirdropInfoModalAdmin(id, season, player, category, amountEur, amountCrypto, coin, address, status, txid) {
+    document.getElementById('ad-admin-id').textContent = '#' + id;
+    document.getElementById('ad-admin-season').textContent = 'Season ' + season + ' · ' + category.toUpperCase();
+    document.getElementById('ad-admin-player').textContent = player;
+    document.getElementById('ad-admin-amount').textContent = amountEur + ' € (≈ ' + amountCrypto + ' ' + coin + ')';
+    
+    const isComp = status === 'completed';
+    const statusEl = document.getElementById('ad-admin-status');
+    statusEl.textContent = isComp ? '✅ Abgeschlossen' : '⏳ Offen (Ausstehend)';
+    statusEl.style.color = isComp ? 'var(--green)' : 'var(--gold)';
+
+    document.getElementById('ad-admin-address').value = address || 'Keine Wallet-Adresse hinterlegt';
+    document.getElementById('ad-admin-txid').value = txid || 'Noch keine Transaktions-ID (Ausstehend)';
+
+    const modal = document.getElementById('airdrop-info-modal-admin');
+    modal.style.display = 'flex';
+  }
+
+  function closeAirdropInfoModalAdmin() {
+    document.getElementById('airdrop-info-modal-admin').style.display = 'none';
+  }
+
+  function copyAdminTxId() {
+    const el = document.getElementById('ad-admin-txid');
+    if (el.value && !el.value.includes('Noch keine')) {
+      navigator.clipboard.writeText(el.value);
+      alert('Transaktions-ID in die Zwischenablage kopiert!');
+    }
+  }
+
+  // Expose to window for inline onclick attributes
+  window.openEditPlayerModal = openEditPlayerModal;
+  window.closeEditPlayerModal = closeEditPlayerModal;
+  window.showAirdropInfoModalAdmin = showAirdropInfoModalAdmin;
+  window.closeAirdropInfoModalAdmin = closeAirdropInfoModalAdmin;
+  window.copyAdminTxId = copyAdminTxId;
+
+  // ── Boot ───────────────────────────────────────────────────────────────────
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initDashboard);
+  } else {
+    initDashboard();
+  }
+</script>
+</body>
+</html>

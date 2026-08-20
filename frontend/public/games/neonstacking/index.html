@@ -1,0 +1,1082 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Neon Stacking: Cyber Hub</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800;900&display=swap" rel="stylesheet">
+  <style>
+    html, body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      background: radial-gradient(circle, #0e1326 0%, #05070f 100%);
+      color: #fff;
+      font-family: 'Outfit', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      overflow: hidden;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    #gameContainer {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      max-width: 480px;
+      background-color: #05070f;
+      overflow: hidden;
+      margin: 0 auto;
+    }
+
+    #gameContainer::after {
+      content: " ";
+      display: block;
+      position: absolute;
+      top: 0; left: 0; bottom: 0; right: 0;
+      background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.03) 50%);
+      z-index: 2;
+      background-size: 100% 3px;
+      pointer-events: none;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      background: transparent;
+    }
+
+    /* Screen overlays */
+    .overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: rgba(5, 7, 15, 0.88);
+      backdrop-filter: blur(12px);
+      z-index: 10;
+      text-align: center;
+      padding: 24px;
+      box-sizing: border-box;
+      transition: opacity 0.3s ease;
+    }
+
+    h1 {
+      margin: 0 0 10px 0;
+      font-size: 32px;
+      font-weight: 900;
+      background: linear-gradient(135deg, #00f2fe 0%, #da00ff 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      letter-spacing: -0.5px;
+      text-shadow: 0 0 25px rgba(0, 242, 254, 0.4);
+    }
+
+    p {
+      font-size: 13px;
+      color: #9ca3af;
+      margin: 0 0 30px 0;
+      line-height: 1.6;
+      max-width: 280px;
+    }
+
+    .btn {
+      background: linear-gradient(135deg, #00f2fe 0%, #da00ff 100%);
+      border: none;
+      color: #000;
+      font-size: 14px;
+      font-weight: 800;
+      padding: 14px 34px;
+      border-radius: 14px;
+      cursor: pointer;
+      box-shadow: 0 0 20px rgba(0, 242, 254, 0.3);
+      transition: all 0.2s ease;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+    }
+
+    .btn:active {
+      transform: scale(0.95);
+      box-shadow: 0 0 5px rgba(0, 242, 254, 0.2);
+    }
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: #dfdfdf;
+      box-shadow: none;
+      margin-top: 12px;
+    }
+
+    .btn-secondary:active {
+      background: rgba(255, 255, 255, 0.1);
+      color: #fff;
+    }
+
+    .score-label {
+      font-size: 13px;
+      color: #9ca3af;
+      margin-bottom: 5px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .score-value {
+      font-size: 46px;
+      font-weight: 900;
+      color: #ff007f;
+      text-shadow: 0 0 20px rgba(255, 0, 127, 0.5);
+      margin-bottom: 30px;
+    }
+
+    .controls-guide {
+      display: flex;
+      justify-content: space-around;
+      width: 100%;
+      margin-bottom: 35px;
+      font-size: 11px;
+      color: #6b7280;
+    }
+
+    .guide-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .key-cap {
+      background: rgba(255, 255, 255, 0.07);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 8px;
+      padding: 6px 12px;
+      font-family: monospace;
+      font-weight: bold;
+      color: #f3f4f6;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.5);
+    }
+
+    /* Sound & Music Controls */
+    .audio-controls {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      z-index: 50;
+      display: flex;
+      gap: 8px;
+    }
+
+    .audio-btn {
+      background: rgba(5, 7, 15, 0.7);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: #fff;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 15px;
+      backdrop-filter: blur(5px);
+      transition: all 0.2s;
+      user-select: none;
+      position: relative;
+    }
+
+    .audio-btn:active {
+      transform: scale(0.9);
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    .audio-btn.muted {
+      opacity: 0.55;
+      border-color: rgba(255, 0, 127, 0.3);
+      color: #9ca3af;
+    }
+
+    .audio-btn.muted::after {
+      content: '';
+      position: absolute;
+      width: 22px;
+      height: 2px;
+      background: #ff007f;
+      transform: rotate(45deg);
+      border-radius: 2px;
+    }
+
+    /* Glow labels */
+    .combo-label {
+      position: absolute;
+      top: 75px;
+      width: 100%;
+      text-align: center;
+      font-size: 20px;
+      font-weight: 900;
+      color: #00f2fe;
+      text-shadow: 0 0 10px rgba(0, 242, 254, 0.8);
+      pointer-events: none;
+      opacity: 0;
+      transform: translateY(10px);
+      transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      z-index: 5;
+    }
+
+    .combo-label.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  </style>
+</head>
+<body>
+
+  <div id="gameContainer">
+    <!-- Start Screen Overlay -->
+    <div id="startScreen" class="overlay">
+      <div style="font-size: 40px; margin-bottom: 5px;">🧱⚡</div>
+      <h1>Neon Stacking</h1>
+      <p>Stapele die leuchtenden Neon-Blöcke übereinander. Schneide Überstände ab und erreiche neue Höhen!</p>
+      
+      <div class="controls-guide">
+        <div class="guide-item">
+          <span class="key-cap">LEERTASTE / ◀</span>
+          <span>Stoppen (Tastatur)</span>
+        </div>
+        <div class="guide-item">
+          <span class="key-cap">Tippen</span>
+          <span>Stoppen (Touch/Maus)</span>
+        </div>
+      </div>
+
+      <button class="btn" id="startBtn">Turm bauen</button>
+    </div>
+
+    <!-- Game Over Screen Overlay -->
+    <div id="gameOverScreen" class="overlay" style="display: none;">
+      <h1 style="color: #ff007f; text-shadow: 0 0 25px rgba(255, 0, 127, 0.5);">Eingestürzt</h1>
+      <div class="score-label">Gestapelte Blöcke:</div>
+      <div class="score-value" id="finalScore">0</div>
+      
+      <button class="btn" id="retryBtn">Nochmal spielen</button>
+      <button class="btn btn-secondary" id="backMenuBtn">Spiel verlassen</button>
+    </div>
+
+    <!-- Perfect Feedback label -->
+    <div id="comboLabel" class="combo-label">PERFEKT!</div>
+
+    <!-- Audio controls (SFX & Music separate) -->
+    <div class="audio-controls">
+      <button id="sfxBtn" class="audio-btn" title="Soundeffekte (S)">🔊</button>
+      <button id="musicBtn" class="audio-btn" title="Musik (M)">🎵</button>
+    </div>
+
+    <!-- Game Canvas -->
+    <canvas id="gameCanvas" width="360" height="550"></canvas>
+  </div>
+
+  <!-- J.S. Bach - Invention No. 8 in F-Dur (BWV 779) MIDI notes -->
+  <script>
+    const BACH_NOTES = [
+      // Measure 1
+      [65, 0.5, 0.25], [69, 0.75, 0.25], [65, 1.0, 0.25], [72, 1.25, 0.25], [77, 1.5, 0.25], [76, 1.75, 0.25], [74, 2.0, 0.25], [72, 2.25, 0.25], [70, 2.5, 0.25], [69, 2.75, 0.25],
+      // Measure 2
+      [67, 3.0, 0.25], [65, 3.25, 0.25], [72, 3.5, 0.5], [76, 4.0, 0.25], [72, 4.25, 0.25], [79, 4.5, 0.25], [84, 4.75, 0.25], [83, 5.0, 0.25], [81, 5.25, 0.25], [79, 5.5, 0.25], [77, 5.75, 0.25],
+      // LH enters in Measure 2
+      [53, 3.5, 0.25], [57, 3.75, 0.25], [53, 4.0, 0.25], [60, 4.25, 0.25], [65, 4.5, 0.25], [64, 4.75, 0.25], [62, 5.0, 0.25], [60, 5.25, 0.25], [58, 5.5, 0.25], [57, 5.75, 0.25],
+      // Measure 3
+      [76, 6.0, 0.25], [74, 6.25, 0.25], [72, 6.5, 0.25], [70, 6.75, 0.25], [69, 7.0, 0.25], [67, 7.25, 0.25], [65, 7.5, 0.25], [67, 7.75, 0.25], [69, 8.0, 0.25], [70, 8.25, 0.25], [72, 8.5, 0.25], [74, 8.75, 0.25],
+      // LH Measure 3
+      [55, 6.0, 0.25], [53, 6.25, 0.25], [60, 6.5, 0.5], [64, 7.0, 0.25], [60, 7.25, 0.25], [67, 7.5, 0.25], [72, 7.75, 0.25], [71, 8.0, 0.25], [69, 8.25, 0.25], [67, 8.5, 0.25], [65, 8.75, 0.25],
+      // Measure 4
+      [70, 9.0, 0.25], [72, 9.25, 0.25], [74, 9.5, 0.25], [76, 9.75, 0.25], [77, 10.0, 0.25], [79, 10.25, 0.25], [76, 10.5, 0.25], [77, 10.75, 0.25], [79, 11.0, 0.25], [81, 11.25, 0.25], [82, 11.5, 0.25], [84, 11.75, 0.25],
+      // LH Measure 4
+      [64, 9.0, 0.25], [62, 9.25, 0.25], [60, 9.5, 0.25], [58, 9.75, 0.25], [57, 10.0, 0.25], [55, 10.25, 0.25], [53, 10.5, 0.25], [55, 10.75, 0.25], [57, 11.0, 0.25], [58, 11.25, 0.25], [60, 11.5, 0.25], [62, 11.75, 0.25],
+      // Measure 5
+      [81, 12.0, 0.25], [82, 12.25, 0.25], [84, 12.5, 0.25], [82, 12.75, 0.25], [81, 13.0, 0.25], [79, 13.25, 0.25], [77, 13.5, 0.5], [79, 14.0, 0.5], [81, 14.5, 0.5],
+      // LH Measure 5
+      [58, 12.0, 0.25], [60, 12.25, 0.25], [62, 12.5, 0.25], [64, 12.75, 0.25], [65, 13.0, 0.25], [67, 13.25, 0.25], [64, 13.5, 0.25], [65, 13.75, 0.25], [67, 14.0, 0.25], [69, 14.25, 0.25], [70, 14.5, 0.25], [72, 14.75, 0.25],
+      // Measure 6
+      [79, 15.0, 0.25], [77, 15.25, 0.25], [76, 15.5, 0.25], [74, 15.75, 0.25], [72, 16.0, 0.25], [70, 16.25, 0.25], [72, 16.5, 0.5], [74, 17.0, 0.5], [76, 17.5, 0.5],
+      // LH Measure 6
+      [69, 15.0, 0.25], [70, 15.25, 0.25], [72, 15.5, 0.25], [70, 15.75, 0.25], [69, 16.0, 0.25], [67, 16.25, 0.25], [65, 16.5, 0.5], [67, 17.0, 0.5], [69, 17.5, 0.5],
+      // Measure 7
+      [77, 18.0, 0.25], [76, 18.25, 0.25], [74, 18.5, 0.25], [72, 18.75, 0.25], [70, 19.0, 0.25], [69, 19.25, 0.25], [67, 19.5, 0.5], [69, 20.0, 0.5], [70, 20.5, 0.5],
+      // LH Measure 7
+      [67, 18.0, 0.25], [65, 18.25, 0.25], [64, 18.5, 0.25], [62, 18.75, 0.25], [60, 19.0, 0.25], [58, 19.25, 0.25], [60, 19.5, 0.5], [62, 20.0, 0.5], [64, 20.5, 0.5],
+      // Measure 8
+      [69, 21.0, 0.25], [67, 21.25, 0.25], [65, 21.5, 0.25], [64, 21.75, 0.25], [62, 22.0, 0.25], [60, 22.25, 0.25], [65, 22.5, 0.5], [67, 23.0, 0.5], [64, 23.5, 0.5],
+      // LH Measure 8
+      [65, 21.0, 0.25], [64, 21.25, 0.25], [62, 21.5, 0.25], [60, 21.75, 0.25], [58, 22.0, 0.25], [57, 22.25, 0.25], [55, 22.5, 0.5], [57, 23.0, 0.5], [58, 23.5, 0.5],
+      // Measure 9
+      [65, 24.0, 1.5],
+      // LH Measure 9
+      [57, 24.0, 0.25], [55, 24.25, 0.25], [53, 24.5, 0.25], [52, 24.75, 0.25], [50, 25.0, 0.25], [48, 25.25, 0.25], [53, 25.5, 0.5], [55, 26.0, 0.5], [52, 26.5, 0.5],
+      // LH Measure 10
+      [53, 27.0, 1.5]
+    ];
+  </script>
+
+  <!-- Sound Synthesis and Sequencing Logic -->
+  <script>
+    class SoundSynth {
+      constructor() {
+        this.ctx = null;
+        this.bgMusicTimer = null;
+        this.musicPlaying = false;
+
+        // Load independent mute settings
+        try {
+          this.isSfxMuted = localStorage.getItem('tggamehub_sfx_muted') === 'true';
+          this.isMusicMuted = localStorage.getItem('tggamehub_music_muted') === 'true';
+        } catch(e) {
+          this.isSfxMuted = false;
+          this.isMusicMuted = false;
+        }
+
+        // Sequencer settings
+        this.notePointer = 0;
+        this.startTime = 0;
+        this.lookAhead = 0.25; // 250ms ahead
+        this.scheduleInterval = 60; // poll every 60ms
+        this.bpm = 92;
+        this.beatsPerSec = this.bpm / 60;
+        
+        this.activeOscillators = [];
+        this.updateButtons();
+      }
+
+      init() {
+        if (this.ctx) return;
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (AudioContext) {
+          this.ctx = new AudioContext();
+        }
+      }
+
+      updateButtons() {
+        const sfxBtn = document.getElementById('sfxBtn');
+        const musicBtn = document.getElementById('musicBtn');
+        if (sfxBtn) {
+          sfxBtn.innerHTML = this.isSfxMuted ? '🔇' : '🔊';
+          sfxBtn.className = 'audio-btn' + (this.isSfxMuted ? ' muted' : '');
+          sfxBtn.title = this.isSfxMuted ? 'Soundeffekte einschalten (S)' : 'Soundeffekte stummschalten (S)';
+        }
+        if (musicBtn) {
+          musicBtn.innerHTML = '🎵';
+          musicBtn.className = 'audio-btn' + (this.isMusicMuted ? ' muted' : '');
+          musicBtn.title = this.isMusicMuted ? 'Musik einschalten (M)' : 'Musik stummschalten (M)';
+        }
+      }
+
+      toggleSfx() {
+        this.isSfxMuted = !this.isSfxMuted;
+        try { localStorage.setItem('tggamehub_sfx_muted', this.isSfxMuted ? 'true' : 'false'); } catch(e) {}
+        this.updateButtons();
+      }
+
+      toggleMusic() {
+        this.isMusicMuted = !this.isMusicMuted;
+        try { localStorage.setItem('tggamehub_music_muted', this.isMusicMuted ? 'true' : 'false'); } catch(e) {}
+        this.updateButtons();
+        if (this.isMusicMuted) {
+          this.stopMusic();
+        } else if (gameState === 'playing') {
+          this.startMusic();
+        }
+      }
+
+      // Short cyber laser beep on block placement tap
+      playTap() {
+        this.init();
+        if (!this.ctx || this.isSfxMuted) return;
+        if (this.ctx.state === 'suspended') this.ctx.resume();
+
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        
+        osc.type = 'triangle';
+        // Pitch sweep
+        osc.frequency.setValueAtTime(350, this.ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(620, this.ctx.currentTime + 0.08);
+        
+        gain.gain.setValueAtTime(0.07, this.ctx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.001, this.ctx.currentTime + 0.1);
+        
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.1);
+      }
+
+      // Deep clunk sound when block cuts off
+      playCut() {
+        this.init();
+        if (!this.ctx || this.isSfxMuted) return;
+        if (this.ctx.state === 'suspended') this.ctx.resume();
+
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(100, this.ctx.currentTime);
+        osc.frequency.linearRampToValueAtTime(40, this.ctx.currentTime + 0.15);
+        
+        gain.gain.setValueAtTime(0.05, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.2);
+        
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.2);
+      }
+
+      // Ascending retro neon coin chime for perfect stack
+      playPerfect() {
+        this.init();
+        if (!this.ctx || this.isSfxMuted) return;
+        if (this.ctx.state === 'suspended') this.ctx.resume();
+
+        const now = this.ctx.currentTime;
+        const playSubChime = (freq, delay, vol) => {
+          const osc = this.ctx.createOscillator();
+          const subOsc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          
+          osc.connect(gain);
+          subOsc.connect(gain);
+          gain.connect(this.ctx.destination);
+          
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(freq, now + delay);
+          subOsc.type = 'triangle';
+          subOsc.frequency.setValueAtTime(freq * 1.5, now + delay); // Perfect fifth harmonic
+          
+          gain.gain.setValueAtTime(vol, now + delay);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + delay + 0.18);
+          
+          osc.start(now + delay);
+          osc.stop(now + delay + 0.2);
+          subOsc.start(now + delay);
+          subOsc.stop(now + delay + 0.2);
+        };
+
+        playSubChime(523.25, 0, 0.08); // C5
+        playSubChime(783.99, 0.06, 0.06); // G5
+        playSubChime(1046.50, 0.12, 0.08); // C6
+      }
+
+      // Tragic descending detuned synth chord on game over
+      playGameOver() {
+        this.init();
+        if (!this.ctx || this.isSfxMuted) return;
+        if (this.ctx.state === 'suspended') this.ctx.resume();
+
+        const now = this.ctx.currentTime;
+        const playBass = (freq, delay, duration) => {
+          const osc = this.ctx.createOscillator();
+          const oscDetune = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          
+          osc.connect(gain);
+          oscDetune.connect(gain);
+          gain.connect(this.ctx.destination);
+          
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(freq, now + delay);
+          
+          oscDetune.type = 'sawtooth';
+          oscDetune.frequency.setValueAtTime(freq * 1.02, now + delay); // Slight detune for chorus effect
+          
+          gain.gain.setValueAtTime(0.08, now + delay);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + delay + duration);
+          
+          osc.start(now + delay);
+          osc.stop(now + delay + duration + 0.1);
+          oscDetune.start(now + delay);
+          oscDetune.stop(now + delay + duration + 0.1);
+        };
+
+        playBass(146.83, 0, 0.6); // D3
+        playBass(110.00, 0.15, 0.7); // A2
+        playBass(73.42, 0.3, 0.9); // D2
+      }
+
+      // FM-like synthesized organ note voicing
+      playSynthNote(midiNote, time, duration) {
+        if (!this.ctx || this.isMusicMuted) return;
+
+        const osc = this.ctx.createOscillator();
+        const mod = this.ctx.createOscillator();
+        const gainNode = this.ctx.createGain();
+        const filter = this.ctx.createBiquadFilter();
+
+        osc.connect(filter);
+        filter.connect(gainNode);
+        gainNode.connect(this.ctx.destination);
+
+        const freq = 440 * Math.pow(2, (midiNote - 69) / 12);
+        osc.frequency.setValueAtTime(freq, time);
+
+        // Synth settings based on note pitch (Treble vs Bass)
+        if (midiNote < 60) {
+          // Deep warmth for left hand bass
+          osc.type = 'triangle';
+          filter.type = 'lowpass';
+          filter.frequency.setValueAtTime(450, time);
+
+          const bassVol = 0.024;
+          gainNode.gain.setValueAtTime(0, time);
+          gainNode.gain.linearRampToValueAtTime(bassVol, time + 0.04);
+          gainNode.gain.exponentialRampToValueAtTime(0.0001, time + duration + 0.3);
+        } else {
+          // Bright neon chime for right hand melody
+          osc.type = 'triangle';
+          
+          // Connect subtle frequency modulator to add bell vibrato
+          mod.frequency.value = 6; // LFO frequency
+          const modGain = this.ctx.createGain();
+          modGain.gain.value = 5; // Mod depth
+          mod.connect(modGain);
+          modGain.connect(osc.frequency);
+          
+          filter.type = 'lowpass';
+          filter.frequency.setValueAtTime(1400, time);
+
+          const melodyVol = 0.016;
+          gainNode.gain.setValueAtTime(0, time);
+          gainNode.gain.linearRampToValueAtTime(melodyVol, time + 0.01);
+          gainNode.gain.exponentialRampToValueAtTime(0.0001, time + duration + 0.2);
+          
+          mod.start(time);
+          mod.stop(time + duration + 0.3);
+        }
+
+        osc.start(time);
+        osc.stop(time + duration + 0.3);
+
+        this.activeOscillators.push(osc);
+      }
+
+      startMusic() {
+        this.init();
+        if (!this.ctx || this.isMusicMuted || this.musicPlaying) return;
+        this.musicPlaying = true;
+        
+        if (this.ctx.state === 'suspended') this.ctx.resume();
+        
+        this.notePointer = 0;
+        this.startTime = this.ctx.currentTime;
+        
+        const scheduler = () => {
+          if (!this.musicPlaying || this.isMusicMuted) return;
+          
+          // Current playhead in beats relative to starting time
+          const elapsedSecs = this.ctx.currentTime - this.startTime;
+          const currentBeat = elapsedSecs * this.beatsPerSec;
+          
+          while (this.notePointer < BACH_NOTES.length) {
+            const note = BACH_NOTES[this.notePointer];
+            const noteBeat = note[1];
+            
+            // If the note starts within the lookahead window
+            if (noteBeat < currentBeat + this.lookAhead) {
+              const noteTime = this.startTime + (noteBeat / this.beatsPerSec);
+              const noteDur = note[2] / this.beatsPerSec;
+              this.playSynthNote(note[0], noteTime, noteDur);
+              this.notePointer++;
+            } else {
+              break;
+            }
+          }
+
+          // Loop the piece once the final note ends
+          if (this.notePointer >= BACH_NOTES.length) {
+            const lastNote = BACH_NOTES[BACH_NOTES.length - 1];
+            const pieceEndBeat = lastNote[1] + lastNote[2] + 1.0;
+            if (currentBeat > pieceEndBeat) {
+              this.notePointer = 0;
+              this.startTime = this.ctx.currentTime;
+            }
+          }
+        };
+
+        this.bgMusicTimer = setInterval(scheduler, this.scheduleInterval);
+      }
+
+      stopMusic() {
+        this.musicPlaying = false;
+        if (this.bgMusicTimer) {
+          clearInterval(this.bgMusicTimer);
+          this.bgMusicTimer = null;
+        }
+        this.activeOscillators.forEach(osc => {
+          try { osc.stop(); } catch (e) {}
+        });
+        this.activeOscillators = [];
+      }
+    }
+  </script>
+
+  <!-- Stacking Game Logic -->
+  <script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    
+    // UI Elements
+    const startScreen = document.getElementById('startScreen');
+    const gameOverScreen = document.getElementById('gameOverScreen');
+    const finalScoreEl = document.getElementById('finalScore');
+    const startBtn = document.getElementById('startBtn');
+    const backMenuBtn = document.getElementById('backMenuBtn');
+    const retryBtn = document.getElementById('retryBtn');
+    const sfxBtn = document.getElementById('sfxBtn');
+    const musicBtn = document.getElementById('musicBtn');
+    const comboLabel = document.getElementById('comboLabel');
+
+    const soundManager = new SoundSynth();
+
+    sfxBtn.addEventListener('click', (e) => { e.stopPropagation(); soundManager.toggleSfx(); });
+    musicBtn.addEventListener('click', (e) => { e.stopPropagation(); soundManager.toggleMusic(); });
+
+    // Game parameters
+    const BLOCK_HEIGHT = 40;
+    const INITIAL_WIDTH = 180;
+    const INITIAL_SPEED = 2.5;
+    const SPEED_INCREMENT = 0.08;
+    const PERFECT_TOLERANCE = 3.5; // aligned within 3.5px counts as perfect stack
+
+    let score = 0;
+    let gameState = 'start'; // 'start', 'playing', 'gameover'
+    let roundStartTime = 0;
+    let tapsCount = 0;
+    let perfectPlacements = 0;
+    let comboStreak = 0;
+
+    let blocks = [];
+    let activeBlock = null;
+    let debrisList = [];
+    let flashIntensity = 0; // Screen flash duration on perfect hit
+    
+    // Camera settings
+    let camY = 0;
+    let targetCamY = 0;
+
+    // Helper function to draw crisp glowing neon blocks with vector-defined boundaries
+    function drawNeonBlock(ctx, x, y, width, height, color, radius, baseAlpha = 1.0) {
+      if (width <= 0) return;
+      ctx.save();
+      
+      // 1. Soft outer halo glow
+      ctx.shadowColor = color;
+      ctx.shadowBlur = 24;
+      ctx.fillStyle = color;
+      ctx.globalAlpha = 0.35 * baseAlpha;
+      ctx.beginPath();
+      ctx.roundRect(x, y, width, height, radius);
+      ctx.fill();
+
+      // 2. Focused medium neon glow
+      ctx.shadowBlur = 10;
+      ctx.globalAlpha = 0.55 * baseAlpha;
+      ctx.beginPath();
+      ctx.roundRect(x, y, width, height, radius);
+      ctx.fill();
+
+      // 3. Crisp solid body (Clear shadow to ensure sharp pixel edge!)
+      ctx.shadowBlur = 0;
+      ctx.globalAlpha = 1.0 * baseAlpha;
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.roundRect(x, y, width, height, radius);
+      ctx.fill();
+
+      // 4. Gloss light reflection border stroke
+      ctx.strokeStyle = `rgba(255, 255, 255, ${0.45 * baseAlpha})`;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.roundRect(x, y, width, height, radius);
+      ctx.stroke();
+
+      // 5. Inner glowing neon tube
+      ctx.fillStyle = `rgba(255, 255, 255, ${0.28 * baseAlpha})`;
+      ctx.beginPath();
+      ctx.roundRect(x + 3, y + 3, width - 6, height - 6, Math.max(1, radius - 3));
+      ctx.fill();
+
+      ctx.restore();
+    }
+
+    class Block {
+      constructor(x, y, width, colorIndex) {
+        this.x = x;
+        this.y = y;
+        this.width = width;
+        this.colorIndex = colorIndex;
+        // Generate beautiful neon HSL cycling colors
+        this.color = `hsl(${(colorIndex * 15) % 360}, 100%, 62%)`;
+      }
+
+      draw() {
+        drawNeonBlock(ctx, this.x, this.y, this.width, BLOCK_HEIGHT, this.color, 6);
+      }
+    }
+
+    class Debris {
+      constructor(x, y, width, color, vx) {
+        this.x = x;
+        this.y = y;
+        this.width = width;
+        this.height = BLOCK_HEIGHT;
+        this.color = color;
+        this.vx = vx;
+        this.vy = 0;
+        this.gravity = 0.45;
+        this.rotation = 0;
+        this.rotationSpeed = (Math.random() - 0.5) * 0.12;
+        this.alpha = 1.0;
+      }
+
+      update() {
+        this.vy += this.gravity;
+        this.x += this.vx;
+        this.y += this.vy;
+        this.rotation += this.rotationSpeed;
+        this.alpha -= 0.02; // Fades out
+      }
+
+      draw() {
+        ctx.save();
+        const dAlpha = Math.max(0, this.alpha);
+        ctx.translate(this.x + this.width / 2, this.y + this.height / 2);
+        ctx.rotate(this.rotation);
+        drawNeonBlock(ctx, -this.width / 2, -this.height / 2, this.width, this.height, this.color, 4, dAlpha);
+        ctx.restore();
+      }
+    }
+
+    function initGame() {
+      score = 0;
+      tapsCount = 0;
+      perfectPlacements = 0;
+      comboStreak = 0;
+      camY = 0;
+      targetCamY = 0;
+      flashIntensity = 0;
+      blocks = [];
+      debrisList = [];
+      roundStartTime = Date.now();
+
+      // Spawn initial foundation base block at the bottom
+      const baseBlockX = (canvas.width - INITIAL_WIDTH) / 2;
+      const baseBlockY = canvas.height - BLOCK_HEIGHT - 30;
+      const baseBlock = new Block(baseBlockX, baseBlockY, INITIAL_WIDTH, 0);
+      blocks.push(baseBlock);
+
+      spawnNextBlock();
+    }
+
+    function spawnNextBlock() {
+      const prevBlock = blocks[blocks.length - 1];
+      const nextY = prevBlock.y - BLOCK_HEIGHT;
+      const nextWidth = prevBlock.width;
+      const colorIndex = blocks.length;
+
+      // Determine sliding start edge and initial motion direction
+      const spawnFromLeft = Math.random() < 0.5;
+      const initialX = spawnFromLeft ? -nextWidth + 5 : canvas.width - 5;
+      const speed = INITIAL_SPEED + score * SPEED_INCREMENT;
+      const dx = spawnFromLeft ? speed : -speed;
+
+      activeBlock = {
+        x: initialX,
+        y: nextY,
+        width: nextWidth,
+        dx: dx,
+        colorIndex: colorIndex,
+        color: `hsl(${(colorIndex * 15) % 360}, 100%, 62%)`
+      };
+
+      // Adjust camera target to keep active tower level centered vertically
+      const centerTarget = canvas.height / 2 + 50;
+      if (nextY < centerTarget) {
+        targetCamY = centerTarget - nextY;
+      }
+    }
+
+    function handleTapInput() {
+      if (gameState !== 'playing') return;
+
+      tapsCount++;
+      const prevBlock = blocks[blocks.length - 1];
+      
+      const leftDiff = activeBlock.x - prevBlock.x;
+      const absDiff = Math.abs(leftDiff);
+
+      // Hit success / overlap validation
+      if (absDiff < prevBlock.width) {
+        let finalX = activeBlock.x;
+        let finalWidth = prevBlock.width - absDiff;
+        let isPerfect = false;
+
+        // Check if placement is close enough to snap to a perfect score
+        if (absDiff <= PERFECT_TOLERANCE) {
+          finalX = prevBlock.x; // Snaps to grid perfectly
+          finalWidth = prevBlock.width; // Maintains full width base
+          isPerfect = true;
+          perfectPlacements++;
+          comboStreak++;
+          flashIntensity = 0.5; // Flash screen white-glow overlay
+          soundManager.playPerfect();
+          showComboIndicator();
+        } else {
+          comboStreak = 0;
+          soundManager.playTap();
+          soundManager.playSlice();
+          
+          // Spawn falling debris for the sliced overhang
+          let debrisX = 0;
+          let debrisWidth = absDiff;
+          let debrisVx = leftDiff > 0 ? 1.5 : -1.5;
+
+          if (leftDiff > 0) {
+            // Cut right side overhang
+            debrisX = prevBlock.x + prevBlock.width;
+          } else {
+            // Cut left side overhang
+            debrisX = activeBlock.x;
+          }
+
+          const cutDebris = new Debris(debrisX, activeBlock.y, debrisWidth, activeBlock.color, debrisVx);
+          debrisList.push(cutDebris);
+
+          // Narrow down base to slice overlap width
+          if (leftDiff > 0) {
+            finalX = activeBlock.x;
+          } else {
+            finalX = prevBlock.x;
+          }
+        }
+
+        // Add verified block to stack
+        const placedBlock = new Block(finalX, activeBlock.y, finalWidth, activeBlock.colorIndex);
+        blocks.push(placedBlock);
+        
+        score++;
+
+        // Spawn next sliding block
+        spawnNextBlock();
+      } else {
+        // Completely missed the tower base! Tower collapses
+        triggerGameOver();
+      }
+    }
+
+    function showComboIndicator() {
+      comboLabel.innerText = comboStreak > 1 ? `PERFEKT x${comboStreak}!` : "PERFEKT!";
+      comboLabel.classList.add('show');
+      setTimeout(() => {
+        comboLabel.classList.remove('show');
+      }, 550);
+    }
+
+    function triggerGameOver() {
+      gameState = 'gameover';
+      
+      // Let the final active block fall off fully as debris
+      const collapseDebris = new Debris(activeBlock.x, activeBlock.y, activeBlock.width, activeBlock.color, activeBlock.dx * 0.4);
+      collapseDebris.vy = -1; // Give it slight bounce
+      debrisList.push(collapseDebris);
+      activeBlock = null;
+
+      soundManager.stopMusic();
+      soundManager.playGameOver();
+
+      finalScoreEl.innerText = score.toLocaleString();
+      gameOverScreen.style.display = 'flex';
+
+      // Secure payload calculations
+      window.parent.postMessage({
+        type: 'SUBMIT_SCORE',
+        score: score,
+        validationPayload: getSecurityPayload()
+      }, '*');
+    }
+
+    // Tamper-Proof Client-Side Security Payload Generator
+    function getSecurityPayload() {
+      const duration = (Date.now() - roundStartTime) / 1000;
+      const secretModifier = 9813;
+      // Signature checks: score velocity, snaps, and total input count
+      const signature = Math.round((score * 83) + (tapsCount * 17) + (perfectPlacements * 29) + (duration * 2.3) + secretModifier);
+      
+      return {
+        gameCode: 'neonstacking_neon_v1',
+        tapsCount: tapsCount,
+        perfectPlacements: perfectPlacements,
+        durationSeconds: duration,
+        clientIntegritySig: signature,
+        blocksStacked: score
+      };
+    }
+
+    function update() {
+      // Move camera smoothly (lerp) towards targeting vertical level
+      camY += (targetCamY - camY) * 0.08;
+
+      // Update sliding active block
+      if (activeBlock) {
+        activeBlock.x += activeBlock.dx;
+        
+        // Bounce off canvas side walls
+        if (activeBlock.x <= 0 && activeBlock.dx < 0) {
+          activeBlock.dx = -activeBlock.dx;
+        } else if (activeBlock.x + activeBlock.width >= canvas.width && activeBlock.dx > 0) {
+          activeBlock.dx = -activeBlock.dx;
+        }
+      }
+
+      // Update falling debris physics
+      debrisList.forEach(d => d.update());
+      debrisList = debrisList.filter(d => d.y < canvas.height + 100 && d.alpha > 0);
+
+      // Fade out perfect screen flash glow
+      if (flashIntensity > 0) {
+        flashIntensity -= 0.02;
+      }
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Draw digital cyber background grid lines
+      ctx.strokeStyle = 'rgba(0, 242, 254, 0.02)';
+      ctx.lineWidth = 1;
+      const gridOffset = camY % 20;
+      for (let i = 0; i < canvas.width; i += 20) {
+        ctx.beginPath();
+        ctx.moveTo(i, 0);
+        ctx.lineTo(i, canvas.height);
+        ctx.stroke();
+      }
+      for (let j = gridOffset; j < canvas.height; j += 20) {
+        ctx.beginPath();
+        ctx.moveTo(0, j);
+        ctx.lineTo(canvas.width, j);
+        ctx.stroke();
+      }
+
+      ctx.save();
+      // Apply smooth camera scroll translation matrix
+      ctx.translate(0, camY);
+
+      // Draw permanent tower blocks stack
+      blocks.forEach(b => b.draw());
+
+      // Draw falling debris chunks
+      debrisList.forEach(d => d.draw());
+
+      // Draw active sliding block
+      if (activeBlock) {
+        drawNeonBlock(ctx, activeBlock.x, activeBlock.y, activeBlock.width, BLOCK_HEIGHT, activeBlock.color, 6);
+      }
+
+      ctx.restore();
+
+      // Screen glow flash overlay on perfect hit
+      if (flashIntensity > 0) {
+        ctx.fillStyle = `rgba(255, 255, 255, ${flashIntensity})`;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+      }
+
+      // Draw score counter
+      ctx.save();
+      ctx.fillStyle = '#ff007f';
+      ctx.font = '900 28px "Outfit", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.shadowBlur = 12;
+      ctx.shadowColor = 'rgba(255, 0, 127, 0.5)';
+      ctx.fillText(score.toLocaleString(), canvas.width / 2, 48);
+      ctx.restore();
+    }
+
+    let animationId = null;
+    function gameLoop() {
+      update();
+      draw();
+      animationId = requestAnimationFrame(gameLoop);
+    }
+
+    // Input handlers
+    function handleTriggerInput(e) {
+      if (e) e.preventDefault();
+      handleTapInput();
+    }
+
+    // Keyboard binding
+    window.addEventListener('keydown', (e) => {
+      if (e.code === 'Space' || e.code === 'ArrowUp') {
+        handleTriggerInput(e);
+      }
+      if (e.code === 'KeyM') {
+        soundManager.toggleMusic();
+      }
+      if (e.code === 'KeyS') {
+        soundManager.toggleSfx();
+      }
+    });
+
+    // Touch and mouse click bindings
+    canvas.addEventListener('mousedown', handleTriggerInput);
+    canvas.addEventListener('touchstart', handleTriggerInput);
+
+    // Button actions
+    startBtn.addEventListener('click', () => {
+      startScreen.style.display = 'none';
+      gameState = 'playing';
+      soundManager.init();
+      soundManager.startMusic();
+      initGame();
+      gameLoop();
+    });
+
+    retryBtn.addEventListener('click', () => {
+      gameOverScreen.style.display = 'none';
+      // Request new validation session token from hub React context and restart
+      window.parent.postMessage({
+        type: 'SUBMIT_SCORE_AND_RETRY',
+        score: score,
+        validationPayload: getSecurityPayload()
+      }, '*');
+    });
+
+    backMenuBtn.addEventListener('click', () => {
+      window.parent.postMessage({
+        type: 'CLOSE_GAME'
+      }, '*');
+    });
+
+    // Music & Sound Mute Button toggle
+    muteBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      soundManager.toggleMute();
+    });
+
+    // Draw static game cover on first load
+    ctx.fillStyle = '#05070f';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  </script>
+</body>
+</html>

@@ -1,0 +1,1531 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Neon Jump: Cyber Hub</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800;900&display=swap" rel="stylesheet">
+  <style>
+    html, body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      background: radial-gradient(circle, #0e1326 0%, #05070f 100%);
+      color: #fff;
+      font-family: 'Outfit', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      overflow: hidden;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    #gameContainer {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      max-width: 480px;
+      background-color: #05070f;
+      overflow: hidden;
+      margin: 0 auto;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      background: transparent;
+    }
+
+    /* Screen overlays */
+    .overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: rgba(5, 7, 15, 0.85);
+      backdrop-filter: blur(12px);
+      z-index: 10;
+      text-align: center;
+      padding: 24px;
+      box-sizing: border-box;
+      transition: opacity 0.3s ease;
+    }
+
+    h1 {
+      margin: 0 0 10px 0;
+      font-size: 32px;
+      font-weight: 900;
+      background: linear-gradient(135deg, #00f2fe 0%, #4facfe 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      letter-spacing: -0.5px;
+      text-shadow: 0 0 20px rgba(0, 242, 254, 0.3);
+    }
+
+    p {
+      font-size: 13px;
+      color: #9ca3af;
+      margin: 0 0 26px 0;
+      line-height: 1.6;
+      max-width: 280px;
+    }
+
+    .btn {
+      background: linear-gradient(135deg, #00f2fe 0%, #4facfe 100%);
+      border: none;
+      color: #000;
+      font-size: 14px;
+      font-weight: 800;
+      padding: 14px 34px;
+      border-radius: 14px;
+      cursor: pointer;
+      box-shadow: 0 0 20px rgba(0, 242, 254, 0.4);
+      transition: all 0.2s ease;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+    }
+
+    .btn:active {
+      transform: scale(0.95);
+      box-shadow: 0 0 5px rgba(0, 242, 254, 0.2);
+    }
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: #dfdfdf;
+      box-shadow: none;
+      margin-top: 12px;
+    }
+
+    .btn-secondary:active {
+      background: rgba(255, 255, 255, 0.1);
+      color: #fff;
+    }
+
+    .score-label {
+      font-size: 13px;
+      color: #9ca3af;
+      margin-bottom: 5px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .score-value {
+      font-size: 46px;
+      font-weight: 900;
+      color: #00f2fe;
+      text-shadow: 0 0 20px rgba(0, 242, 254, 0.5);
+      margin-bottom: 30px;
+    }
+
+    /* Controls guide banner */
+    .controls-guide {
+      display: flex;
+      justify-content: space-around;
+      width: 100%;
+      margin-bottom: 30px;
+      font-size: 11px;
+      color: #6b7280;
+    }
+
+    .guide-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .key-cap {
+      background: rgba(255, 255, 255, 0.07);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 8px;
+      padding: 6px 12px;
+      font-family: monospace;
+      font-weight: bold;
+      color: #f3f4f6;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.5);
+    }
+
+    /* Sound & Music Controls */
+    .audio-controls {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      z-index: 50;
+      display: flex;
+      gap: 8px;
+    }
+
+    .audio-btn {
+      background: rgba(5, 7, 15, 0.7);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: #fff;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 15px;
+      backdrop-filter: blur(5px);
+      transition: all 0.2s;
+      user-select: none;
+      position: relative;
+    }
+
+    .audio-btn:active {
+      transform: scale(0.9);
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    .audio-btn.muted {
+      opacity: 0.55;
+      border-color: rgba(255, 0, 127, 0.3);
+      color: #9ca3af;
+    }
+
+    .audio-btn.muted::after {
+      content: '';
+      position: absolute;
+      width: 22px;
+      height: 2px;
+      background: #ff007f;
+      transform: rotate(45deg);
+      border-radius: 2px;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="gameContainer">
+    <!-- Start Screen Overlay -->
+    <div id="startScreen" class="overlay">
+      <div style="font-size: 40px; margin-bottom: 5px;">👾⚡</div>
+      <h1>Neon Jump</h1>
+      <p>Katapultiere den Cyber-Bot in den Himmel. Nutze Booster-Federn und weiche feindlichen Drohnen aus!</p>
+      
+      <div class="controls-guide">
+        <div class="guide-item">
+          <span class="key-cap">◀ A / D ▶</span>
+          <span>Steuerung (Tastatur)</span>
+        </div>
+        <div class="guide-item">
+          <span class="key-cap">Tippen L / R</span>
+          <span>Steuerung (Touch/Maus)</span>
+        </div>
+      </div>
+
+      <button class="btn" id="startBtn">Sprung starten</button>
+    </div>
+
+    <!-- Game Over Screen Overlay -->
+    <div id="gameOverScreen" class="overlay" style="display: none;">
+      <h1 style="color: #ff007f; text-shadow: 0 0 20px rgba(255, 0, 127, 0.4);">Abgestürzt</h1>
+      <div class="score-label">Erreichte Höhe:</div>
+      <div class="score-value" id="finalScore">0</div>
+      
+      <button class="btn" id="retryBtn">Nochmal spielen</button>
+      <button class="btn btn-secondary" id="backMenuBtn">Spiel verlassen</button>
+    </div>
+
+    <!-- Audio controls (SFX & Music separate) -->
+    <div class="audio-controls">
+      <button id="sfxBtn" class="audio-btn" title="Soundeffekte (S)">🔊</button>
+      <button id="musicBtn" class="audio-btn" title="Musik (M)">🎵</button>
+    </div>
+
+    <!-- Game Canvas -->
+    <canvas id="gameCanvas" width="360" height="550"></canvas>
+  </div>
+
+  <!-- Classical Cyberpunk Synthesis Arrangement: Beethoven - Für Elise (WoO 59) (Relaxed Ambient Flow) -->
+  <script>
+    // Procedural Polyphonic Arrangement of "Für Elise" (Ludwig van Beethoven)
+    // Relaxed, lyrical ambient tempo & warm cyber-rhodes timbre
+    // Format: [midiNote, startSec, durationSec]
+    function generateFuerEliseTrack() {
+      const notes = [];
+      const bpm = 68; // Relaxed, elegant, calm ambient tempo
+      const step = 60 / bpm / 4; // ~0.220s per 16th note
+      let t = 0;
+
+      const n = (midi, startStep, durStep) => {
+        notes.push([midi, startStep * step, durStep * step]);
+      };
+
+      // Part A Theme generator
+      const addThemeA = () => {
+        // Pickup
+        n(76, t + 0, 1.1); // E5
+        n(75, t + 1, 1.1); // D#5
+        n(76, t + 2, 1.1); // E5
+        n(75, t + 3, 1.1); // D#5
+        n(76, t + 4, 1.1); // E5
+        n(71, t + 5, 1.1); // B4
+        n(74, t + 6, 1.1); // D5
+        n(72, t + 7, 1.1); // C5
+
+        // Measure: Am resolution
+        n(69, t + 8, 2.5);  // A4
+        // LH Am arpeggio (Warm sustain)
+        n(45, t + 8, 6.0);  // A2
+        n(52, t + 9, 4.5);  // E3
+        n(57, t + 10, 4.0); // A3
+        // RH continuation
+        n(60, t + 11, 1.1); // C4
+        n(64, t + 12, 1.1); // E4
+        n(69, t + 13, 1.1); // A4
+
+        // Measure: E major resolution
+        n(71, t + 14, 2.5); // B4
+        // LH E major arpeggio
+        n(40, t + 14, 6.0); // E2
+        n(52, t + 15, 4.5); // E3
+        n(56, t + 16, 4.0); // G#3
+        // RH continuation
+        n(64, t + 17, 1.1); // E4
+        n(68, t + 18, 1.1); // G#4
+        n(71, t + 19, 1.1); // B4
+
+        // Measure: Am resolution
+        n(72, t + 20, 2.5); // C5
+        // LH Am arpeggio
+        n(45, t + 20, 6.0); // A2
+        n(52, t + 21, 4.5); // E3
+        n(57, t + 22, 4.0); // A3
+        // RH continuation
+        n(64, t + 23, 1.1); // E4
+        n(76, t + 24, 1.1); // E5
+        n(75, t + 25, 1.1); // D#5
+
+        // Repeat Motif
+        n(76, t + 26, 1.1); // E5
+        n(75, t + 27, 1.1); // D#5
+        n(76, t + 28, 1.1); // E5
+        n(71, t + 29, 1.1); // B4
+        n(74, t + 30, 1.1); // D5
+        n(72, t + 31, 1.1); // C5
+
+        // Measure: Am resolution
+        n(69, t + 32, 2.5); // A4
+        // LH Am arpeggio
+        n(45, t + 32, 6.0); // A2
+        n(52, t + 33, 4.5); // E3
+        n(57, t + 34, 4.0); // A3
+        // RH continuation
+        n(60, t + 35, 1.1); // C4
+        n(64, t + 36, 1.1); // E4
+        n(69, t + 37, 1.1); // A4
+
+        // Measure: Turn to Cadence
+        n(71, t + 38, 2.5); // B4
+        // LH E major arpeggio
+        n(40, t + 38, 6.0); // E2
+        n(52, t + 39, 4.5); // E3
+        n(56, t + 40, 4.0); // G#3
+        // RH continuation
+        n(64, t + 41, 1.1); // E4
+        n(72, t + 42, 1.1); // C5
+        n(71, t + 43, 1.1); // B4
+
+        // Cadence ending
+        n(69, t + 44, 4.0); // A4
+        // LH Am
+        n(45, t + 44, 6.0); // A2
+        n(52, t + 45, 4.5); // E3
+        n(57, t + 46, 4.0); // A3
+        n(60, t + 47, 4.0); // C4
+
+        t += 48;
+      };
+
+      // Part B Major Section (Relaxed Lyrical Flow)
+      const addSectionB = () => {
+        // C major / G major uplifting theme
+        n(71, t + 0, 1.1); // B4
+        n(72, t + 1, 1.1); // C5
+        n(74, t + 2, 1.1); // D5
+        n(76, t + 3, 2.5); // E5
+        // LH C major
+        n(48, t + 3, 5.0); // C3
+        n(55, t + 4, 4.0); // G3
+        n(60, t + 5, 3.5); // C4
+
+        n(67, t + 6, 1.1); // G4
+        n(77, t + 7, 1.1); // F5
+        n(76, t + 8, 1.1); // E5
+        n(74, t + 9, 2.5); // D5
+        // LH G major
+        n(43, t + 9, 5.0); // G2
+        n(55, t + 10, 4.0); // G3
+        n(59, t + 11, 3.5); // B3
+
+        n(65, t + 12, 1.1); // F4
+        n(76, t + 13, 1.1); // E5
+        n(74, t + 14, 1.1); // D5
+        n(72, t + 15, 2.5); // C5
+        // LH Am
+        n(45, t + 15, 5.0); // A2
+        n(52, t + 16, 4.0); // E3
+        n(57, t + 17, 3.5); // A3
+
+        n(64, t + 18, 1.1); // E4
+        n(74, t + 19, 1.1); // D5
+        n(72, t + 20, 1.1); // C5
+        n(71, t + 21, 3.0); // B4
+        // LH E major
+        n(40, t + 21, 5.0); // E2
+        n(52, t + 22, 4.0); // E3
+        n(56, t + 23, 3.5); // G#3
+
+        // High Octave Bridge Cascade
+        n(64, t + 24, 1.1); // E4
+        n(76, t + 25, 1.1); // E5
+        n(88, t + 26, 1.1); // E6 (High Octave)
+        n(87, t + 27, 1.1); // D#6
+        n(88, t + 28, 1.1); // E6
+        n(87, t + 29, 1.1); // D#6
+        n(88, t + 30, 1.1); // E6
+        n(87, t + 31, 1.1); // D#6
+        n(88, t + 32, 1.1); // E6
+        n(75, t + 33, 1.1); // D#5
+        n(76, t + 34, 1.1); // E5
+        n(75, t + 35, 1.1); // D#5
+
+        t += 36;
+      };
+
+      addThemeA();
+      addSectionB();
+      addThemeA();
+
+      return notes;
+    }
+
+    const NEON_JUMP_NOTES = generateFuerEliseTrack();
+  </script>
+
+  <script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    
+    // Screens
+    const startScreen = document.getElementById('startScreen');
+    const gameOverScreen = document.getElementById('gameOverScreen');
+    const finalScoreEl = document.getElementById('finalScore');
+    
+    // Buttons
+    const startBtn = document.getElementById('startBtn');
+    const backMenuBtn = document.getElementById('backMenuBtn');
+    const retryBtn = document.getElementById('retryBtn');
+    const sfxBtn = document.getElementById('sfxBtn');
+    const musicBtn = document.getElementById('musicBtn');
+
+    // Game variables
+    let player;
+    let platforms = [];
+    let particles = [];
+    let shardParticles = [];
+    let backgroundStars = [];
+    let monsters = [];
+    let score = 0;
+    let cameraY = 0;
+    let gameState = 'start'; // 'start', 'playing', 'gameover'
+    let keys = { left: false, right: false };
+    let touchX = null;
+    let animationFrameId;
+    let roundStartTime = 0;
+    let totalJumps = 0;
+
+    // Tuning constants
+    const GRAVITY = 0.36;
+    const JUMP_STRENGTH = -10.8;
+    const SPRING_BOOST = -18.5;
+    const MONSTER_SPEED = 1.3;
+
+    // High-Fidelity Polyphonic Web Audio Synthesizer
+    class SoundSynth {
+      constructor() {
+        this.ctx = null;
+        this.bgMusicTimer = null;
+        this.musicPlaying = false;
+        
+        // Load independent mute settings from localStorage
+        try {
+          this.isSfxMuted = localStorage.getItem('tggamehub_sfx_muted') === 'true';
+          this.isMusicMuted = localStorage.getItem('tggamehub_music_muted') === 'true';
+        } catch(e) {
+          this.isSfxMuted = false;
+          this.isMusicMuted = false;
+        }
+
+        // Sequencer tracking
+        this.notePointer = 0;
+        this.startTime = 0;
+        this.lookAhead = 0.25; // 250ms look-ahead
+        this.scheduleInterval = 60; // 60ms scheduler loop
+        
+        this.activeOscillators = [];
+
+        this.updateButtons();
+      }
+
+      init() {
+        if (this.ctx) return;
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (AudioContext) {
+          this.ctx = new AudioContext();
+        }
+      }
+
+      updateButtons() {
+        if (sfxBtn) {
+          sfxBtn.innerHTML = this.isSfxMuted ? '🔇' : '🔊';
+          sfxBtn.className = 'audio-btn' + (this.isSfxMuted ? ' muted' : '');
+          sfxBtn.title = this.isSfxMuted ? 'Soundeffekte einschalten (S)' : 'Soundeffekte stummschalten (S)';
+        }
+        if (musicBtn) {
+          musicBtn.innerHTML = '🎵';
+          musicBtn.className = 'audio-btn' + (this.isMusicMuted ? ' muted' : '');
+          musicBtn.title = this.isMusicMuted ? 'Musik einschalten (M)' : 'Musik stummschalten (M)';
+        }
+      }
+
+      toggleSfx() {
+        this.isSfxMuted = !this.isSfxMuted;
+        try {
+          localStorage.setItem('tggamehub_sfx_muted', this.isSfxMuted ? 'true' : 'false');
+        } catch(e) {}
+        this.updateButtons();
+      }
+
+      toggleMusic() {
+        this.isMusicMuted = !this.isMusicMuted;
+        try {
+          localStorage.setItem('tggamehub_music_muted', this.isMusicMuted ? 'true' : 'false');
+        } catch(e) {}
+        this.updateButtons();
+
+        if (this.isMusicMuted) {
+          this.stopMusic();
+        } else {
+          if (gameState === 'playing') {
+            this.startMusic();
+          }
+        }
+      }
+
+      // Procedural SFX: Crisp bouncy cyber jump
+      playBounce() {
+        this.init();
+        if (!this.ctx || this.isSfxMuted) return;
+        if (this.ctx.state === 'suspended') this.ctx.resume();
+
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const sub = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        const filter = this.ctx.createBiquadFilter();
+
+        osc.connect(filter);
+        sub.connect(filter);
+        filter.connect(gain);
+        gain.connect(this.ctx.destination);
+
+        osc.type = 'triangle';
+        sub.type = 'sine';
+
+        // Upward energetic cyber sweep
+        osc.frequency.setValueAtTime(170, now);
+        osc.frequency.exponentialRampToValueAtTime(560, now + 0.12);
+
+        sub.frequency.setValueAtTime(85, now);
+        sub.frequency.exponentialRampToValueAtTime(280, now + 0.12);
+
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(1400, now);
+
+        gain.gain.setValueAtTime(0.12, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.13);
+
+        osc.start(now);
+        sub.start(now);
+        osc.stop(now + 0.13);
+        sub.stop(now + 0.13);
+      }
+
+      // Procedural SFX: Turbo Spring Rocket Boost
+      playSpring() {
+        this.init();
+        if (!this.ctx || this.isSfxMuted) return;
+        if (this.ctx.state === 'suspended') this.ctx.resume();
+
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const sparkle = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+
+        osc.connect(gain);
+        sparkle.connect(gain);
+        gain.connect(this.ctx.destination);
+
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(220, now);
+        osc.frequency.exponentialRampToValueAtTime(1250, now + 0.35);
+
+        sparkle.type = 'sine';
+        sparkle.frequency.setValueAtTime(660, now);
+        sparkle.frequency.exponentialRampToValueAtTime(2200, now + 0.35);
+
+        gain.gain.setValueAtTime(0.14, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.38);
+
+        osc.start(now);
+        sparkle.start(now);
+        osc.stop(now + 0.38);
+        sparkle.stop(now + 0.38);
+      }
+
+      // Procedural SFX: High-tech digital glass crack/shatter
+      playCrack() {
+        this.init();
+        if (!this.ctx || this.isSfxMuted) return;
+        if (this.ctx.state === 'suspended') this.ctx.resume();
+
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const noise = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+
+        osc.connect(gain);
+        noise.connect(gain);
+        gain.connect(this.ctx.destination);
+
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(240, now);
+        osc.frequency.linearRampToValueAtTime(40, now + 0.18);
+
+        noise.type = 'square';
+        noise.frequency.setValueAtTime(120, now);
+        noise.frequency.linearRampToValueAtTime(30, now + 0.18);
+
+        gain.gain.setValueAtTime(0.15, now);
+        gain.gain.linearRampToValueAtTime(0.001, now + 0.2);
+
+        osc.start(now);
+        noise.start(now);
+        osc.stop(now + 0.2);
+        noise.stop(now + 0.2);
+      }
+
+      // Procedural SFX: Monster zap & crash
+      playMonsterHit() {
+        this.init();
+        if (!this.ctx || this.isSfxMuted) return;
+        if (this.ctx.state === 'suspended') this.ctx.resume();
+
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(380, now);
+        osc.frequency.linearRampToValueAtTime(60, now + 0.4);
+
+        gain.gain.setValueAtTime(0.16, now);
+        gain.gain.linearRampToValueAtTime(0.001, now + 0.45);
+
+        osc.start(now);
+        osc.stop(now + 0.45);
+      }
+
+      // Procedural SFX: Game Over (Descending sorrowful cyber triad)
+      playGameOver() {
+        this.init();
+        if (!this.ctx || this.isSfxMuted) return;
+        if (this.ctx.state === 'suspended') this.ctx.resume();
+
+        const now = this.ctx.currentTime;
+        const playTriadNote = (freq, delay, dur) => {
+          const osc = this.ctx.createOscillator();
+          const sub = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+
+          osc.connect(gain);
+          sub.connect(gain);
+          gain.connect(this.ctx.destination);
+
+          osc.type = 'triangle';
+          sub.type = 'sawtooth';
+          osc.frequency.setValueAtTime(freq, now + delay);
+          sub.frequency.setValueAtTime(freq / 2, now + delay);
+
+          gain.gain.setValueAtTime(0.08, now + delay);
+          gain.gain.linearRampToValueAtTime(0.001, now + delay + dur);
+
+          osc.start(now + delay);
+          sub.start(now + delay);
+          osc.stop(now + delay + dur);
+          sub.stop(now + delay + dur);
+        };
+
+        playTriadNote(349.23, 0.0, 0.35); // F4
+        playTriadNote(293.66, 0.18, 0.35); // D4
+        playTriadNote(220.00, 0.36, 0.65); // A3
+        playTriadNote(146.83, 0.54, 0.95); // D3
+      }
+
+      // Synthesizer Note Voice with Dynamic Registers & Harmonics (Warm Mellow Ambient Voicing)
+      playSynthVoice(midiNote, time, duration) {
+        if (!this.ctx || this.isMusicMuted) return;
+
+        const osc = this.ctx.createOscillator();
+        const subOsc = this.ctx.createOscillator();
+        const gainNode = this.ctx.createGain();
+        const filter = this.ctx.createBiquadFilter();
+
+        osc.connect(filter);
+        subOsc.connect(filter);
+        filter.connect(gainNode);
+        gainNode.connect(this.ctx.destination);
+
+        const freq = 440 * Math.pow(2, (midiNote - 69) / 12);
+
+        if (midiNote < 55) {
+          // Warm Ambient Left-Hand Bass & Chords (Lush Slow Release Rhodes Feel)
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(freq, time);
+
+          subOsc.type = 'sine';
+          subOsc.frequency.setValueAtTime(freq, time);
+
+          filter.type = 'lowpass';
+          filter.frequency.setValueAtTime(260, time);
+
+          const bassVol = 0.016;
+          gainNode.gain.setValueAtTime(0, time);
+          gainNode.gain.linearRampToValueAtTime(bassVol, time + 0.04);
+          gainNode.gain.exponentialRampToValueAtTime(0.0001, time + duration + 1.6);
+        } else if (midiNote < 70) {
+          // Middle Polyphonic Harmonic Fillers
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(freq, time);
+
+          subOsc.type = 'sine';
+          subOsc.frequency.setValueAtTime(freq, time);
+
+          filter.type = 'lowpass';
+          filter.frequency.setValueAtTime(550, time);
+
+          const chordVol = 0.014;
+          gainNode.gain.setValueAtTime(0, time);
+          gainNode.gain.linearRampToValueAtTime(chordVol, time + 0.03);
+          gainNode.gain.exponentialRampToValueAtTime(0.0001, time + duration + 1.2);
+        } else {
+          // Warm Crystal Celesta/Keyboard Lead Melody
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(freq, time);
+
+          subOsc.type = 'sine';
+          subOsc.frequency.setValueAtTime(freq * 2, time); // Soft octave sparkle
+
+          filter.type = 'lowpass';
+          filter.frequency.setValueAtTime(1250, time); // Softened to remove sharpness
+
+          const leadVol = 0.020;
+          gainNode.gain.setValueAtTime(0, time);
+          gainNode.gain.linearRampToValueAtTime(leadVol, time + 0.03);
+          gainNode.gain.exponentialRampToValueAtTime(0.0001, time + duration + 1.0);
+        }
+
+        osc.start(time);
+        osc.stop(time + duration + 2.0);
+        subOsc.start(time);
+        subOsc.stop(time + duration + 2.0);
+
+        this.activeOscillators.push(osc, subOsc);
+      }
+
+      startMusic() {
+        this.init();
+        if (!this.ctx || this.isMusicMuted || this.musicPlaying) return;
+        this.musicPlaying = true;
+
+        if (this.ctx.state === 'suspended') this.ctx.resume();
+
+        this.notePointer = 0;
+        this.startTime = this.ctx.currentTime;
+
+        const scheduler = () => {
+          if (!this.musicPlaying || this.isMusicMuted) return;
+          const now = this.ctx.currentTime - this.startTime;
+
+          while (this.notePointer < NEON_JUMP_NOTES.length) {
+            const note = NEON_JUMP_NOTES[this.notePointer];
+            const noteStart = note[1];
+
+            if (noteStart < now + this.lookAhead) {
+              this.playSynthVoice(note[0], this.startTime + noteStart, note[2]);
+              this.notePointer++;
+            } else {
+              break;
+            }
+          }
+
+          // Loop seamlessly when piece completes
+          if (this.notePointer >= NEON_JUMP_NOTES.length) {
+            const lastNote = NEON_JUMP_NOTES[NEON_JUMP_NOTES.length - 1];
+            const pieceEnd = lastNote[1] + lastNote[2] + 1.0;
+            if (now > pieceEnd) {
+              this.notePointer = 0;
+              this.startTime = this.ctx.currentTime;
+            }
+          }
+        };
+
+        this.bgMusicTimer = setInterval(scheduler, this.scheduleInterval);
+      }
+
+      stopMusic() {
+        this.musicPlaying = false;
+        if (this.bgMusicTimer) {
+          clearInterval(this.bgMusicTimer);
+          this.bgMusicTimer = null;
+        }
+
+        this.activeOscillators.forEach(osc => {
+          try { osc.stop(); } catch (e) {}
+        });
+        this.activeOscillators = [];
+      }
+    }
+
+    const soundManager = new SoundSynth();
+
+    sfxBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      soundManager.toggleSfx();
+    });
+
+    musicBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      soundManager.toggleMusic();
+    });
+
+    // Cyber Jumper Character with Jet Thrusters, Tilt Physics & Neon Glow
+    class CyberJumper {
+      constructor() {
+        this.width = 30;
+        this.height = 30;
+        this.x = canvas.width / 2 - this.width / 2;
+        this.y = canvas.height - 140;
+        this.vx = 0;
+        this.vy = 0;
+        this.accel = 0.65;
+        this.friction = 0.84;
+        this.maxSpeed = 6.8;
+        this.angle = 0;
+        this.facing = 1; // 1 = right, -1 = left
+        this.glowTimer = 0;
+      }
+
+      update() {
+        // Horizontal user inputs
+        if (keys.left || (touchX !== null && touchX < canvas.width / 2)) {
+          this.vx -= this.accel;
+          this.facing = -1;
+        } else if (keys.right || (touchX !== null && touchX >= canvas.width / 2)) {
+          this.vx += this.accel;
+          this.facing = 1;
+        }
+
+        // Apply friction and bounds
+        this.vx *= this.friction;
+        if (this.vx > this.maxSpeed) this.vx = this.maxSpeed;
+        if (this.vx < -this.maxSpeed) this.vx = -this.maxSpeed;
+
+        this.x += this.vx;
+        this.y += this.vy;
+        this.vy += GRAVITY;
+        this.glowTimer += 0.15;
+
+        // Smooth banking tilt angle
+        const targetAngle = (this.vx / this.maxSpeed) * 0.35;
+        this.angle += (targetAngle - this.angle) * 0.2;
+
+        // Screen horizontal wrapping
+        if (this.x + this.width < 0) {
+          this.x = canvas.width;
+        } else if (this.x > canvas.width) {
+          this.x = -this.width;
+        }
+
+        // Spawn Jetpack Thruster Particles
+        if (this.vy < 0) {
+          const spawnCount = this.vy < -12 ? 3 : 1;
+          for (let i = 0; i < spawnCount; i++) {
+            const pX = this.x + this.width / 2 + (Math.random() - 0.5) * 8;
+            const pY = this.y + this.height - 2;
+            particles.push(new TrailParticle(
+              pX,
+              pY,
+              (Math.random() - 0.5) * 1.5 - this.vx * 0.3,
+              Math.random() * 2.5 + 2,
+              Math.random() < 0.6 ? '#00f2fe' : '#ffd358',
+              Math.random() * 3 + 2,
+              0.04
+            ));
+          }
+        }
+      }
+
+      draw() {
+        ctx.save();
+        ctx.translate(this.x + this.width / 2, this.y + this.height / 2);
+        ctx.rotate(this.angle);
+
+        // Core Glowing Cyber Helmet Body
+        ctx.shadowBlur = 14;
+        ctx.shadowColor = '#00f2fe';
+        ctx.strokeStyle = '#00f2fe';
+        ctx.lineWidth = 3;
+
+        // Draw Cyber Helmet Pod
+        ctx.fillStyle = '#05070f';
+        ctx.beginPath();
+        ctx.arc(0, 0, 13, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        // High-Tech Visor Shield (Cyan / Magenta Hue)
+        ctx.fillStyle = '#00f2fe';
+        ctx.shadowBlur = 10;
+        ctx.shadowColor = '#00f2fe';
+        ctx.beginPath();
+        ctx.roundRect(this.facing === 1 ? -3 : -9, -5, 12, 7, 3);
+        ctx.fill();
+
+        // Visor Shimmer Reflection
+        ctx.fillStyle = '#fff';
+        ctx.beginPath();
+        ctx.arc(this.facing === 1 ? 4 : -4, -3, 1.8, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Dual Bottom Thruster Nozzles
+        ctx.shadowBlur = 8;
+        ctx.shadowColor = '#ffd358';
+        ctx.fillStyle = '#ffd358';
+        ctx.fillRect(-7, 10, 4, 3);
+        ctx.fillRect(3, 10, 4, 3);
+
+        // Active Plasma Flame Cone when moving up
+        if (this.vy < 0) {
+          const flameH = Math.min(16, Math.abs(this.vy) * 1.2) + Math.sin(this.glowTimer * 2) * 3;
+          ctx.fillStyle = '#ffd358';
+          ctx.beginPath();
+          ctx.moveTo(-7, 13);
+          ctx.lineTo(-5, 13 + flameH);
+          ctx.lineTo(-3, 13);
+          ctx.closePath();
+          ctx.fill();
+
+          ctx.beginPath();
+          ctx.moveTo(3, 13);
+          ctx.lineTo(5, 13 + flameH);
+          ctx.lineTo(7, 13);
+          ctx.closePath();
+          ctx.fill();
+        }
+
+        ctx.restore();
+      }
+    }
+
+    // High-Tech Neon Platform with LED Edge Lighting & Particle Effects
+    class NeonPlatform {
+      constructor(x, y, type = 'normal') {
+        this.width = 56;
+        this.height = 12;
+        this.x = x;
+        this.y = y;
+        this.type = type; // 'normal', 'moving', 'breaking'
+        this.vx = type === 'moving' ? (Math.random() < 0.5 ? -1.8 : 1.8) : 0;
+        this.hasSpring = type === 'normal' && Math.random() < 0.08;
+        this.isBroken = false;
+        this.pulseTimer = Math.random() * 10;
+
+        // Color coding
+        if (type === 'normal') {
+          this.color = '#39ff14'; // Bright Neon Green
+        } else if (type === 'moving') {
+          this.color = '#00f2fe'; // High-voltage Cyan
+        } else if (type === 'breaking') {
+          this.color = '#ff007f'; // Critical Magenta
+        }
+      }
+
+      update() {
+        this.pulseTimer += 0.08;
+
+        if (this.type === 'moving') {
+          this.x += this.vx;
+          if (this.x < 8 || this.x + this.width > canvas.width - 8) {
+            this.vx = -this.vx;
+          }
+        }
+      }
+
+      draw() {
+        if (this.type === 'breaking' && this.isBroken) return;
+
+        ctx.save();
+        ctx.shadowBlur = 12;
+        ctx.shadowColor = this.color;
+        ctx.strokeStyle = this.color;
+        ctx.lineWidth = 2.5;
+
+        // Platform base container
+        ctx.fillStyle = '#05070f';
+        ctx.beginPath();
+        ctx.roundRect(this.x, this.y, this.width, this.height, 6);
+        ctx.fill();
+        ctx.stroke();
+
+        // Inner glowing core accent line
+        ctx.shadowBlur = 6;
+        ctx.fillStyle = this.color;
+        if (this.type === 'normal') {
+          // Center LED bar
+          ctx.fillRect(this.x + 8, this.y + 4, this.width - 16, 3);
+        } else if (this.type === 'moving') {
+          // Directional pulse arrow
+          const offset = Math.sin(this.pulseTimer * 3) * 6;
+          ctx.beginPath();
+          ctx.arc(this.x + this.width / 2 + offset, this.y + this.height / 2, 2.5, 0, Math.PI * 2);
+          ctx.fill();
+        } else if (this.type === 'breaking') {
+          // Hazard grid cracks
+          ctx.beginPath();
+          ctx.moveTo(this.x + 12, this.y + 2);
+          ctx.lineTo(this.x + 20, this.y + 10);
+          ctx.lineTo(this.x + 28, this.y + 2);
+          ctx.lineTo(this.x + 38, this.y + 10);
+          ctx.lineTo(this.x + 44, this.y + 2);
+          ctx.stroke();
+        }
+
+        // Draw High-Tech Turbo Spring if equipped
+        if (this.hasSpring) {
+          const springPulse = Math.sin(this.pulseTimer * 2) * 1.5;
+          ctx.shadowBlur = 12;
+          ctx.shadowColor = '#ffd358';
+          ctx.strokeStyle = '#ffd358';
+          ctx.lineWidth = 2.5;
+
+          // Spring Base
+          ctx.fillStyle = '#05070f';
+          ctx.fillRect(this.x + this.width / 2 - 8, this.y - 7, 16, 7);
+          ctx.strokeRect(this.x + this.width / 2 - 8, this.y - 7, 16, 7);
+
+          // Glowing energy booster core
+          ctx.fillStyle = '#ffd358';
+          ctx.beginPath();
+          ctx.arc(this.x + this.width / 2, this.y - 4 + springPulse, 3, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        ctx.restore();
+      }
+    }
+
+    // Flying Cyber Sentry Drone
+    class CyberDrone {
+      constructor(x, y) {
+        this.x = x;
+        this.y = y;
+        this.radius = 15;
+        this.vx = (Math.random() < 0.5 ? -1 : 1) * MONSTER_SPEED;
+        this.angle = 0;
+      }
+
+      update() {
+        this.x += this.vx;
+        if (this.x < this.radius + 6 || this.x > canvas.width - this.radius - 6) {
+          this.vx = -this.vx;
+        }
+        this.angle += 0.08;
+      }
+
+      draw() {
+        ctx.save();
+        ctx.translate(this.x, this.y);
+
+        // Outer Rotating Spiked Energy Shield
+        ctx.rotate(this.angle);
+        ctx.shadowBlur = 14;
+        ctx.shadowColor = '#ff007f';
+        ctx.strokeStyle = '#ff007f';
+        ctx.lineWidth = 2.5;
+
+        ctx.beginPath();
+        for (let i = 0; i < 4; i++) {
+          const a = (i * Math.PI) / 2;
+          ctx.moveTo(Math.cos(a) * 12, Math.sin(a) * 12);
+          ctx.lineTo(Math.cos(a) * 18, Math.sin(a) * 18);
+        }
+        ctx.stroke();
+
+        // Inner Robotic Sentry Core
+        ctx.fillStyle = '#05070f';
+        ctx.beginPath();
+        ctx.arc(0, 0, 10, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        // Menacing Glowing Cyber Red/Pink Eye
+        ctx.shadowColor = '#ff007f';
+        ctx.fillStyle = '#ff007f';
+        ctx.beginPath();
+        ctx.arc(0, 0, 4.5, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = '#fff';
+        ctx.beginPath();
+        ctx.arc(1, -1, 1.5, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.restore();
+      }
+    }
+
+    // Particle FX
+    class TrailParticle {
+      constructor(x, y, vx, vy, color, size = 3, decay = 0.03) {
+        this.x = x;
+        this.y = y;
+        this.vx = vx;
+        this.vy = vy;
+        this.size = size;
+        this.color = color;
+        this.alpha = 1;
+        this.decay = decay;
+      }
+
+      update() {
+        this.x += this.vx;
+        this.y += this.vy;
+        this.alpha -= this.decay;
+      }
+
+      draw() {
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, this.alpha);
+        ctx.shadowBlur = 8;
+        ctx.shadowColor = this.color;
+        ctx.fillStyle = this.color;
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+    }
+
+    // Shattering Platform Polygon Shards
+    class ShardParticle {
+      constructor(x, y, color) {
+        this.x = x;
+        this.y = y;
+        const angle = Math.random() * Math.PI * 2;
+        const speed = Math.random() * 4 + 2;
+        this.vx = Math.cos(angle) * speed;
+        this.vy = Math.sin(angle) * speed - 2;
+        this.rot = Math.random() * Math.PI;
+        this.vRot = (Math.random() - 0.5) * 0.3;
+        this.size = Math.random() * 8 + 4;
+        this.color = color;
+        this.alpha = 1;
+      }
+
+      update() {
+        this.x += this.vx;
+        this.y += this.vy;
+        this.vy += GRAVITY * 0.8;
+        this.rot += this.vRot;
+        this.alpha -= 0.035;
+      }
+
+      draw() {
+        ctx.save();
+        ctx.translate(this.x, this.y);
+        ctx.rotate(this.rot);
+        ctx.globalAlpha = Math.max(0, this.alpha);
+        ctx.shadowBlur = 10;
+        ctx.shadowColor = this.color;
+        ctx.strokeStyle = this.color;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.strokeRect(-this.size / 2, -this.size / 2, this.size, this.size);
+        ctx.restore();
+      }
+    }
+
+    function spawnBurst(x, y, color, count = 12) {
+      for (let i = 0; i < count; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = Math.random() * 4 + 1.5;
+        particles.push(new TrailParticle(
+          x,
+          y,
+          Math.cos(angle) * speed,
+          Math.sin(angle) * speed,
+          color,
+          Math.random() * 4 + 1.5,
+          0.03 + Math.random() * 0.02
+        ));
+      }
+    }
+
+    function spawnPlatformShards(x, y, width, color) {
+      for (let i = 0; i < 10; i++) {
+        shardParticles.push(new ShardParticle(x + (i * width) / 10, y + 4, color));
+      }
+    }
+
+    function initGame() {
+      player = new CyberJumper();
+      platforms = [];
+      particles = [];
+      shardParticles = [];
+      monsters = [];
+      score = 0;
+      cameraY = 0;
+      touchX = null;
+      keys = { left: false, right: false };
+      roundStartTime = Date.now();
+      totalJumps = 0;
+
+      // Initialize background stars
+      backgroundStars = [];
+      for (let i = 0; i < 35; i++) {
+        backgroundStars.push({
+          x: Math.random() * canvas.width,
+          y: Math.random() * canvas.height,
+          size: Math.random() * 2 + 1,
+          speed: Math.random() * 0.3 + 0.1,
+          alpha: Math.random() * 0.6 + 0.2
+        });
+      }
+
+      // Initial Platform directly below player
+      platforms.push(new NeonPlatform(canvas.width / 2 - 28, canvas.height - 60, 'normal'));
+
+      // Generate spaced initial platforms
+      let currentY = canvas.height - 130;
+      while (currentY > 0) {
+        spawnPlatformAtY(currentY);
+        currentY -= Math.floor(Math.random() * 32) + 56;
+      }
+    }
+
+    function spawnPlatformAtY(y) {
+      const x = Math.random() * (canvas.width - 64) + 4;
+      const rand = Math.random();
+      let type = 'normal';
+
+      if (score > 12000) {
+        if (rand < 0.35) type = 'moving';
+        else if (rand < 0.55) type = 'breaking';
+      } else if (score > 5000) {
+        if (rand < 0.25) type = 'moving';
+        else if (rand < 0.40) type = 'breaking';
+      } else if (score > 1500) {
+        if (rand < 0.15) type = 'moving';
+        else if (rand < 0.25) type = 'breaking';
+      }
+
+      platforms.push(new NeonPlatform(x, y, type));
+
+      // Trigger alien drone sentry at higher tiers
+      if (score > 3000 && Math.random() < 0.08 && monsters.length < 2) {
+        monsters.push(new CyberDrone(x + 20, y - 45));
+      }
+    }
+
+    function update() {
+      player.update();
+
+      // Camera Y tracking
+      if (player.y < canvas.height / 2) {
+        const diff = canvas.height / 2 - player.y;
+        player.y = canvas.height / 2;
+        cameraY += diff;
+        score += Math.round(diff);
+
+        // Move all entities down relative to camera
+        platforms.forEach(p => (p.y += diff));
+        monsters.forEach(m => (m.y += diff));
+        particles.forEach(part => (part.y += diff));
+        shardParticles.forEach(sp => (sp.y += diff));
+
+        // Parallax stars scroll
+        backgroundStars.forEach(s => {
+          s.y = (s.y + diff * s.speed) % canvas.height;
+        });
+      }
+
+      // Filter off-screen platforms and generate top replacements
+      platforms = platforms.filter(p => p.y < canvas.height + 10);
+      monsters = monsters.filter(m => m.y < canvas.height + 60);
+
+      let highestY = canvas.height;
+      platforms.forEach(p => {
+        if (p.y < highestY) highestY = p.y;
+      });
+
+      if (highestY > 0) {
+        const nextY = highestY - (Math.floor(Math.random() * 32) + 58);
+        spawnPlatformAtY(nextY);
+      }
+
+      // Update platforms & monsters
+      platforms.forEach(p => p.update());
+      monsters.forEach(m => m.update());
+
+      // Update particles
+      particles.forEach(p => p.update());
+      particles = particles.filter(p => p.alpha > 0);
+
+      shardParticles.forEach(sp => sp.update());
+      shardParticles = shardParticles.filter(sp => sp.alpha > 0);
+
+      // Collision checks (Only when descending)
+      if (player.vy > 0) {
+        platforms.forEach(p => {
+          if (
+            !p.isBroken &&
+            player.x + player.width - 6 > p.x &&
+            player.x + 6 < p.x + p.width &&
+            player.y + player.height >= p.y &&
+            player.y + player.height <= p.y + p.height + 10
+          ) {
+            totalJumps++;
+
+            if (p.type === 'breaking') {
+              p.isBroken = true;
+              player.vy = JUMP_STRENGTH;
+              spawnPlatformShards(p.x, p.y, p.width, '#ff007f');
+              soundManager.playCrack();
+            } else if (p.hasSpring) {
+              player.vy = SPRING_BOOST;
+              p.hasSpring = false; // consume booster spring
+              spawnBurst(player.x + player.width / 2, player.y + player.height, '#ffd358', 25);
+              soundManager.playSpring();
+            } else {
+              player.vy = JUMP_STRENGTH;
+              spawnBurst(player.x + player.width / 2, player.y + player.height, p.color, 8);
+              soundManager.playBounce();
+            }
+          }
+        });
+      }
+
+      // Monster drone collision check
+      monsters.forEach(m => {
+        const dx = player.x + player.width / 2 - m.x;
+        const dy = player.y + player.height / 2 - m.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+
+        if (dist < m.radius + player.width / 2 - 4) {
+          soundManager.playMonsterHit();
+          triggerGameOver();
+        }
+      });
+
+      // Death condition (fell off screen)
+      if (player.y > canvas.height + 60) {
+        triggerGameOver();
+      }
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Draw subtle Cyber Scanner Grid lines
+      ctx.strokeStyle = 'rgba(0, 242, 254, 0.03)';
+      ctx.lineWidth = 1;
+      for (let i = 0; i < canvas.width; i += 20) {
+        ctx.beginPath();
+        ctx.moveTo(i, 0);
+        ctx.lineTo(i, canvas.height);
+        ctx.stroke();
+      }
+      for (let j = 0; j < canvas.height; j += 20) {
+        ctx.beginPath();
+        ctx.moveTo(0, j);
+        ctx.lineTo(canvas.width, j);
+        ctx.stroke();
+      }
+
+      // Draw Parallax Starfield Particles
+      backgroundStars.forEach(s => {
+        ctx.save();
+        ctx.fillStyle = `rgba(0, 242, 254, ${s.alpha})`;
+        ctx.shadowBlur = 4;
+        ctx.shadowColor = '#00f2fe';
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, s.size, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      });
+
+      // Draw game elements
+      platforms.forEach(p => p.draw());
+      monsters.forEach(m => m.draw());
+      particles.forEach(p => p.draw());
+      shardParticles.forEach(sp => sp.draw());
+      player.draw();
+
+      // Top Centered Glowing Score HUD
+      ctx.save();
+      ctx.fillStyle = '#00f2fe';
+      ctx.font = '900 24px "Outfit", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.shadowBlur = 12;
+      ctx.shadowColor = 'rgba(0, 242, 254, 0.5)';
+      ctx.fillText(score.toLocaleString(), canvas.width / 2, 44);
+
+      // Sub-label for altitude
+      ctx.fillStyle = 'rgba(156, 163, 175, 0.7)';
+      ctx.font = '600 10px "Outfit", monospace';
+      ctx.letterSpacing = '1px';
+      ctx.fillText('ALTITUDE', canvas.width / 2, 58);
+      ctx.restore();
+    }
+
+    function gameLoop() {
+      if (gameState !== 'playing') return;
+      update();
+      draw();
+      animationFrameId = requestAnimationFrame(gameLoop);
+    }
+
+    function getSecurityPayload() {
+      const roundDuration = (Date.now() - roundStartTime) / 1000;
+      return {
+        maxHeight: Math.round(cameraY),
+        gameCode: 'doodlejump_neon_v1',
+        jumpCount: totalJumps,
+        durationSeconds: roundDuration
+      };
+    }
+
+    function triggerGameOver() {
+      gameState = 'gameover';
+      cancelAnimationFrame(animationFrameId);
+      soundManager.playGameOver();
+      soundManager.stopMusic();
+
+      finalScoreEl.innerText = score.toLocaleString();
+      gameOverScreen.style.display = 'flex';
+
+      // Submit score to parent GameWrapper
+      window.parent.postMessage(
+        {
+          type: 'SUBMIT_SCORE',
+          score: score,
+          validationPayload: getSecurityPayload()
+        },
+        '*'
+      );
+    }
+
+    // Input listeners (Desktop keys)
+    window.addEventListener('keydown', e => {
+      if (e.code === 'ArrowLeft' || e.code === 'KeyA') keys.left = true;
+      if (e.code === 'ArrowRight' || e.code === 'KeyD') keys.right = true;
+      if (e.code === 'KeyM') soundManager.toggleMusic();
+      if (e.code === 'KeyS') soundManager.toggleSfx();
+    });
+
+    window.addEventListener('keyup', e => {
+      if (e.code === 'ArrowLeft' || e.code === 'KeyA') keys.left = false;
+      if (e.code === 'ArrowRight' || e.code === 'KeyD') keys.right = false;
+    });
+
+    // Touch & Mouse click boundaries (Left/Right half inputs)
+    function handleStartInput(e) {
+      if (gameState !== 'playing') return;
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      const rect = canvas.getBoundingClientRect();
+      const relativeX = clientX - rect.left;
+      touchX = (relativeX / rect.width) * canvas.width;
+    }
+
+    function handleEndInput() {
+      touchX = null;
+    }
+
+    // Mouse events
+    canvas.addEventListener('mousedown', handleStartInput);
+    canvas.addEventListener('mousemove', e => {
+      if (touchX !== null) handleStartInput(e);
+    });
+    window.addEventListener('mouseup', handleEndInput);
+
+    // Touch events
+    canvas.addEventListener('touchstart', handleStartInput);
+    canvas.addEventListener('touchmove', handleStartInput);
+    window.addEventListener('touchend', handleEndInput);
+
+    // Button interactions
+    startBtn.addEventListener('click', () => {
+      startScreen.style.display = 'none';
+      gameState = 'playing';
+      soundManager.init();
+      soundManager.startMusic();
+      initGame();
+      gameLoop();
+    });
+
+    retryBtn.addEventListener('click', () => {
+      gameOverScreen.style.display = 'none';
+      window.parent.postMessage(
+        {
+          type: 'SUBMIT_SCORE_AND_RETRY',
+          score: score,
+          validationPayload: getSecurityPayload()
+        },
+        '*'
+      );
+    });
+
+    backMenuBtn.addEventListener('click', () => {
+      window.parent.postMessage(
+        {
+          type: 'CLOSE_GAME'
+        },
+        '*'
+      );
+    });
+
+    // Draw initial cover
+    ctx.fillStyle = '#05070f';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  </script>
+</body>
+</html>
