@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
-import { Gamepad2, Send, ExternalLink, ShieldCheck, Trophy, Sparkles, Globe } from 'lucide-react';
+import { Send, ExternalLink, ShieldCheck, Trophy, Sparkles, Globe } from 'lucide-react';
+
 
 interface TelegramRedirectLandingProps {
   botUsername?: string;
 }
 
 export const TelegramRedirectLanding: React.FC<TelegramRedirectLandingProps> = ({
-  botUsername = (import.meta.env.VITE_TELEGRAM_BOT_USERNAME as string) || 'tggamehub_bot',
+  botUsername = (import.meta.env.VITE_TELEGRAM_BOT_USERNAME as string) || 'coincadebot',
 }) => {
   const [lang, setLang] = useState<'de' | 'en'>('de');
   const botUrl = `https://t.me/${botUsername}`;
@@ -56,19 +57,15 @@ export const TelegramRedirectLanding: React.FC<TelegramRedirectLandingProps> = (
           </div>
         </div>
 
-        {/* Main Logo & Header */}
+        {/* Official CoinCade Logo & Header */}
         <div className="flex flex-col items-center text-center mb-6">
-          <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-cyan-400 to-indigo-600 p-0.5 shadow-lg shadow-cyan-500/25 mb-4 flex items-center justify-center">
-            <div className="w-full h-full bg-slate-950 rounded-[14px] flex items-center justify-center">
-              <Gamepad2 size={40} className="text-cyan-400 animate-bounce" />
-            </div>
-          </div>
-
-          <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white flex items-center gap-2">
-            TG Game Hub <Sparkles size={22} className="text-amber-400" />
-          </h1>
-          <p className="text-sm font-medium text-slate-400 mt-1">
-            Arcade Gaming & Real Crypto Airdrops
+          <img
+            src="/coincade-logo.png"
+            alt="COINCADE"
+            className="h-14 sm:h-16 w-auto object-contain drop-shadow-[0_0_20px_rgba(0,242,254,0.5)] mb-3 animate-pulse"
+          />
+          <p className="text-xs sm:text-sm font-semibold tracking-wide text-cyan-400 uppercase">
+            Official Telegram Arcade & Crypto Airdrops
           </p>
         </div>
 
@@ -81,9 +78,9 @@ export const TelegramRedirectLanding: React.FC<TelegramRedirectLandingProps> = (
                 Spielstart im Telegram Bot erforderlich
               </h2>
               <p className="text-sm text-slate-300 leading-relaxed">
-                Diese Web-App ist eine offizielle <strong>Telegram Mini App</strong>.
-                Um deinen Spielfortschritt zu speichern, im Börsenmarkt zu traden und echte
-                Krypto-Gewinne im Season-Airdrop zu erhalten, starte das Spiel bitte direkt über unseren Telegram Bot.
+                <strong>CoinCade</strong> läuft als offizielle <strong>Telegram Mini App</strong>.
+                Um deine Highscores zu speichern, im Ingame-Markt zu handeln und an den
+                echten Krypto-Airdrops teilzunehmen, starte das Spiel bitte direkt über unseren Telegram Bot.
               </p>
             </div>
 
@@ -111,12 +108,12 @@ export const TelegramRedirectLanding: React.FC<TelegramRedirectLandingProps> = (
               className="group flex items-center justify-center gap-2.5 w-full py-4 px-6 rounded-2xl font-black text-slate-950 bg-gradient-to-r from-cyan-400 via-cyan-300 to-indigo-400 hover:from-cyan-300 hover:to-indigo-300 shadow-xl shadow-cyan-500/25 transition-all transform hover:-translate-y-0.5 active:translate-y-0 text-base"
             >
               <Send size={20} className="transition-transform group-hover:rotate-12" />
-              <span>Im Telegram Bot öffnen</span>
+              <span>Im Telegram Bot öffnen (@{botUsername})</span>
               <ExternalLink size={18} className="opacity-75" />
             </a>
 
             <p className="text-center text-xs text-slate-500 pt-1">
-              Direktlink: <span className="text-cyan-400 font-mono">@{botUsername}</span>
+              Offizieller Bot: <span className="text-cyan-400 font-mono">@{botUsername}</span>
             </p>
           </div>
         )}
@@ -130,8 +127,8 @@ export const TelegramRedirectLanding: React.FC<TelegramRedirectLandingProps> = (
                 Launch inside Telegram Bot required
               </h2>
               <p className="text-sm text-slate-300 leading-relaxed">
-                This web application runs as an official <strong>Telegram Mini App</strong>.
-                To record highscores, trade on the marketplace, and participate in verified
+                <strong>CoinCade</strong> runs as an official <strong>Telegram Mini App</strong>.
+                To record highscores, trade in the ingame marketplace, and participate in real
                 crypto season airdrops, please launch the game directly via our Telegram Bot.
               </p>
             </div>
@@ -160,15 +157,16 @@ export const TelegramRedirectLanding: React.FC<TelegramRedirectLandingProps> = (
               className="group flex items-center justify-center gap-2.5 w-full py-4 px-6 rounded-2xl font-black text-slate-950 bg-gradient-to-r from-cyan-400 via-cyan-300 to-indigo-400 hover:from-cyan-300 hover:to-indigo-300 shadow-xl shadow-cyan-500/25 transition-all transform hover:-translate-y-0.5 active:translate-y-0 text-base"
             >
               <Send size={20} className="transition-transform group-hover:rotate-12" />
-              <span>Launch in Telegram Bot</span>
+              <span>Launch in Telegram Bot (@{botUsername})</span>
               <ExternalLink size={18} className="opacity-75" />
             </a>
 
             <p className="text-center text-xs text-slate-500 pt-1">
-              Direct Bot link: <span className="text-cyan-400 font-mono">@{botUsername}</span>
+              Official Bot: <span className="text-cyan-400 font-mono">@{botUsername}</span>
             </p>
           </div>
         )}
+
 
         {/* Feature Badges Footer */}
         <div className="mt-6 pt-5 border-t border-slate-800/80 flex items-center justify-around text-xs text-slate-400">

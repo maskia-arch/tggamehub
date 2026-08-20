@@ -89,7 +89,7 @@ export async function getProfile(req: AuthenticatedRequest, res: Response) {
     const countVal = referralCount ? parseInt(referralCount.count as string, 10) : 0;
 
     // Generate unique referral link
-    const botUsername = process.env.TELEGRAM_BOT_USERNAME || 'tggamehub_bot';
+    const botUsername = process.env.TELEGRAM_BOT_USERNAME || 'coincadebot';
     const referralLink = `https://t.me/${botUsername}?start=${userId}`;
 
     // Compute daily ad count relative to Europe/Berlin timezone (resets at 00:00 Berlin time)

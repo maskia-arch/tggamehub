@@ -44,7 +44,7 @@ export function adminAuth(req: Request, res: Response, next: NextFunction) {
     const credentials = Buffer.from(base64Credentials, 'base64').toString('utf-8');
     const [, password] = credentials.split(':');
     if (password !== adminPassword) {
-      res.setHeader('WWW-Authenticate', 'Basic realm="TG Game Hub Admin"');
+      res.setHeader('WWW-Authenticate', 'Basic realm="CoinCade Admin"');
       return res.status(401).send('Invalid credentials');
     }
   }

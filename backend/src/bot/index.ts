@@ -85,18 +85,18 @@ export function initTelegramBot(): Telegraf | null {
             console.error('[BOT ERROR]: Failed to award referral bonus:', refErr);
           }
         } else {
-          await ctx.reply('👋 Willkommen beim Telegram Game Hub!');
+          await ctx.reply('👋 Willkommen bei CoinCade! 🎮🪙');
         }
       } else {
         // Welcoming back existing user
-        await ctx.reply(`👋 Willkommen zurück, ${firstName || 'Spieler'}!`);
+        await ctx.reply(`👋 Willkommen zurück bei CoinCade, ${firstName || 'Spieler'}! 🎮`);
       }
 
       // Send Play button linking to the frontend Mini App WebApp
       await ctx.reply(
-        'Bereit zu zocken? Klicke auf den Button unten, um deine Energie zu sehen, Spiele zu spielen und die Rangliste zu stürmen!',
+        'Bereit zu zocken? Klicke auf den Button unten, um deine Energie zu sehen, Highscores aufzustellen und am Airdrop teilzunehmen!',
         Markup.inlineKeyboard([
-          [Markup.button.webApp('Spiel starten 🎮', config.frontendUrl)],
+          [Markup.button.webApp('🕹️ CoinCade starten 🚀', config.frontendUrl)],
         ])
       );
     } catch (error) {

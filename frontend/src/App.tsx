@@ -93,12 +93,16 @@ export default function App() {
       style={{ maxWidth: '440px', width: '100%', margin: '0 auto' }}
     >
       
-      {/* Top Header Row */}
+      {/* Top Header Row with Official CoinCade Logo */}
       <header className="brand-header">
-        <h1 className="brand-title">
-          <span>TG Game Hub</span>
-          <Gamepad2 className="text-cyan-400" size={18} />
-        </h1>
+        <div className="flex items-center gap-2 cursor-pointer" onClick={() => setActiveTab('games')}>
+          <img
+            src="/coincade-logo.png"
+            alt="COINCADE"
+            className="h-7 sm:h-8 w-auto object-contain drop-shadow-[0_0_10px_rgba(0,242,254,0.35)] hover:scale-105 transition-transform"
+          />
+        </div>
+
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           <LanguageToggle />

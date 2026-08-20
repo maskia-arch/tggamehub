@@ -1,6 +1,6 @@
-# TG Game Hub 🎮
+# CoinCade 🎮🪙
 
-An interactive arcade gaming hub and Telegram Mini App designed for fast, responsive web & mobile minigames.
+An interactive arcade gaming hub and Telegram Mini App (@coincadebot) designed for fast, responsive web & mobile minigames.
 
 ---
 
@@ -14,3 +14,4 @@ An interactive arcade gaming hub and Telegram Mini App designed for fast, respon
 
 ### License
 Private & Proprietary. All rights reserved.
+
