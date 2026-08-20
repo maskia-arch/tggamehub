@@ -98,7 +98,8 @@ export default function App() {
           <img
             src="/coincade-logo.png"
             alt="COINCADE"
-            className="h-7 sm:h-8 w-auto object-contain drop-shadow-[0_0_10px_rgba(0,242,254,0.35)] hover:scale-105 transition-transform"
+            style={{ height: '24px', maxHeight: '26px', maxWidth: '135px', width: 'auto', objectFit: 'contain' }}
+            className="drop-shadow-[0_0_8px_rgba(0,242,254,0.35)] hover:scale-105 transition-transform"
           />
         </div>
 

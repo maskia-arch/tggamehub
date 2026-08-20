@@ -62,7 +62,8 @@ export const TelegramRedirectLanding: React.FC<TelegramRedirectLandingProps> = (
           <img
             src="/coincade-logo.png"
             alt="COINCADE"
-            className="h-14 sm:h-16 w-auto object-contain drop-shadow-[0_0_20px_rgba(0,242,254,0.5)] mb-3 animate-pulse"
+            style={{ height: '42px', maxHeight: '48px', maxWidth: '220px', width: 'auto', objectFit: 'contain' }}
+            className="drop-shadow-[0_0_15px_rgba(0,242,254,0.5)] mb-3 animate-pulse"
           />
           <p className="text-xs sm:text-sm font-semibold tracking-wide text-cyan-400 uppercase">
             Official Telegram Arcade & Crypto Airdrops

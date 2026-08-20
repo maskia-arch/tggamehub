@@ -121,5 +121,6 @@ export async function deleteInboxMessage(userId: string, messageId: number): Pro
 }
 
 function escapeMarkdown(text: string): string {
-  return text.replace(/[_*[\]()~`>#+\-=|{}.!]/g, '\\$&');
+  if (!text) return '';
+  return text.replace(/[*_`\[\]]/g, '');
 }

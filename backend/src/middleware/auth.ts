@@ -83,17 +83,24 @@ export function authMiddleware(req: AuthenticatedRequest, res: Response, next: N
 
   const initData = parts[1];
 
-  // Dev mode mock login fallback (e.g. dev_1234 or dev_1234_ref_5678)
-  if (config.nodeEnv === 'development' && (initData.startsWith('dev_') || !initData)) {
-    const devParts = (initData || 'dev_1337').split('_ref_');
+  const isLocalRequest =
+    req.hostname === 'localhost' ||
+    req.hostname === '127.0.0.1' ||
+    req.ip === '127.0.0.1' ||
+    req.ip === '::1' ||
+    req.ip === '::ffff:127.0.0.1';
+
+  // Dev mode mock login fallback (e.g. dev_999999 or dev_1234)
+  if ((config.nodeEnv === 'development' || isLocalRequest) && (initData.startsWith('dev_') || !initData)) {
+    const devParts = (initData || 'dev_999999').split('_ref_');
     const rawId = devParts[0].startsWith('dev_') ? devParts[0].substring(4) : devParts[0];
-    const userId = rawId || '1337';
+    const userId = rawId || '999999';
     const startParam = devParts[1] || undefined;
     req.telegramUser = {
       id: userId,
-      username: `dev_user_${userId}`,
-      first_name: `DevFirst_${userId}`,
-      last_name: `DevLast_${userId}`,
+      username: 'coincade_dev',
+      first_name: 'CoinCade',
+      last_name: 'Dev',
       startParam: startParam,
     };
     return next();
@@ -103,12 +110,12 @@ export function authMiddleware(req: AuthenticatedRequest, res: Response, next: N
   const verification = verifyTelegramInitData(initData, config.telegramBotToken);
 
   if (!verification.isValid || !verification.user || !verification.user.id) {
-    if (config.nodeEnv === 'development') {
+    if (config.nodeEnv === 'development' || isLocalRequest) {
       req.telegramUser = {
-        id: '1337',
-        username: 'dev_user_1337',
-        first_name: 'DevFirst_1337',
-        last_name: 'DevLast_1337',
+        id: '999999',
+        username: 'coincade_dev',
+        first_name: 'CoinCade',
+        last_name: 'Dev',
       };
       return next();
     }

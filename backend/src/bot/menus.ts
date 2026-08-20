@@ -218,13 +218,13 @@ export async function buildInboxMenu(userId: string): Promise<MenuRenderResult> 
   } else {
     text += `Hier sind deine letzten Benachrichtigungen:\n\n`;
     messages.forEach((m, idx) => {
-      const icon = m.is_read ? '✉️' : '📬 *[NEU]*';
+      const icon = m.is_read ? '✉️' : '✨ 🆕';
       const dateStr = new Date(m.created_at).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
-      text += `${icon} *${m.title}* _(${dateStr})_\n`;
+      text += `${icon} *${m.title}* (${dateStr})\n`;
 
       buttons.push([
         Markup.button.callback(
-          `${m.is_read ? '📖' : '📬'} ${idx + 1}. ${m.title.substring(0, 24)}...`,
+          `${m.is_read ? '📖' : '📬 NEU:'} ${idx + 1}. ${m.title.substring(0, 22)}`,
           `inbox_view_${m.id}`
         )
       ]);

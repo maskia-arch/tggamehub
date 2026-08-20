@@ -46,20 +46,17 @@ export function useTelegram() {
       setInitData(webapp.initData);
       setIsInsideTelegram(true);
     } else if (isLocalDev) {
-      // Local development simulation
-      console.log('[TELEGRAM SDK]: Running in local dev environment. Emulating developer context.');
+      // Local development simulation with fixed profile
+      console.log('[TELEGRAM SDK]: Running in local dev environment. Emulating fixed developer context.');
 
-      let devId = localStorage.getItem('tggamehub_dev_id');
-      if (!devId) {
-        devId = Math.floor(100000 + Math.random() * 900000).toString();
-        localStorage.setItem('tggamehub_dev_id', devId);
-      }
+      const devId = localStorage.getItem('coincade_dev_id') || '999999';
+      localStorage.setItem('coincade_dev_id', devId);
 
       setUser({
         id: devId,
-        username: `dev_gamer_${devId}`,
-        first_name: 'Developer',
-        last_name: `Gamer #${devId}`,
+        username: 'coincade_dev',
+        first_name: 'CoinCade',
+        last_name: 'Dev',
       });
       setInitData(`dev_${devId}`);
       setIsInsideTelegram(true);

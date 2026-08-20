@@ -90,9 +90,14 @@ export async function renderBotScreen(
   const userId = ctx.from?.id.toString();
   const session = userId ? getUserSession(userId) : null;
 
+  const extraOptions: any = {
+    parse_mode: 'Markdown',
+    ...(extra && extra.reply_markup ? { reply_markup: extra.reply_markup } : (extra || {})),
+  };
+
   try {
     if (ctx.callbackQuery && 'message' in ctx.callbackQuery && ctx.callbackQuery.message) {
-      await ctx.editMessageText(text, extra);
+      await ctx.editMessageText(text, extraOptions);
       if (session) {
         session.lastBotMessageId = ctx.callbackQuery.message.message_id;
       }
@@ -114,7 +119,7 @@ export async function renderBotScreen(
     }
   }
 
-  const sent = await ctx.reply(text, extra);
+  const sent = await ctx.reply(text, extraOptions);
   if (session && sent) {
     session.lastBotMessageId = sent.message_id;
   }
