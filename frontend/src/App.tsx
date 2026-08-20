@@ -12,8 +12,18 @@ import { useLanguage } from './i18n/LanguageContext';
 import { LanguageToggle } from './components/LanguageToggle';
 import { TelegramRedirectLanding } from './components/TelegramRedirectLanding';
 
-// Read API URL from environment, fallback to current origin (single-service) or local dev server
-const BACKEND_URL = (import.meta.env.VITE_API_URL as string) || (typeof window !== 'undefined' && window.location.origin ? window.location.origin : 'http://localhost:5000');
+// Read API URL from environment, fallback to backend on local dev or current origin in prod
+const BACKEND_URL =
+  (import.meta.env.VITE_API_URL as string) ||
+  (typeof window !== 'undefined' &&
+  (window.location.port === '5173' ||
+    window.location.port === '3000' ||
+    window.location.hostname === 'localhost' ||
+    window.location.hostname === '127.0.0.1')
+    ? 'http://localhost:5000'
+    : typeof window !== 'undefined' && window.location.origin
+    ? window.location.origin
+    : 'http://localhost:5000');
 
 interface ProfileData {
   user: {
@@ -92,19 +102,25 @@ export default function App() {
       style={{ maxWidth: '440px', width: '100%', margin: '0 auto' }}
     >
       
-      {/* Top Header Row with Official CoinCade Logo */}
+      {/* Top Header Row with Official CoinCade Logo filling entire space up to language toggle */}
       <header className="brand-header">
-        <div className="flex items-center gap-2 cursor-pointer" onClick={() => setActiveTab('games')}>
+        <div className="flex-1 flex items-center cursor-pointer min-w-0 pr-3" onClick={() => setActiveTab('games')}>
           <img
             src="/coincade-logo.png"
             alt="COINCADE"
-            style={{ height: '24px', maxHeight: '26px', maxWidth: '135px', width: 'auto', objectFit: 'contain' }}
-            className="drop-shadow-[0_0_8px_rgba(0,242,254,0.35)] hover:scale-105 transition-transform"
+            style={{
+              width: '100%',
+              height: 'auto',
+              maxHeight: '48px',
+              objectFit: 'contain',
+              objectPosition: 'left center',
+              display: 'block',
+            }}
+            className="drop-shadow-[0_0_12px_rgba(0,242,254,0.45)] hover:scale-[1.02] transition-transform origin-left"
           />
         </div>
 
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
           <LanguageToggle />
 
           {profile && (
