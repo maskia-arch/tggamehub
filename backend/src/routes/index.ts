@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import { authMiddleware } from '../middleware/auth';
 import { adminAuth } from '../middleware/adminAuth';
 import { getProfile, addEnergyAd, updateDisplayName, updateWalletAddresses, scheduleAccountDeletion, cancelAccountDeletion, claimDailyFreeRefill } from '../controllers/user';
-import { startGame, submitScore, getGameBenchmark } from '../controllers/game';
+import { startGame, submitScore, getGameBenchmark, getAllGameBenchmarks } from '../controllers/game';
 import { getLeaderboard } from '../controllers/leaderboard';
 import {
   getAdminStats,
@@ -15,7 +15,8 @@ import {
   startAdminSeason,
   settleAdminSeason,
   getAirdropPayouts,
-  confirmAirdropPayout
+  confirmAirdropPayout,
+  resetDatabaseDangerZone
 } from '../controllers/admin';
 
 import {
@@ -67,6 +68,7 @@ router.get('/season/info', async (_req: Request, res: Response) => {
 // Game execution endpoints (secured)
 router.post('/game/start', authMiddleware, startGame);
 router.post('/game/score', authMiddleware, submitScore);
+router.get('/game/benchmarks', authMiddleware, getAllGameBenchmarks);
 router.get('/game/benchmark/:gameId', authMiddleware, getGameBenchmark);
 
 // Leaderboard endpoint (secured to prevent scraping by non-users)
@@ -105,5 +107,6 @@ router.post('/admin/season/start', adminAuth, startAdminSeason);
 router.post('/admin/season/settle', adminAuth, settleAdminSeason);
 router.get('/admin/airdrop-payouts', adminAuth, getAirdropPayouts);
 router.post('/admin/airdrop-payouts/confirm', adminAuth, confirmAirdropPayout);
+router.post('/admin/danger/reset-database', adminAuth, resetDatabaseDangerZone);
 
 export default router;

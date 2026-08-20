@@ -63,13 +63,30 @@ export function getRedisStatus() {
 const memoryLeaderboards = new Map<string, Map<string, number>>();
 
 /**
- * Returns period-based keys for leaderboards
+ * Clears all leaderboard keys in Redis and in-memory caches
+ */
+export async function resetLeaderboardCache(): Promise<void> {
+  memoryLeaderboards.clear();
+  if (redis) {
+    try {
+      const keys = await redis.keys('leaderboard:*');
+      if (keys && keys.length > 0) {
+        await redis.del(...keys);
+      }
+      console.log('[REDIS LEADERBOARD]: Cleared all leaderboard sorted sets.');
+    } catch (err) {
+      console.error('[REDIS RESET ERROR]:', err);
+    }
+  }
+}
+
+/**
+ * Returns period-based keys for leaderboards (day, week, month)
  */
 export function getLeaderboardKeys(date: Date = new Date()): {
   day: string;
   week: string;
   month: string;
-  season: string;
 } {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -82,47 +99,43 @@ export function getLeaderboardKeys(date: Date = new Date()): {
   monday.setDate(diffToMonday);
   const weekStr = `${monday.getFullYear()}-W${String(Math.ceil((monday.getDate() + 1) / 7))}`;
 
-  // Season (3-month cycle)
-  const season = Math.floor(date.getMonth() / 3) + 1;
-  const seasonStr = `${year}-S${season}`;
-
   return {
     day: `leaderboard:day:${year}-${month}-${dayStr}`,
     week: `leaderboard:week:${weekStr}`,
     month: `leaderboard:month:${year}-${month}`,
-    season: `leaderboard:season:${seasonStr}`,
   };
 }
 
 /**
- * Submits a validated score to the daily, weekly, monthly, and seasonal leaderboards.
+ * Submits earned InGame$ to the daily, weekly, and monthly leaderboards.
  * Updates Redis if present, otherwise updates the in-memory emulator.
  */
-export async function submitScoreToLeaderboards(userId: string, score: number): Promise<void> {
+export async function submitScoreToLeaderboards(userId: string, earnedCash: number): Promise<void> {
+  if (!earnedCash || isNaN(earnedCash) || earnedCash <= 0) return;
   const keys = getLeaderboardKeys();
 
   if (redis) {
     try {
       const pipeline = redis.pipeline();
       for (const key of Object.values(keys)) {
-        // Increment the member's score in the sorted set (cumulative sum scoring)
-        pipeline.zincrby(key, score, userId);
+        // Increment the member's earned InGame$ in the sorted set
+        pipeline.zincrby(key, earnedCash, userId);
       }
       await pipeline.exec();
       return;
     } catch (err) {
-      console.error('[REDIS LEADERBOARD ERROR]: failed to write score, falling back to memory', err);
+      console.error('[REDIS LEADERBOARD ERROR]: failed to write earned InGame$, falling back to memory', err);
     }
   }
 
-  // Memory fallback write (cumulative sum scoring)
+  // Memory fallback write
   for (const key of Object.values(keys)) {
     if (!memoryLeaderboards.has(key)) {
       memoryLeaderboards.set(key, new Map<string, number>());
     }
     const board = memoryLeaderboards.get(key)!;
     const existing = board.get(userId) || 0;
-    board.set(userId, existing + score);
+    board.set(userId, existing + earnedCash);
   }
 }
 
@@ -182,130 +195,20 @@ setTimeout(() => {
   purgeMockData();
 }, 500);
 
-function calculateExpectedSeasonPoints(rank: number, totalPlayers: number): number {
-  const P = totalPlayers <= 250 ? 100 : Math.round(totalPlayers * 0.4);
-  if (rank <= P) {
-    return P - rank + 1;
-  }
-  return 0;
-}
-
-export async function getTopScores(period: 'day' | 'week' | 'month' | 'season', limit: number = 100): Promise<LeaderboardEntry[]> {
-  
+export async function getTopScores(period: 'day' | 'week' | 'month', limit: number = 100): Promise<LeaderboardEntry[]> {
   const keys = getLeaderboardKeys();
   const key = keys[period];
-  
-  if (period === 'season') {
-    // Custom Season Leaderboard: Permanent Season Score + Live Expected Month Season Points
-    const monthKey = keys.month;
-    let monthList: { userId: string; score: number }[] = [];
-    let permList: { userId: string; score: number }[] = [];
 
-    // 1. Fetch Month list
-    if (redis) {
-      try {
-        const res = await redis.zrevrange(monthKey, 0, -1, 'WITHSCORES');
-        for (let i = 0; i < res.length; i += 2) {
-          monthList.push({ userId: res[i], score: parseInt(res[i + 1], 10) });
-        }
-      } catch (err) {
-        console.error('[REDIS MONTH FETCH ERROR]:', err);
-      }
-    }
-    if (monthList.length === 0 && memoryLeaderboards.has(monthKey)) {
-      const board = memoryLeaderboards.get(monthKey)!;
-      monthList = Array.from(board.entries()).map(([userId, score]) => ({ userId, score }));
-    }
-
-    // 2. Fetch Permanent Season list
-    if (redis) {
-      try {
-        const res = await redis.zrevrange('leaderboard:season:permanent', 0, -1, 'WITHSCORES');
-        for (let i = 0; i < res.length; i += 2) {
-          permList.push({ userId: res[i], score: parseInt(res[i + 1], 10) });
-        }
-      } catch (err) {
-        console.error('[REDIS PERM FETCH ERROR]:', err);
-      }
-    }
-    if (permList.length === 0 && memoryLeaderboards.has('leaderboard:season:permanent')) {
-      const board = memoryLeaderboards.get('leaderboard:season:permanent')!;
-      permList = Array.from(board.entries()).map(([userId, score]) => ({ userId, score }));
-    }
-
-    // 3. Merge & calculate total scores
-    const monthRankMap = new Map<string, number>();
-    monthList.sort((a, b) => b.score - a.score).forEach((e, idx) => {
-      monthRankMap.set(e.userId, idx + 1);
-    });
-
-    const totalMonthPlayers = monthList.length;
-
-    const userCombinedScores = new Map<string, { permScore: number; expPoints: number; totalSeason: number }>();
-    const allUserIds = new Set([...monthList.map((m) => m.userId), ...permList.map((p) => p.userId)]);
-
-    const permMap = new Map(permList.map((p) => [p.userId, p.score]));
-
-    allUserIds.forEach((uId) => {
-      const permScore = permMap.get(uId) || 0;
-      const mRank = monthRankMap.get(uId);
-      const expPoints = mRank ? calculateExpectedSeasonPoints(mRank, totalMonthPlayers) : 0;
-      userCombinedScores.set(uId, {
-        permScore,
-        expPoints,
-        totalSeason: permScore + expPoints,
-      });
-    });
-
-    const finalSeasonList = Array.from(userCombinedScores.entries())
-      .map(([uId, data]) => ({
-        userId: uId,
-        score: data.totalSeason,
-        expectedSeasonPoints: data.expPoints,
-        permanentSeasonScore: data.permScore,
-      }))
-      .sort((a, b) => b.score - a.score);
-
-    // Apply limit
-    const slicedList = finalSeasonList.slice(0, limit);
-
-    if (slicedList.length === 0) return [];
-
-    // Fetch user details
-    const userIds = slicedList.map((e) => e.userId);
-    const users = await db('users').whereIn('id', userIds).select('id', 'username', 'first_name', 'display_name', 'season_pass_type');
-    const userMap = new Map(users.map((u) => [u.id, u]));
-
-    return slicedList.map((entry, index) => {
-      const userDetail = userMap.get(entry.userId);
-      const passType = userDetail?.season_pass_type || 'NONE';
-      return {
-        userId: entry.userId,
-        username: userDetail?.username || null,
-        firstName: userDetail?.first_name || 'Anonymous',
-        displayName: userDetail?.display_name || userDetail?.first_name || 'Anonymous',
-        isVip: passType === 'VIP',
-        seasonPassType: passType,
-        score: entry.score,
-        rank: index + 1,
-        expectedSeasonPoints: entry.expectedSeasonPoints,
-        permanentSeasonScore: entry.permanentSeasonScore,
-      };
-    });
-  }
-
-  // Fallback / standard periods: day, week, month
+  // Standard periods: day, week, month
   let rawEntries: { userId: string; score: number }[] = [];
-  let totalPlayers = 0;
 
   if (redis) {
     try {
-      totalPlayers = await redis.zcard(key);
       const result = await redis.zrevrange(key, 0, limit - 1, 'WITHSCORES');
       for (let i = 0; i < result.length; i += 2) {
         rawEntries.push({
           userId: result[i],
-          score: parseInt(result[i + 1], 10),
+          score: parseFloat(parseFloat(result[i + 1]).toFixed(4)),
         });
       }
     } catch (err) {
@@ -315,12 +218,14 @@ export async function getTopScores(period: 'day' | 'week' | 'month' | 'season', 
 
   if (rawEntries.length === 0 && memoryLeaderboards.has(key)) {
     const board = memoryLeaderboards.get(key)!;
-    totalPlayers = board.size;
     const sorted = Array.from(board.entries())
       .sort((a, b) => b[1] - a[1])
       .slice(0, limit);
     
-    rawEntries = sorted.map(([userId, score]) => ({ userId, score }));
+    rawEntries = sorted.map(([userId, score]) => ({
+      userId,
+      score: parseFloat(parseFloat(String(score)).toFixed(4)),
+    }));
   }
 
   if (rawEntries.length === 0) {
@@ -335,11 +240,6 @@ export async function getTopScores(period: 'day' | 'week' | 'month' | 'season', 
     const userDetail = userMap.get(entry.userId);
     const rank = index + 1;
     const passType = userDetail?.season_pass_type || 'NONE';
-    let expectedPoints: number | undefined;
-
-    if (period === 'month') {
-      expectedPoints = calculateExpectedSeasonPoints(rank, totalPlayers);
-    }
 
     return {
       userId: entry.userId,
@@ -350,7 +250,6 @@ export async function getTopScores(period: 'day' | 'week' | 'month' | 'season', 
       seasonPassType: passType,
       score: entry.score,
       rank,
-      expectedSeasonPoints: expectedPoints,
     };
   });
 }

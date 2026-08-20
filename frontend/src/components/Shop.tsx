@@ -508,7 +508,7 @@ export function Shop({ initData, backendUrl, onPurchaseSuccess, profile }: ShopP
                   }}
                 >
                   {/* Badge */}
-                  {prod.badge && (
+                  {((t.shop.products as any)[prod.id]?.badge || prod.badge) && (
                     <div style={{
                       position: 'absolute', top: '14px', right: '14px',
                       background: `${prod.badgeColor || '#00f2fe'}20`,
@@ -517,7 +517,7 @@ export function Shop({ initData, backendUrl, onPurchaseSuccess, profile }: ShopP
                       fontSize: '9px', fontWeight: 800, color: prod.badgeColor || '#00f2fe',
                       letterSpacing: '0.08em', textTransform: 'uppercase',
                     }}>
-                      {prod.badge}
+                      {(t.shop.products as any)[prod.id]?.badge || prod.badge}
                     </div>
                   )}
 
@@ -532,7 +532,9 @@ export function Shop({ initData, backendUrl, onPurchaseSuccess, profile }: ShopP
                         {prod.icon}
                       </div>
                       <div>
-                        <div style={{ fontSize: '15px', fontWeight: 900, color: '#fff', lineHeight: 1.2 }}>{prod.name}</div>
+                        <div style={{ fontSize: '15px', fontWeight: 900, color: '#fff', lineHeight: 1.2 }}>
+                          {(t.shop.products as any)[prod.id]?.name || prod.name}
+                        </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '4px' }}>
                           {prod.energyAmount && (
                             <span style={{ fontSize: '11px', fontWeight: 800, color: '#fbbf24' }}>
@@ -554,7 +556,7 @@ export function Shop({ initData, backendUrl, onPurchaseSuccess, profile }: ShopP
                     </div>
 
                     <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)', margin: '0 0 14px', lineHeight: 1.5 }}>
-                      {prod.description}
+                      {(t.shop.products as any)[prod.id]?.description || prod.description}
                     </p>
 
                     {/* Price & Buy Button */}
@@ -613,7 +615,9 @@ export function Shop({ initData, backendUrl, onPurchaseSuccess, profile }: ShopP
           }}>
             <div>
               <div style={{ fontSize: '10px', fontWeight: 700, color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>{t.shop.orderSummary}</div>
-              <div style={{ fontSize: '15px', fontWeight: 900, color: '#fff', marginTop: '2px' }}>{checkout.name}</div>
+              <div style={{ fontSize: '15px', fontWeight: 900, color: '#fff', marginTop: '2px' }}>
+                {(t.shop.products as any)[checkout.productId]?.name || checkout.name}
+              </div>
             </div>
             <button
               onClick={handleCloseCheckout}

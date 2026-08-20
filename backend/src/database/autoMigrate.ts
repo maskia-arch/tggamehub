@@ -111,7 +111,7 @@ export async function runAutoMigrations(knex: Knex): Promise<void> {
         table.decimal('random_share_percent', 5, 2).defaultTo(20.00);
         table.timestamp('start_date').nullable();
         table.timestamp('end_date').nullable();
-        table.boolean('is_active').defaultTo(true);
+        table.boolean('is_active').defaultTo(false);
         table.decimal('initial_pot_amount', 12, 2).defaultTo(0.00);
         table.timestamp('started_at').nullable();
         table.timestamp('settled_at').nullable();
@@ -133,6 +133,56 @@ export async function runAutoMigrations(knex: Knex): Promise<void> {
       await ensureColumn(knex, 'seasons', 'settled_at', (t) => t.timestamp('settled_at').nullable());
       await ensureColumn(knex, 'seasons', 'updated_at', (t) => t.timestamp('updated_at').nullable());
       await ensureColumn(knex, 'seasons', 'is_active', (t) => t.boolean('is_active').defaultTo(false));
+
+      // Guarantee nullable start_date and end_date in SQLite and PostgreSQL
+      const isSqlite = !knex.client.config.client.includes('pg') && !knex.client.config.client.includes('postgres');
+      if (isSqlite) {
+        try {
+          const pragmaColumns = await knex.raw("PRAGMA table_info('seasons')");
+          const startDateCol = pragmaColumns.find((c: any) => c.name === 'start_date');
+          if (startDateCol && startDateCol.notnull === 1) {
+            console.log('[DATABASE AUTO-SYNC]: Migrating SQLite seasons table to make start_date and end_date nullable...');
+            await knex.raw(`
+              CREATE TABLE seasons_new (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                season_number INTEGER DEFAULT 0,
+                name TEXT NOT NULL,
+                status TEXT DEFAULT 'preparing',
+                target_amount NUMERIC DEFAULT 1000.00,
+                current_pot NUMERIC DEFAULT 0.00,
+                revenue_share_percent NUMERIC DEFAULT 30.00,
+                duration_days INTEGER DEFAULT 30,
+                top10_share_percent NUMERIC DEFAULT 60.00,
+                active20_share_percent NUMERIC DEFAULT 20.00,
+                random_share_percent NUMERIC DEFAULT 20.00,
+                start_date TIMESTAMP NULL,
+                end_date TIMESTAMP NULL,
+                is_active BOOLEAN DEFAULT 0,
+                initial_pot_amount NUMERIC DEFAULT 0.00,
+                started_at TIMESTAMP NULL,
+                settled_at TIMESTAMP NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP NULL
+              )
+            `);
+            await knex.raw(`
+              INSERT INTO seasons_new (id, season_number, name, status, target_amount, current_pot, revenue_share_percent, duration_days, top10_share_percent, active20_share_percent, random_share_percent, start_date, end_date, is_active, initial_pot_amount, started_at, settled_at, created_at, updated_at)
+              SELECT id, season_number, name, status, target_amount, current_pot, revenue_share_percent, duration_days, top10_share_percent, active20_share_percent, random_share_percent, NULL, NULL, is_active, initial_pot_amount, started_at, settled_at, created_at, updated_at
+              FROM seasons
+            `);
+            await knex.raw('DROP TABLE seasons');
+            await knex.raw('ALTER TABLE seasons_new RENAME TO seasons');
+            console.log('[DATABASE AUTO-SYNC]: Successfully migrated SQLite seasons table schema.');
+          }
+        } catch (mErr: any) {
+          console.warn('[DATABASE AUTO-SYNC]: SQLite seasons schema migration note:', mErr.message);
+        }
+      } else {
+        try {
+          await knex.raw('ALTER TABLE seasons ALTER COLUMN start_date DROP NOT NULL');
+          await knex.raw('ALTER TABLE seasons ALTER COLUMN end_date DROP NOT NULL');
+        } catch {}
+      }
     }
 
     // ── Table: SEASON_USER_STATS ──────────────────────────────────────────────
@@ -189,6 +239,12 @@ export async function runAutoMigrations(knex: Knex): Promise<void> {
         table.timestamp('created_at').defaultTo(knex.fn.now());
       });
       console.log('[DATABASE AUTO-SYNC]: Created wallet_address_pool table.');
+    } else {
+      await ensureColumn(knex, 'wallet_address_pool', 'coin', (t) => t.string('coin').notNullable().defaultTo('LTC'));
+      await ensureColumn(knex, 'wallet_address_pool', 'address', (t) => t.string('address').notNullable().defaultTo(''));
+      await ensureColumn(knex, 'wallet_address_pool', 'address_index', (t) => t.integer('address_index').notNullable().defaultTo(0));
+      await ensureColumn(knex, 'wallet_address_pool', 'is_used', (t) => t.boolean('is_used').defaultTo(false));
+      await ensureColumn(knex, 'wallet_address_pool', 'created_at', (t) => t.timestamp('created_at').defaultTo(knex.fn.now()));
     }
 
     // Always ensure pre-seeded HD fallback addresses are present in the pool
@@ -236,6 +292,17 @@ export async function runAutoMigrations(knex: Knex): Promise<void> {
         table.timestamp('created_at').defaultTo(knex.fn.now());
       });
       console.log('[DATABASE AUTO-SYNC]: Created shop_orders table.');
+    } else {
+      await ensureColumn(knex, 'shop_orders', 'user_id', (t) => t.string('user_id').notNullable().defaultTo(''));
+      await ensureColumn(knex, 'shop_orders', 'product_id', (t) => t.string('product_id').notNullable().defaultTo(''));
+      await ensureColumn(knex, 'shop_orders', 'amount_eur', (t) => t.decimal('amount_eur', 12, 2).notNullable().defaultTo(0));
+      await ensureColumn(knex, 'shop_orders', 'amount_crypto', (t) => t.decimal('amount_crypto', 18, 8).nullable());
+      await ensureColumn(knex, 'shop_orders', 'coin', (t) => t.string('coin').nullable());
+      await ensureColumn(knex, 'shop_orders', 'address', (t) => t.string('address').nullable());
+      await ensureColumn(knex, 'shop_orders', 'status', (t) => t.string('status').defaultTo('pending'));
+      await ensureColumn(knex, 'shop_orders', 'expires_at', (t) => t.timestamp('expires_at').nullable());
+      await ensureColumn(knex, 'shop_orders', 'paid_at', (t) => t.timestamp('paid_at').nullable());
+      await ensureColumn(knex, 'shop_orders', 'created_at', (t) => t.timestamp('created_at').defaultTo(knex.fn.now()));
     }
 
     // ── Table: MARKET_COINS ───────────────────────────────────────────────────
@@ -255,9 +322,13 @@ export async function runAutoMigrations(knex: Knex): Promise<void> {
       console.log('[DATABASE AUTO-SYNC]: Created market_coins table.');
 
       await knex('market_coins').insert([
-        { symbol: 'DOODLE', name: 'Doodle Jump Coin', game_id: 'doodlejump', current_price: 0.00000001, base_price: 0.00000001, circulating_supply: 1000000000.0, total_burned: 0.0, volume_24h: 0.0 },
+        { symbol: 'DOODLE', name: 'Neon Jump Coin', game_id: 'doodlejump', current_price: 0.00000001, base_price: 0.00000001, circulating_supply: 1000000000.0, total_burned: 0.0, volume_24h: 0.0 },
         { symbol: 'FLAPPY', name: 'Neon Flappy Coin', game_id: 'neonbird', current_price: 0.00000001, base_price: 0.00000001, circulating_supply: 1000000000.0, total_burned: 0.0, volume_24h: 0.0 },
       ]);
+    } else {
+      // Ensure canonical names
+      await knex('market_coins').where({ symbol: 'DOODLE' }).update({ name: 'Neon Jump Coin' });
+      await knex('market_coins').where({ symbol: 'FLAPPY' }).update({ name: 'Neon Flappy Coin' });
     }
 
     // ── Table: USER_PORTFOLIOS ────────────────────────────────────────────────

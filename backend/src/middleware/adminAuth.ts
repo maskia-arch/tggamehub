@@ -24,31 +24,48 @@ function isLocalhostRequest(req: Request): boolean {
 
 /**
  * Admin authentication & visibility middleware.
- * - In production online environments: strictly rejects non-localhost requests with 404 (completely invisible).
- * - Locally: allows seamless execution and access on localhost.
+ * - Authenticated with valid Admin Key (x-admin-key / Bearer token / Basic Auth): allowed from anywhere (e.g. local admin dashboard connecting to live VPS).
+ * - Locally in development: allowed seamlessly on localhost.
+ * - Public unauthorized requests: strictly returned as 404 Not Found (completely invisible).
  */
 export function adminAuth(req: Request, res: Response, next: NextFunction) {
   const env = (config.nodeEnv || 'development').trim().toLowerCase();
+  const configuredAdminKey = (config.adminApiKey || process.env.ADMIN_API_KEY || process.env.ADMIN_PASSWORD || 'coincade_admin_secret_key_99').trim();
 
-  // In production, block all external/public internet traffic to admin routes
-  if (env === 'production' && !isLocalhostRequest(req)) {
-    return res.status(404).send('Not Found');
+  // 1. Check custom header x-admin-key / x-admin-token
+  const xAdminKey = req.headers['x-admin-key'] || req.headers['x-admin-token'];
+  if (xAdminKey && String(xAdminKey).trim() === configuredAdminKey) {
+    return next();
   }
 
-  // If ADMIN_PASSWORD is set and request is authenticated via Basic Auth, verify it; otherwise allow local dev
-  const adminPassword = process.env.ADMIN_PASSWORD;
+  // 2. Check Authorization Bearer / Basic header
   const authHeader = req.headers['authorization'];
-
-  if (adminPassword && authHeader && authHeader.startsWith('Basic ')) {
-    const base64Credentials = authHeader.split(' ')[1];
-    const credentials = Buffer.from(base64Credentials, 'base64').toString('utf-8');
-    const [, password] = credentials.split(':');
-    if (password !== adminPassword) {
-      res.setHeader('WWW-Authenticate', 'Basic realm="CoinCade Admin"');
-      return res.status(401).send('Invalid credentials');
+  if (authHeader) {
+    if (authHeader.startsWith('Bearer ')) {
+      const token = authHeader.replace(/^Bearer\s+/i, '').trim();
+      if (token === configuredAdminKey) {
+        return next();
+      }
+    } else if (authHeader.startsWith('Basic ')) {
+      try {
+        const base64Credentials = authHeader.split(' ')[1];
+        const credentials = Buffer.from(base64Credentials, 'base64').toString('utf-8');
+        const [, password] = credentials.split(':');
+        if (password === configuredAdminKey) {
+          return next();
+        }
+      } catch {
+        // Fall through
+      }
     }
   }
 
-  return next();
+  // 3. Localhost in development mode
+  if (env !== 'production' && isLocalhostRequest(req)) {
+    return next();
+  }
+
+  // Reject unauthorized / public internet access with 404 (completely invisible)
+  return res.status(404).send('Not Found');
 }
 

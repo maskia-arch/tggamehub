@@ -48,6 +48,28 @@ export function GameWrapper({
   const [gameSessionToken, setGameSessionToken] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [showEnergyPopup, setShowEnergyPopup] = useState(false);
+  const [benchmarks, setBenchmarks] = useState<Record<string, { targetScore: number; totalRoundsPlayed: number }>>({});
+
+  const fetchBenchmarks = useCallback(async () => {
+    if (!initData) return;
+    try {
+      const res = await fetch(`${backendUrl}/api/game/benchmarks`, {
+        headers: { Authorization: `Bearer ${initData}` },
+      });
+      if (res.ok) {
+        const bData = await res.json();
+        if (bData.benchmarks) {
+          setBenchmarks(bData.benchmarks);
+        }
+      }
+    } catch (err) {
+      console.warn('Could not load benchmarks:', err);
+    }
+  }, [initData, backendUrl]);
+
+  useEffect(() => {
+    fetchBenchmarks();
+  }, [fetchBenchmarks]);
 
   const gamesList: Game[] = [
     {
@@ -166,9 +188,10 @@ export function GameWrapper({
           setSubmitting(false);
         }
         onGameFinished(); // Refresh energy/leaderboards in main app
+        fetchBenchmarks(); // Refresh dynamic benchmarks
       }
     },
-    [activeGame, gameSessionToken, initData, backendUrl, onGameFinished]
+    [activeGame, gameSessionToken, initData, backendUrl, onGameFinished, fetchBenchmarks]
   );
 
   // Message receiver for the Iframe postMessage API
@@ -315,16 +338,16 @@ export function GameWrapper({
                     </div>
                     <div>
                       <h3 style={{ fontSize: '17px', fontWeight: 900, color: '#fff', margin: 0 }}>
-                        {game.title}
+                        {t.games.items[game.id as keyof typeof t.games.items]?.title || game.title}
                       </h3>
                       <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                        {game.genre}
+                        {t.games.items[game.id as keyof typeof t.games.items]?.genre || game.genre}
                       </span>
                     </div>
                   </div>
 
                   <p style={{ margin: '0 0 12px', fontSize: '12px', color: 'rgba(255,255,255,0.5)', lineHeight: 1.5 }}>
-                    {game.description}
+                    {t.games.items[game.id as keyof typeof t.games.items]?.description || game.description}
                   </p>
 
                   {/* Börsen Benchmark target badge */}
@@ -334,10 +357,10 @@ export function GameWrapper({
                     borderRadius: '12px', padding: '8px 12px', marginBottom: '14px',
                     fontSize: '11px', color: 'rgba(255,255,255,0.7)',
                   }}>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--accent-cyan)', fontWeight: 800 }}>
-                      <Target size={13} /> {t.games.dynamicAvg}
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '5px', color: 'var(--accent-cyan)', fontWeight: 800 }}>
+                      <Target size={13} /> {t.games.dynamicAvg}: <strong style={{ color: '#fff', marginLeft: '3px', fontFamily: 'monospace' }}>{(benchmarks[game.id]?.targetScore ?? game.targetScore).toLocaleString()} {t.leaderboard.score}</strong>
                     </span>
-                    <span style={{ color: '#4ade80', fontWeight: 800, fontFamily: 'monospace' }}>
+                    <span style={{ color: '#4ade80', fontWeight: 800, fontFamily: 'monospace', fontSize: '10px' }}>
                       +${game.coinSymbol} Kurs
                     </span>
                   </div>
@@ -406,7 +429,7 @@ export function GameWrapper({
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               cursor: 'pointer', boxShadow: '0 4px 15px rgba(0,0,0,0.5)',
             }}
-            title="Spiel beenden"
+            title={t.common.close}
           >
             <X size={22} />
           </button>
@@ -416,7 +439,7 @@ export function GameWrapper({
             <iframe
               src={`${activeGame.path}?token=${gameSessionToken || ''}`}
               style={{ width: '100%', height: '100%', border: 'none', display: 'block' }}
-              title={activeGame.title}
+              title={t.games.items[activeGame.id as keyof typeof t.games.items]?.title || activeGame.title}
               sandbox="allow-scripts allow-same-origin"
             />
 
@@ -429,9 +452,9 @@ export function GameWrapper({
                     <span className="absolute text-xl">🎮</span>
                   </div>
                   <div>
-                    <h3 className="font-extrabold text-xs text-cyan-400 uppercase tracking-widest">Neues Spiel startet...</h3>
+                    <h3 className="font-extrabold text-xs text-cyan-400 uppercase tracking-widest">{t.games.newGameStarting}</h3>
                     <p className="text-[10px] text-gray-400 max-w-[200px] leading-relaxed mt-1">
-                      Bitte kurz warten...
+                      {t.games.pleaseWait}
                     </p>
                   </div>
                 </div>

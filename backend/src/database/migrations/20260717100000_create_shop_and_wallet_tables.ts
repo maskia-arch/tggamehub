@@ -15,6 +15,23 @@ export async function up(knex: Knex): Promise<void> {
       table.index(['address']);
       table.index(['is_used']);
     });
+  } else {
+    // Ensure all columns exist if table was already created
+    if (!(await knex.schema.hasColumn('wallet_address_pool', 'coin'))) {
+      await knex.schema.alterTable('wallet_address_pool', (t) => t.string('coin').notNullable().defaultTo('LTC'));
+    }
+    if (!(await knex.schema.hasColumn('wallet_address_pool', 'address'))) {
+      await knex.schema.alterTable('wallet_address_pool', (t) => t.string('address').notNullable().defaultTo(''));
+    }
+    if (!(await knex.schema.hasColumn('wallet_address_pool', 'address_index'))) {
+      await knex.schema.alterTable('wallet_address_pool', (t) => t.integer('address_index').notNullable().defaultTo(0));
+    }
+    if (!(await knex.schema.hasColumn('wallet_address_pool', 'is_used'))) {
+      await knex.schema.alterTable('wallet_address_pool', (t) => t.boolean('is_used').defaultTo(false));
+    }
+    if (!(await knex.schema.hasColumn('wallet_address_pool', 'created_at'))) {
+      await knex.schema.alterTable('wallet_address_pool', (t) => t.timestamp('created_at').defaultTo(knex.fn.now()));
+    }
   }
 
   // Create Shop Orders Table
@@ -36,6 +53,25 @@ export async function up(knex: Knex): Promise<void> {
       table.index(['address']);
       table.index(['status']);
     });
+  } else {
+    // Ensure all columns exist if table was already created
+    const shopColumns: Array<{ name: string; add: (t: Knex.TableBuilder) => void }> = [
+      { name: 'user_id', add: (t) => t.string('user_id').notNullable().defaultTo('') },
+      { name: 'product_id', add: (t) => t.string('product_id').notNullable().defaultTo('') },
+      { name: 'amount_eur', add: (t) => t.decimal('amount_eur', 12, 2).notNullable().defaultTo(0) },
+      { name: 'amount_crypto', add: (t) => t.decimal('amount_crypto', 18, 8).nullable() },
+      { name: 'coin', add: (t) => t.string('coin').nullable() },
+      { name: 'address', add: (t) => t.string('address').nullable() },
+      { name: 'status', add: (t) => t.string('status').defaultTo('pending') },
+      { name: 'expires_at', add: (t) => t.timestamp('expires_at').nullable() },
+      { name: 'paid_at', add: (t) => t.timestamp('paid_at').nullable() },
+      { name: 'created_at', add: (t) => t.timestamp('created_at').defaultTo(knex.fn.now()) },
+    ];
+    for (const col of shopColumns) {
+      if (!(await knex.schema.hasColumn('shop_orders', col.name))) {
+        await knex.schema.alterTable('shop_orders', (t) => col.add(t));
+      }
+    }
   }
 
   // Seed initial pre-derived HD fallback addresses per coin to guarantee 100% offline checkout availability
@@ -59,7 +95,11 @@ export async function up(knex: Knex): Promise<void> {
   ];
 
   for (const item of initialPool) {
-    await knex('wallet_address_pool').insert(item).onConflict('address').ignore();
+    try {
+      await knex('wallet_address_pool').insert(item).onConflict('address').ignore();
+    } catch {
+      // Ignored if address already exists or if DB uses custom dialect
+    }
   }
 }
 

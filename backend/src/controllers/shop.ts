@@ -437,28 +437,30 @@ export async function pushAddressPool(req: Request, res: Response) {
 
     let added = 0;
     for (const addr of addresses) {
+      if (!addr || !addr.address) continue;
+      const addrIndex = typeof addr.index === 'number' ? addr.index : (typeof addr.address_index === 'number' ? addr.address_index : 0);
       try {
         await db('wallet_address_pool')
           .insert({
             coin: coinCode,
             address: addr.address,
-            address_index: addr.index,
+            address_index: addrIndex,
             is_used: false,
           })
           .onConflict('address')
           .merge({
-            address_index: addr.index,
+            address_index: addrIndex,
             is_used: false,
           });
         added++;
-      } catch (err) {
-        // Ignored
+      } catch (err: any) {
+        console.warn(`[Shop Pool Insert Warning] Failed to insert address ${addr.address}:`, err.message);
       }
     }
 
-    console.log(`[Shop] Pool sync complete. Loaded ${added} active addresses for ${coinCode}.`);
+    console.log(`[Shop] Pool sync complete. Loaded ${added} active addresses for ${coinCode} (total sent: ${addresses.length}).`);
 
-    return res.json({ success: true, count: addresses.length });
+    return res.json({ success: true, count: addresses.length, added });
   } catch (error) {
     console.error('Error pushing addresses:', error);
     return res.status(500).json({ error: 'Internal server error' });

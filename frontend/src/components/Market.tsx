@@ -21,9 +21,14 @@ interface MarketCoin {
   change24hPercent: number;
   targetScore?: number;
   hourlyBoost?: {
+    tier: 'NONE' | 'BRONZE' | 'SILBER' | 'GOLD' | 'PLATIN';
     label: string;
     multiplier: number;
-    hourlyVolume: number;
+    hourlyRounds: number;
+    difficultyFactor: number;
+    nextTierTarget: number;
+    nextTierLabel: string;
+    progressPercent: number;
   };
   updatedAt: string;
 }
@@ -87,6 +92,15 @@ const formatTokens = (amount: number): string => {
   return amount.toFixed(2);
 };
 
+const formatBurnedTokens = (amount: number): string => {
+  const num = Number(amount || 0);
+  if (num >= 1000000) return (num / 1000000).toFixed(2) + 'M';
+  if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+  if (num >= 10) return num.toFixed(0);
+  if (num > 0) return num.toFixed(1);
+  return '0';
+};
+
 export function Market({ initData, backendUrl, onBalanceUpdate }: MarketProps) {
   const { t } = useLanguage();
   const [data, setData] = useState<MarketOverviewData | null>(null);
@@ -105,8 +119,16 @@ export function Market({ initData, backendUrl, onBalanceUpdate }: MarketProps) {
   const [trading, setTrading] = useState(false);
   const [tradeSuccessMsg, setTradeSuccessMsg] = useState<string | null>(null);
 
-  // Dynamically derive selectedCoin from market data and selectedSymbol (prevents object reference loops)
-  const selectedCoin = data?.coins.find((c) => c.symbol === selectedSymbol) || data?.coins[0] || null;
+  const CANONICAL_COIN_ORDER = ['DOODLE', 'FLAPPY'];
+  const sortedCoins = [...(data?.coins || [])].sort((a, b) => {
+    const iA = CANONICAL_COIN_ORDER.indexOf(a.symbol.toUpperCase());
+    const iB = CANONICAL_COIN_ORDER.indexOf(b.symbol.toUpperCase());
+    if (iA !== -1 && iB !== -1) return iA - iB;
+    return a.symbol.localeCompare(b.symbol);
+  });
+
+  // Dynamically derive selectedCoin from sorted coins and selectedSymbol (prevents object reference loops)
+  const selectedCoin = sortedCoins.find((c) => c.symbol === selectedSymbol) || sortedCoins[0] || null;
 
   // Stable refs to prevent async race conditions during interval polls
   const selectedSymbolRef = useRef(selectedSymbol);
@@ -124,6 +146,14 @@ export function Market({ initData, backendUrl, onBalanceUpdate }: MarketProps) {
       });
       if (!response.ok) throw new Error('Fehler beim Laden der Börsendaten');
       const marketData: MarketOverviewData = await response.json();
+      if (marketData && marketData.coins) {
+        marketData.coins.sort((a, b) => {
+          const iA = CANONICAL_COIN_ORDER.indexOf(a.symbol.toUpperCase());
+          const iB = CANONICAL_COIN_ORDER.indexOf(b.symbol.toUpperCase());
+          if (iA !== -1 && iB !== -1) return iA - iB;
+          return a.symbol.localeCompare(b.symbol);
+        });
+      }
       setData(marketData);
     } catch (err: any) {
       console.error('Market fetch error:', err);
@@ -232,7 +262,7 @@ export function Market({ initData, backendUrl, onBalanceUpdate }: MarketProps) {
     if (loadingChart && (!chartData || chartData.length === 0)) {
       return (
         <div style={{ height: '140px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,0.3)', fontSize: '11px' }}>
-          Lade Live Krypto-Kerzen...
+          {t.market.loadingCandles}
         </div>
       );
     }
@@ -240,7 +270,7 @@ export function Market({ initData, backendUrl, onBalanceUpdate }: MarketProps) {
     if (!chartData || chartData.length === 0) {
       return (
         <div style={{ height: '140px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,0.3)', fontSize: '11px' }}>
-          Keine Kerzen-Daten verfügbar
+          {t.market.noCandles}
         </div>
       );
     }
@@ -360,11 +390,11 @@ export function Market({ initData, backendUrl, onBalanceUpdate }: MarketProps) {
         {/* Timeline Bottom Bar */}
         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9px', color: 'rgba(255,255,255,0.3)', marginTop: '4px' }}>
           <span>
-            {timeframe === '30m' ? '30 Min. Kerzen' : timeframe === '60m' ? '60 Min. Kerzen' : timeframe === '12h' ? '12 Std. Kerzen' : '24 Std. Kerzen'}
+            {timeframe === '30m' ? t.market.timeframe30m : timeframe === '60m' ? t.market.timeframe60m : timeframe === '12h' ? t.market.timeframe12h : t.market.timeframe24h}
           </span>
           <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#4ade80' }}>
             <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#4ade80', display: 'inline-block' }} className="animate-ping" />
-            LIVE AKTUALISIERT (1s)
+            {t.market.liveUpdated}
           </span>
         </div>
       </div>
@@ -446,7 +476,7 @@ export function Market({ initData, backendUrl, onBalanceUpdate }: MarketProps) {
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px',
           }}
         >
-          <TrendingUp size={14} /> Trading
+          <TrendingUp size={14} /> {t.market.trading}
         </button>
         <button
           onClick={() => setActiveTab('portfolio')}
@@ -458,7 +488,7 @@ export function Market({ initData, backendUrl, onBalanceUpdate }: MarketProps) {
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px',
           }}
         >
-          <DollarSign size={14} /> Portfolio
+          <DollarSign size={14} /> {t.market.portfolio}
         </button>
       </div>
 
@@ -477,7 +507,7 @@ export function Market({ initData, backendUrl, onBalanceUpdate }: MarketProps) {
       {loading ? (
         <div className="flex flex-col items-center justify-center py-16 gap-3">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-400" style={{ borderBottomColor: '#4ade80' }}></div>
-          <span className="text-xs text-gray-400">Lade Börsenkurse...</span>
+          <span className="text-xs text-gray-400">{t.market.loadingMarket}</span>
         </div>
       ) : (
         <>
@@ -496,9 +526,9 @@ export function Market({ initData, backendUrl, onBalanceUpdate }: MarketProps) {
                 }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', fontWeight: 900, color: '#fbbf24', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                      <Zap size={13} className="animate-pulse" /> Live Markt Triggers & Events
+                      <Zap size={13} className="animate-pulse" /> {t.market.liveTriggersTitle}
                     </div>
-                    <span style={{ fontSize: '9px', color: 'rgba(255,255,255,0.35)' }}>Zufällige Markt-Impulse</span>
+                    <span style={{ fontSize: '9px', color: 'rgba(255,255,255,0.35)' }}>{t.market.randomMarketImpulses}</span>
                   </div>
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '140px', overflowY: 'auto' }}>
@@ -551,12 +581,12 @@ export function Market({ initData, backendUrl, onBalanceUpdate }: MarketProps) {
               }}>
                 <Target size={16} style={{ color: 'var(--accent-cyan)', flexShrink: 0 }} />
                 <span>
-                  <strong>Dynamische Börsen-Mechanik:</strong> Der Ziel-Richtwert errechnet sich <strong>live aus allen tatsächlich erspielten Punkten</strong>! Übertrifft dein Score den Live-Durchschnitt 🟢 steigt der Kurs; darunter kühlt der Kurs leicht ab 🔴.
+                  <strong>{t.games.dynamicAvg}:</strong> {t.market.dynamicsExplanation}
                 </span>
               </div>
 
               {/* Coins List */}
-              {data?.coins.map((coin) => {
+              {sortedCoins.map((coin) => {
                 const isPositive = coin.change24hPercent >= 0;
                 return (
                   <div
@@ -587,10 +617,10 @@ export function Market({ initData, backendUrl, onBalanceUpdate }: MarketProps) {
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '4px', fontSize: '10px', color: 'rgba(255,255,255,0.35)' }}>
                           <span style={{ color: 'var(--accent-cyan)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '2px' }}>
-                            <Target size={10} /> Live-Schnitt: {coin.targetScore ? coin.targetScore.toLocaleString() : '---'} Pkt.
+                            <Target size={10} /> {t.market.liveAverage} {coin.targetScore ? coin.targetScore.toLocaleString() : '---'} Pkt.
                           </span>
                           <span style={{ display: 'flex', alignItems: 'center', gap: '2px', color: '#fbbf24' }}>
-                            <Flame size={10} /> {coin.totalBurned.toFixed(0)} verbrannt
+                            <Flame size={10} /> {formatBurnedTokens(coin.totalBurned)} {t.market.burned}
                           </span>
                         </div>
                       </div>
@@ -623,7 +653,7 @@ export function Market({ initData, backendUrl, onBalanceUpdate }: MarketProps) {
               
               {/* Coin Selector Bar */}
               <div style={{ display: 'flex', gap: '6px', overflowX: 'auto', paddingBottom: '4px' }}>
-                {data?.coins.map((c) => (
+                {sortedCoins.map((c) => (
                   <button
                     key={c.symbol}
                     onClick={() => setSelectedSymbol(c.symbol)}
@@ -652,8 +682,28 @@ export function Market({ initData, backendUrl, onBalanceUpdate }: MarketProps) {
                       <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)' }}>{selectedCoin.name}</span>
                     </div>
                     {selectedCoin.hourlyBoost && (
-                      <div style={{ fontSize: '10px', color: '#fbbf24', marginTop: '2px', fontWeight: 700 }}>
-                        🔥 1h Power: {selectedCoin.hourlyBoost.label} ({selectedCoin.hourlyBoost.hourlyVolume.toLocaleString()} Vol/Std)
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '6px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '10px', fontWeight: 800, color: '#fbbf24', flexWrap: 'wrap' }}>
+                          <span>⚡ 1h Power: {selectedCoin.hourlyBoost.label}</span>
+                          <span style={{ fontSize: '9px', color: 'rgba(255,255,255,0.45)', background: 'rgba(255,255,255,0.06)', padding: '1px 5px', borderRadius: '4px' }}>
+                            {selectedCoin.hourlyBoost.hourlyRounds} Rnd/Std
+                          </span>
+                          {selectedCoin.hourlyBoost.difficultyFactor > 1.0 && (
+                            <span style={{ fontSize: '9px', color: '#f87171', background: 'rgba(248,113,113,0.12)', border: '1px solid rgba(248,113,113,0.25)', padding: '1px 5px', borderRadius: '4px' }}>
+                              +{Math.round((selectedCoin.hourlyBoost.difficultyFactor - 1.0) * 100)}% Diff
+                            </span>
+                          )}
+                        </div>
+                        {selectedCoin.hourlyBoost.tier !== 'PLATIN' && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '2px' }}>
+                            <div style={{ flex: 1, height: '4px', background: 'rgba(255,255,255,0.08)', borderRadius: '9999px', overflow: 'hidden' }}>
+                              <div style={{ width: `${selectedCoin.hourlyBoost.progressPercent}%`, height: '100%', background: 'linear-gradient(90deg, #f59e0b, #fbbf24)', borderRadius: '9999px', transition: 'width 0.3s' }} />
+                            </div>
+                            <span style={{ fontSize: '9px', color: 'rgba(255,255,255,0.4)', fontWeight: 700, flexShrink: 0 }}>
+                              Ziel: {selectedCoin.hourlyBoost.nextTierLabel}
+                            </span>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -702,7 +752,7 @@ export function Market({ initData, backendUrl, onBalanceUpdate }: MarketProps) {
                       fontSize: '13px', fontWeight: 900, cursor: 'pointer', transition: 'all 0.2s',
                     }}
                   >
-                    Kaufen ($)
+                    {t.market.buyDollars}
                   </button>
                   <button
                     onClick={() => setTradeType('SELL')}
@@ -713,7 +763,7 @@ export function Market({ initData, backendUrl, onBalanceUpdate }: MarketProps) {
                       fontSize: '13px', fontWeight: 900, cursor: 'pointer', transition: 'all 0.2s',
                     }}
                   >
-                    Verkaufen (${selectedCoin.symbol})
+                    {t.market.sellTokens} (${selectedCoin.symbol})
                   </button>
                 </div>
 
@@ -734,7 +784,7 @@ export function Market({ initData, backendUrl, onBalanceUpdate }: MarketProps) {
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: 'rgba(255,255,255,0.4)', marginBottom: '6px' }}>
                     <span>{tradeType === 'BUY' ? 'Betrag in Game$' : `Tokens ($${selectedCoin.symbol})`}</span>
                     <span>
-                      Verfügbar: {tradeType === 'BUY'
+                      {t.market.available}: {tradeType === 'BUY'
                         ? `${(data?.userCash || 0).toFixed(2)} Game$`
                         : `${(data?.portfolio.find(p => p.coinSymbol === selectedCoin.symbol)?.amount || 0).toFixed(4)} $${selectedCoin.symbol}`}
                     </span>
@@ -780,7 +830,7 @@ export function Market({ initData, backendUrl, onBalanceUpdate }: MarketProps) {
                   fontSize: '11px', color: 'rgba(255,255,255,0.5)',
                 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span>{tradeType === 'BUY' ? 'Erhaltene Tokens:' : 'Erhaltenes Guthaben:'}</span>
+                    <span>{tradeType === 'BUY' ? t.market.receivedTokens : t.market.receivedCash}</span>
                     <span style={{ color: '#fff', fontWeight: 800, fontFamily: 'monospace' }}>
                       {tradeType === 'BUY'
                         ? `${numAmount > 0 ? formatTokens(numAmount / selectedCoin.currentPrice) : '0'} $${selectedCoin.symbol}`
@@ -788,12 +838,12 @@ export function Market({ initData, backendUrl, onBalanceUpdate }: MarketProps) {
                     </span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span>Geschätzte Gas-Fee:</span>
+                    <span>{t.market.estimatedGas}</span>
                     <span style={{ color: '#fbbf24', fontWeight: 700 }}>{estimatedGas.toFixed(4)} Game$</span>
                   </div>
                   {numAmount > 0 && (
                     <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '4px', marginTop: '2px' }}>
-                      <span>Geschätzter Kurs-Effekt:</span>
+                      <span>{t.market.estimatedImpact}</span>
                       <span style={{
                         color: tradeType === 'BUY' ? '#4ade80' : '#f87171',
                         fontWeight: 700,
@@ -820,7 +870,7 @@ export function Market({ initData, backendUrl, onBalanceUpdate }: MarketProps) {
                     transition: 'all 0.2s', marginTop: '4px',
                   }}
                 >
-                  {trading ? 'Führe Order aus...' : `${tradeType === 'BUY' ? 'Jetzt Kaufen' : 'Jetzt Verkaufen'}`}
+                  {trading ? t.market.executingOrder : `${tradeType === 'BUY' ? t.market.buyNow : t.market.sellNow}`}
                 </button>
               </div>
 
@@ -839,7 +889,7 @@ export function Market({ initData, backendUrl, onBalanceUpdate }: MarketProps) {
                 borderRadius: '20px', padding: '18px',
               }}>
                 <div style={{ fontSize: '10px', fontWeight: 800, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
-                  Portfolio Gesamtwert
+                  {t.market.totalPortfolioValue}
                 </div>
                 <div style={{ fontSize: '24px', fontWeight: 900, color: '#fff', fontFamily: 'monospace', marginTop: '4px' }}>
                   {portfolioTotalValue.toFixed(2)} Game$
@@ -847,13 +897,13 @@ export function Market({ initData, backendUrl, onBalanceUpdate }: MarketProps) {
 
                 <div style={{ display: 'flex', gap: '16px', marginTop: '12px', paddingTop: '12px', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
                   <div>
-                    <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase', fontWeight: 700 }}>Gesamt PnL ($)</div>
+                    <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase', fontWeight: 700 }}>{t.market.totalPnl}</div>
                     <div style={{ fontSize: '13px', fontWeight: 900, color: portfolioPnlCash >= 0 ? '#4ade80' : '#f87171' }}>
                       {portfolioPnlCash >= 0 ? '+' : ''}{portfolioPnlCash.toFixed(2)} $
                     </div>
                   </div>
                   <div>
-                    <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase', fontWeight: 700 }}>Gesamt Rendite (%)</div>
+                    <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase', fontWeight: 700 }}>{t.market.totalReturn}</div>
                     <div style={{ fontSize: '13px', fontWeight: 900, color: portfolioPnlPercent >= 0 ? '#4ade80' : '#f87171' }}>
                       {portfolioPnlPercent >= 0 ? '+' : ''}{portfolioPnlPercent.toFixed(2)}%
                     </div>
@@ -863,7 +913,7 @@ export function Market({ initData, backendUrl, onBalanceUpdate }: MarketProps) {
 
               {/* Holdings List */}
               <div style={{ fontSize: '11px', fontWeight: 800, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                Deine Krypto Positionen
+                {t.market.yourPositions}
               </div>
 
               {(!data?.portfolio || data.portfolio.length === 0) ? (
@@ -872,7 +922,7 @@ export function Market({ initData, backendUrl, onBalanceUpdate }: MarketProps) {
                   background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)',
                   borderRadius: '18px', color: 'rgba(255,255,255,0.4)', fontSize: '12px',
                 }}>
-                  Du besitzt aktuell noch keine Coins.<br />Erspiele Punkte oder kaufe Coins über den Markt-Tab!
+                  {t.market.noCoinsYet}<br />{t.market.playOrTrade}
                 </div>
               ) : (
                 data.portfolio.map((item) => {
@@ -912,7 +962,7 @@ export function Market({ initData, backendUrl, onBalanceUpdate }: MarketProps) {
                               borderRadius: '8px', padding: '3px 8px', color: '#f87171', fontSize: '10px', fontWeight: 800, cursor: 'pointer',
                             }}
                           >
-                            Verkaufen
+                            {t.market.sellTokens}
                           </button>
                         )}
                       </div>

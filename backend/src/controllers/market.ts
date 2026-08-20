@@ -80,6 +80,7 @@ export async function tradeCoin(req: AuthenticatedRequest, res: Response) {
     }
 
     const result = await executeMarketTrade(userId, symbol, tradeType, parsedAmount);
+
     return res.json({
       success: true,
       message: tradeType === 'BUY'

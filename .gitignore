@@ -90,4 +90,11 @@ localREADME.md
 *localREADME*
 LOCAL_README*
 
+# 10. Local Admin Dashboard & Private Management Isolation
+LOKAL/
+**/LOKAL/
+*admin-dashboard*
+admin-dashboard.html
+**/admin-dashboard.html
+
 

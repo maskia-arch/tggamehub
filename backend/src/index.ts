@@ -27,6 +27,11 @@ const adminHtmlPath = path.join(__dirname, '../src/admin-dashboard.html');
 const adminHtmlFallback = path.join(__dirname, 'admin-dashboard.html');
 
 const serveAdminDashboard = (_req: express.Request, res: express.Response) => {
+  // In production mode, the admin dashboard HTML is NEVER hosted online
+  if (config.nodeEnv === 'production') {
+    res.status(404).send('Not Found');
+    return;
+  }
   const htmlPath = fs.existsSync(adminHtmlFallback) ? adminHtmlFallback : adminHtmlPath;
   if (!fs.existsSync(htmlPath)) {
     res.status(404).send('Admin dashboard HTML not found. Run build first.');

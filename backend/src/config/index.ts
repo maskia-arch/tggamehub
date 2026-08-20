@@ -22,6 +22,7 @@ export const config = {
   maxEnergy: parseInt(process.env.MAX_ENERGY || '5', 10),
   referralEnergyBonus: parseInt(process.env.REFERRAL_ENERGY_BONUS || '5', 10),
   shopWebhookSecret: (process.env.SHOP_WEBHOOK_SECRET || 'local_shop_webhook_secret_key_12345').trim(),
+  adminApiKey: (process.env.ADMIN_API_KEY || process.env.ADMIN_PASSWORD || 'coincade_admin_secret_key_99').trim(),
 };
 
 // Validate critical values

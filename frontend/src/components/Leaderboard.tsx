@@ -10,6 +10,8 @@ interface LeaderboardEntry {
   isVip?: boolean;
   seasonPassType?: 'NONE' | 'SEASON' | 'VIP';
   score: number;
+  netProfit?: number;
+  totalRounds?: number;
   rank: number;
   expectedSeasonPoints?: number;
   permanentSeasonScore?: number;
@@ -18,6 +20,15 @@ interface LeaderboardEntry {
 interface LeaderboardProps {
   initData: string;
   backendUrl: string;
+}
+
+function formatCashScore(value: number): string {
+  const num = Number(value || 0);
+  if (num === 0) return '0.00 $';
+  if (Math.abs(num) < 0.01) {
+    return `${num.toFixed(4)} $`;
+  }
+  return `${num.toFixed(2)} $`;
 }
 
 const RANK_CONFIGS: Record<number, { gradient: string; border: string; badge: string; glow: string; emoji: string }> = {
@@ -171,7 +182,7 @@ export function Leaderboard({ initData, backendUrl }: LeaderboardProps) {
             borderTopColor: 'var(--accent-cyan)',
             animation: 'spin 0.8s linear infinite',
           }} />
-          <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.35)' }}>Rangliste wird geladen...</span>
+          <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.35)' }}>{t.leaderboard.loadingLeaderboard}</span>
         </div>
       ) : error ? (
         <div style={{
@@ -258,7 +269,7 @@ export function Leaderboard({ initData, backendUrl }: LeaderboardProps) {
                     {/* Name info */}
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: '13px', fontWeight: 800, color: '#fff', display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                        {entry.displayName || entry.firstName || 'Anonym'}
+                        {entry.displayName || entry.firstName || t.common.anonymous}
                         {entry.isVip && (
                           <span style={{
                             fontSize: '9px', fontWeight: 900, color: '#f43f5e',
@@ -282,15 +293,20 @@ export function Leaderboard({ initData, backendUrl }: LeaderboardProps) {
                           </span>
                         )}
                       </div>
+                      {period === 'season' && entry.totalRounds !== undefined && (
+                        <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)', marginTop: '2px', fontWeight: 600 }}>
+                          🎮 {entry.totalRounds} {t.leaderboard.roundsCount}
+                        </div>
+                      )}
                     </div>
 
                     {/* Score / Net Profit */}
                     <div style={{ flexShrink: 0, textAlign: 'right' }}>
                       <div style={{ fontSize: '16px', fontWeight: 900, color: 'var(--accent-cyan)', lineHeight: 1 }}>
-                        {period === 'season' ? `${entry.score.toFixed(2)} $` : entry.score.toLocaleString()}
+                        {formatCashScore(entry.score)}
                       </div>
-                      <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.35)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginTop: '2px' }}>
-                        {period === 'season' ? t.leaderboard.netProfit : t.leaderboard.score}
+                      <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.35)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginTop: '3px' }}>
+                        {period === 'season' ? t.leaderboard.netProfit : t.leaderboard.earnedCash}
                       </div>
                     </div>
                   </div>
@@ -334,7 +350,7 @@ export function Leaderboard({ initData, backendUrl }: LeaderboardProps) {
               {/* Name info */}
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: '12px', fontWeight: 700, color: '#e2e8f0', display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                  {entry.displayName || entry.firstName || 'Anonym'}
+                  {entry.displayName || entry.firstName || t.common.anonymous}
                   {entry.isVip && (
                     <span style={{
                       fontSize: '9px', fontWeight: 900, color: '#f43f5e',
@@ -358,11 +374,9 @@ export function Leaderboard({ initData, backendUrl }: LeaderboardProps) {
                     </span>
                   )}
                 </div>
-                {period === 'season' && entry.permanentSeasonScore !== undefined && entry.expectedSeasonPoints !== undefined && (
-                  <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.3)', marginTop: '2px' }}>
-                    <span>{entry.permanentSeasonScore} gesichert</span>
-                    <span style={{ margin: '0 4px', color: 'rgba(255,255,255,0.15)' }}>+</span>
-                    <span style={{ color: '#fbbf24' }}>{entry.expectedSeasonPoints} erwartet</span>
+                {period === 'season' && entry.totalRounds !== undefined && (
+                  <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.35)', marginTop: '2px', fontWeight: 600 }}>
+                    🎮 {entry.totalRounds} {t.leaderboard.roundsCount}
                   </div>
                 )}
               </div>
@@ -370,10 +384,10 @@ export function Leaderboard({ initData, backendUrl }: LeaderboardProps) {
               {/* Score / Net Profit */}
               <div style={{ flexShrink: 0, textAlign: 'right' }}>
                 <div style={{ fontSize: '13px', fontWeight: 800, color: 'var(--accent-cyan)' }}>
-                  {period === 'season' ? `${entry.score.toFixed(2)} $` : entry.score.toLocaleString()}
+                  {formatCashScore(entry.score)}
                 </div>
-                <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.25)', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 700 }}>
-                  {period === 'season' ? 'Gewinn' : 'Pts'}
+                <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.25)', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 700, marginTop: '2px' }}>
+                  {period === 'season' ? t.leaderboard.netProfit : t.leaderboard.earnedCash}
                 </div>
               </div>
             </div>

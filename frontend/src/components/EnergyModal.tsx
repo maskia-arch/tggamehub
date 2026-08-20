@@ -116,7 +116,7 @@ export function EnergyModal({
     // Also trigger Telegram WebApp share if available
     const tg = (window as any).Telegram?.WebApp;
     if (tg?.openTelegramLink) {
-      const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(referralLink)}&text=${encodeURIComponent('Komm zu CoinCade und zocke mit mir! 🎮🔥')}`;
+      const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(referralLink)}&text=${encodeURIComponent(t.common.telegramShareText)}`;
       tg.openTelegramLink(shareUrl);
     }
   };

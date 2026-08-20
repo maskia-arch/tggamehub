@@ -25,6 +25,8 @@ export interface SeasonLeaderboardEntry {
   username: string | null;
   firstName: string | null;
   displayName: string | null;
+  isVip?: boolean;
+  seasonPassType?: 'NONE' | 'SEASON' | 'VIP';
   netProfit: number;
   totalRounds: number;
   rank: number;
@@ -72,8 +74,8 @@ export async function getCurrentSeason(): Promise<SeasonInfo> {
       active20_share_percent: 20.00,
       random_share_percent: 20.00,
       is_active: false,
-      start_date: nowStr,
-      end_date: new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString(),
+      start_date: null,
+      end_date: null,
       created_at: nowStr,
       updated_at: nowStr,
     });
@@ -85,29 +87,40 @@ export async function getCurrentSeason(): Promise<SeasonInfo> {
   const progressPercent = Math.min(100, Math.round((currentPot / Math.max(1, targetAmount)) * 100));
   const isGoalReached = currentPot >= targetAmount;
 
+  // Strict check: Season is ONLY active if status === 'active' AND is_active is true AND start_date is set AND not expired
+  const hasValidDates = !!season.start_date && !!season.end_date && (new Date(season.end_date).getTime() > Date.now());
+  const isActuallyActive = (season.status === 'active') && (season.is_active === true || season.is_active === 1) && hasValidDates;
+
   let daysLeft = 0;
-  if (season.status === 'active' && season.end_date) {
+  if (isActuallyActive && season.end_date) {
     const end = new Date(season.end_date).getTime();
     const now = Date.now();
     daysLeft = Math.max(0, Math.ceil((end - now) / (24 * 3600 * 1000)));
   }
 
-  // Count participants for this season
-  const [participantCountRow] = await db('season_user_stats')
-    .where('season_id', season.id)
-    .count('* as count');
-  const totalParticipants = Number(participantCountRow?.count || 0);
+  // Count participants for this season (only if active)
+  let totalParticipants = 0;
+  if (isActuallyActive) {
+    const [participantCountRow] = await db('season_user_stats')
+      .where('season_id', season.id)
+      .count('* as count');
+    totalParticipants = Number(participantCountRow?.count || 0);
+  }
+
+  const effectiveStatus: 'preparing' | 'active' | 'ended' | 'settled' = isActuallyActive
+    ? 'active'
+    : (season.status === 'settled' ? 'settled' : season.status === 'ended' ? 'ended' : 'preparing');
 
   return {
     id: season.id,
     seasonNumber: season.season_number ?? 0,
     name: season.name,
-    status: season.status || (season.is_active ? 'active' : 'preparing'),
+    status: effectiveStatus,
     targetAmount,
     currentPot,
     revenueSharePercent: parseFloat(String(season.revenue_share_percent || 30)),
-    startDate: season.start_date ? new Date(season.start_date).toISOString() : null,
-    endDate: season.end_date ? new Date(season.end_date).toISOString() : null,
+    startDate: (isActuallyActive && season.start_date) ? new Date(season.start_date).toISOString() : null,
+    endDate: (isActuallyActive && season.end_date) ? new Date(season.end_date).toISOString() : null,
     durationDays: season.duration_days || 30,
     top10SharePercent: parseFloat(String(season.top10_share_percent || 60)),
     active20SharePercent: parseFloat(String(season.active20_share_percent || 20)),
@@ -206,7 +219,11 @@ export async function recordUserMarketProfit(userId: string, netProfit: number) 
  * Gets Season Leaderboard (sorted strictly by Net Profit DESC)
  */
 export async function getSeasonProfitLeaderboard(seasonId?: number, limit = 100): Promise<SeasonLeaderboardEntry[]> {
-  const targetSeasonId = seasonId || (await getCurrentSeason()).id;
+  const current = await getCurrentSeason();
+  if (current.status !== 'active') {
+    return [];
+  }
+  const targetSeasonId = seasonId || current.id;
 
   const rows = await db('season_user_stats')
     .join('users', 'season_user_stats.user_id', 'users.id')
@@ -217,20 +234,26 @@ export async function getSeasonProfitLeaderboard(seasonId?: number, limit = 100)
       'season_user_stats.total_rounds',
       'users.username',
       'users.first_name',
-      'users.display_name'
+      'users.display_name',
+      'users.season_pass_type'
     )
     .orderBy('season_user_stats.net_profit', 'desc')
     .limit(limit);
 
-  return rows.map((r, index) => ({
-    userId: r.user_id,
-    username: r.username,
-    firstName: r.first_name,
-    displayName: r.display_name,
-    netProfit: parseFloat(parseFloat(String(r.net_profit || 0)).toFixed(4)),
-    totalRounds: Number(r.total_rounds || 0),
-    rank: index + 1,
-  }));
+  return rows.map((r, index) => {
+    const passType = (r.season_pass_type || 'NONE') as 'NONE' | 'SEASON' | 'VIP';
+    return {
+      userId: r.user_id,
+      username: r.username,
+      firstName: r.first_name,
+      displayName: r.display_name,
+      isVip: passType === 'VIP',
+      seasonPassType: passType,
+      netProfit: parseFloat(parseFloat(String(r.net_profit || 0)).toFixed(4)),
+      totalRounds: Number(r.total_rounds || 0),
+      rank: index + 1,
+    };
+  });
 }
 
 /**
@@ -431,8 +454,8 @@ export async function settleAndFinalizeSeason(seasonId?: number) {
     active20_share_percent: 20.00,
     random_share_percent: 20.00,
     is_active: false,
-    start_date: nowIso,
-    end_date: new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString(),
+    start_date: null,
+    end_date: null,
     created_at: nowIso,
     updated_at: nowIso,
   });

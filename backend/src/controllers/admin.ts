@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import db from '../database/client';
-import { submitScoreToLeaderboards } from '../services/redis';
+import { submitScoreToLeaderboards, resetLeaderboardCache } from '../services/redis';
 import { config } from '../config';
 import * as crypto from 'crypto';
 
@@ -573,4 +573,99 @@ export async function confirmAirdropPayout(req: Request, res: Response) {
     return res.status(500).json({ error: 'Failed to confirm airdrop payout', detail: error.message });
   }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// POST /api/admin/danger/reset-database — Secured Danger Zone Database Wipe & Reset
+// ─────────────────────────────────────────────────────────────────────────────
+export async function resetDatabaseDangerZone(req: Request, res: Response) {
+  try {
+    const { confirmPhrase } = req.body;
+    const cleanPhrase = String(confirmPhrase || '').trim().toUpperCase();
+
+    if (cleanPhrase !== 'DATENBANK LÖSCHEN' && cleanPhrase !== 'RESET DATABASE') {
+      return res.status(400).json({
+        error: 'Bestätigungs-Phrase ungültig. Bitte tippe exakt "DATENBANK LÖSCHEN" ein, um die Aktion auszuführen.'
+      });
+    }
+
+    const safeDel = async (tableName: string) => {
+      try {
+        if (await db.schema.hasTable(tableName)) {
+          await db(tableName).del();
+        }
+      } catch (err: any) {
+        console.warn(`[RESET DB]: Warning clearing table ${tableName}:`, err.message);
+      }
+    };
+
+    // 1. Delete transactional player data & logs in safe dependency order
+    await safeDel('scores');
+    await safeDel('referrals');
+    await safeDel('airdrop_payouts');
+    await safeDel('season_user_stats');
+    await safeDel('shop_orders');
+    await safeDel('user_portfolios');
+    await safeDel('user_trades');
+    await safeDel('user_inbox');
+    await safeDel('market_price_history');
+    await safeDel('market_events');
+    await safeDel('wallet_sync_queue');
+    await safeDel('users');
+
+    // 2. Reset seasons table to clean Season 0 in preparing state
+    await safeDel('seasons');
+    const nowIso = new Date().toISOString();
+    await db('seasons').insert({
+      season_number: 0,
+      name: 'Season 0',
+      status: 'preparing',
+      target_amount: 1000.00,
+      current_pot: 0.00,
+      revenue_share_percent: 30.00,
+      duration_days: 30,
+      top10_share_percent: 60.00,
+      active20_share_percent: 20.00,
+      random_share_percent: 20.00,
+      is_active: false,
+      start_date: null,
+      end_date: null,
+      created_at: nowIso,
+      updated_at: nowIso,
+    });
+
+    // 3. Reset market coins to initial base prices and zero volumes
+    if (await db.schema.hasTable('market_coins')) {
+      const coins = await db('market_coins').select('*');
+      for (const c of coins) {
+        const base = Number(c.base_price || 0.00000001);
+        await db('market_coins').where({ symbol: c.symbol }).update({
+          current_price: base,
+          volume_24h: 0,
+          total_burned: 0,
+          circulating_supply: 1000000000,
+          updated_at: new Date().toISOString(),
+        });
+      }
+    }
+
+    // 4. Reset wallet address pool (mark is_used = false)
+    if (await db.schema.hasTable('wallet_address_pool')) {
+      await db('wallet_address_pool').update({ is_used: false });
+    }
+
+    // 5. Clear Redis leaderboards & memory leaderboards
+    await resetLeaderboardCache();
+
+    console.log('[ADMIN DANGER ZONE]: Complete database reset successfully executed by Administrator.');
+
+    return res.json({
+      success: true,
+      message: 'Datenbank wurde erfolgreich und vollständig zurückgesetzt! Alle Spieler, Scores, Orders und Season-Daten wurden bereinigt. Season 0 befindet sich im Status "Vorbereitung".',
+    });
+  } catch (error: any) {
+    console.error('[ADMIN RESET DATABASE ERROR]:', error);
+    return res.status(500).json({ error: 'Fehler beim Zurücksetzen der Datenbank', detail: error.message });
+  }
+}
+
 

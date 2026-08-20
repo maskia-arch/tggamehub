@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
-import { Send, ExternalLink, ShieldCheck, Trophy, Sparkles, Globe } from 'lucide-react';
-
+import { Send, ExternalLink, Trophy, Sparkles, Globe, Gamepad2, Flame } from 'lucide-react';
 
 interface TelegramRedirectLandingProps {
   botUsername?: string;
@@ -10,177 +9,215 @@ export const TelegramRedirectLanding: React.FC<TelegramRedirectLandingProps> = (
   botUsername = (import.meta.env.VITE_TELEGRAM_BOT_USERNAME as string) || 'coincadebot',
 }) => {
   const [lang, setLang] = useState<'de' | 'en'>('de');
-  const botUrl = `https://t.me/${botUsername}`;
+  const cleanUsername = botUsername.replace(/^@/, '');
+  const botUrl = `https://t.me/${cleanUsername}`;
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col items-center justify-center p-4 selection:bg-cyan-500 selection:text-black">
-      {/* Background Neon Grid & Glow Effects */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none -z-10">
-        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-cyan-500/15 rounded-full blur-3xl" />
-        <div className="absolute bottom-1/4 left-1/2 -translate-x-1/2 translate-y-1/2 w-96 h-96 bg-indigo-600/15 rounded-full blur-3xl" />
-        <div className="absolute inset-0 bg-[radial-gradient(#1e293b_1px,transparent_1px)] [background-size:24px_24px] opacity-40" />
-      </div>
+    <div style={{
+      minHeight: '100vh',
+      background: 'radial-gradient(circle at top, #0f172a 0%, #020617 100%)',
+      color: '#f8fafc',
+      fontFamily: "'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: '20px 16px',
+      position: 'relative',
+      overflow: 'hidden',
+    }}>
+      {/* Background Neon Glow Spheres */}
+      <div style={{
+        position: 'fixed', top: '15%', left: '50%', transform: 'translate(-50%, -50%)',
+        width: '380px', height: '380px', borderRadius: '50%',
+        background: 'radial-gradient(circle, rgba(0, 242, 254, 0.12) 0%, rgba(0, 242, 254, 0) 70%)',
+        pointerEvents: 'none', zIndex: 0,
+      }} />
+      <div style={{
+        position: 'fixed', bottom: '15%', left: '50%', transform: 'translate(-50%, 50%)',
+        width: '420px', height: '420px', borderRadius: '50%',
+        background: 'radial-gradient(circle, rgba(99, 102, 241, 0.12) 0%, rgba(99, 102, 241, 0) 70%)',
+        pointerEvents: 'none', zIndex: 0,
+      }} />
 
-      <div className="w-full max-w-lg bg-slate-900/90 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl backdrop-blur-xl relative overflow-hidden">
-        {/* Top Glow Bar */}
-        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-cyan-400 via-indigo-500 to-fuchsia-500" />
+      {/* Main Glassmorphic Container Card */}
+      <div style={{
+        width: '100%',
+        maxWidth: '460px',
+        background: 'rgba(15, 23, 42, 0.85)',
+        backdropFilter: 'blur(20px)',
+        WebkitBackdropFilter: 'blur(20px)',
+        border: '1px solid rgba(255, 255, 255, 0.08)',
+        borderRadius: '28px',
+        padding: '32px 24px',
+        boxShadow: '0 25px 60px -15px rgba(0, 0, 0, 0.7), 0 0 40px rgba(0, 242, 254, 0.1)',
+        position: 'relative',
+        zIndex: 1,
+        boxSizing: 'border-box',
+      }}>
+        {/* Top Glow Accent Line */}
+        <div style={{
+          position: 'absolute', top: 0, left: 0, right: 0, height: '3px',
+          background: 'linear-gradient(90deg, #00f2fe, #6366f1, #ec4899)',
+          borderTopLeftRadius: '28px', borderTopRightRadius: '28px',
+        }} />
 
-        {/* Language Selector Switch */}
-        <div className="flex justify-between items-center mb-6">
-          <div className="inline-flex items-center gap-2 px-3 py-1 bg-cyan-500/10 border border-cyan-500/30 rounded-full text-cyan-400 text-xs font-semibold uppercase tracking-wider">
-            <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
+        {/* Top Bar with Badge & Language Switcher */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+          <div style={{
+            display: 'inline-flex', alignItems: 'center', gap: '6px',
+            background: 'rgba(0, 242, 254, 0.1)',
+            border: '1px solid rgba(0, 242, 254, 0.25)',
+            borderRadius: '9999px', padding: '5px 12px',
+            color: '#00f2fe', fontSize: '11px', fontWeight: 800,
+            textTransform: 'uppercase', letterSpacing: '0.06em',
+          }}>
+            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#00f2fe', boxShadow: '0 0 8px #00f2fe' }} />
             Telegram Mini App
           </div>
 
-          <div className="flex items-center bg-slate-800/80 p-1 rounded-full border border-slate-700">
-            <Globe size={14} className="text-slate-400 ml-2 mr-1" />
+          <div style={{
+            display: 'flex', alignItems: 'center',
+            background: 'rgba(30, 41, 59, 0.8)',
+            padding: '3px', borderRadius: '9999px',
+            border: '1px solid rgba(255, 255, 255, 0.08)',
+          }}>
+            <Globe size={13} style={{ color: '#94a3b8', marginLeft: '6px', marginRight: '4px' }} />
             <button
+              type="button"
               onClick={() => setLang('de')}
-              className={`px-2.5 py-1 rounded-full text-xs font-bold transition-all ${
-                lang === 'de'
-                  ? 'bg-cyan-500 text-slate-950 shadow-md shadow-cyan-500/20'
-                  : 'text-slate-400 hover:text-white'
-              }`}
+              style={{
+                padding: '4px 9px', borderRadius: '9999px', border: 'none',
+                background: lang === 'de' ? '#00f2fe' : 'transparent',
+                color: lang === 'de' ? '#020617' : '#94a3b8',
+                fontSize: '11px', fontWeight: 800, cursor: 'pointer', transition: 'all 0.2s',
+              }}
             >
               DE
             </button>
             <button
+              type="button"
               onClick={() => setLang('en')}
-              className={`px-2.5 py-1 rounded-full text-xs font-bold transition-all ${
-                lang === 'en'
-                  ? 'bg-cyan-500 text-slate-950 shadow-md shadow-cyan-500/20'
-                  : 'text-slate-400 hover:text-white'
-              }`}
+              style={{
+                padding: '4px 9px', borderRadius: '9999px', border: 'none',
+                background: lang === 'en' ? '#00f2fe' : 'transparent',
+                color: lang === 'en' ? '#020617' : '#94a3b8',
+                fontSize: '11px', fontWeight: 800, cursor: 'pointer', transition: 'all 0.2s',
+              }}
             >
               EN
             </button>
           </div>
         </div>
 
-        {/* Official CoinCade Logo & Header */}
-        <div className="flex flex-col items-center text-center mb-6">
+        {/* Logo & Headline */}
+        <div style={{ textAlign: 'center', marginBottom: '22px' }}>
           <img
             src="/coincade-logo.png"
             alt="COINCADE"
-            style={{ height: '42px', maxHeight: '48px', maxWidth: '220px', width: 'auto', objectFit: 'contain' }}
-            className="drop-shadow-[0_0_15px_rgba(0,242,254,0.5)] mb-3 animate-pulse"
+            style={{
+              height: '42px', maxWidth: '240px', width: 'auto',
+              objectFit: 'contain', margin: '0 auto 10px auto', display: 'block',
+              filter: 'drop-shadow(0 0 14px rgba(0, 242, 254, 0.45))',
+            }}
           />
-          <p className="text-xs sm:text-sm font-semibold tracking-wide text-cyan-400 uppercase">
-            Official Telegram Arcade & Crypto Airdrops
+          <div style={{ fontSize: '11px', fontWeight: 800, color: '#00f2fe', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+            Official Telegram Arcade &amp; Crypto Airdrops
+          </div>
+        </div>
+
+        {/* Info Card Box */}
+        <div style={{
+          background: 'rgba(2, 6, 23, 0.65)',
+          border: '1px solid rgba(255, 255, 255, 0.07)',
+          borderRadius: '18px', padding: '18px',
+          marginBottom: '20px',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '15px', fontWeight: 800, color: '#fff', marginBottom: '8px' }}>
+            <Gamepad2 size={20} color="#00f2fe" />
+            <span>{lang === 'de' ? 'Spielstart im Telegram Bot erforderlich' : 'Launch inside Telegram Bot required'}</span>
+          </div>
+          <p style={{ fontSize: '13px', lineHeight: 1.6, color: '#cbd5e1', margin: 0 }}>
+            {lang === 'de' ? (
+              <>
+                <strong>CoinCade</strong> läuft als offizielle <strong>Telegram Mini App</strong>. Um deine Highscores manipulationssicher aufzuzeichnen, im Live-Krypto-Markt zu traden und echte Season-Airdrops (LTC / BTC) zu gewinnen, starte das Spiel bitte direkt über unseren Telegram Bot.
+              </>
+            ) : (
+              <>
+                <strong>CoinCade</strong> runs as an official <strong>Telegram Mini App</strong>. To record your highscores securely, trade on the live crypto market, and win real crypto season airdrops (LTC / BTC), please launch the game directly via our Telegram Bot.
+              </>
+            )}
           </p>
         </div>
 
-        {/* German Content */}
-        {lang === 'de' && (
-          <div className="space-y-4">
-            <div className="bg-slate-950/60 border border-slate-800/80 rounded-2xl p-4 text-left">
-              <h2 className="text-base font-bold text-white mb-2 flex items-center gap-2">
-                <Send size={18} className="text-cyan-400" />
-                Spielstart im Telegram Bot erforderlich
-              </h2>
-              <p className="text-sm text-slate-300 leading-relaxed">
-                <strong>CoinCade</strong> läuft als offizielle <strong>Telegram Mini App</strong>.
-                Um deine Highscores zu speichern, im Ingame-Markt zu handeln und an den
-                echten Krypto-Airdrops teilzunehmen, starte das Spiel bitte direkt über unseren Telegram Bot.
-              </p>
-            </div>
-
-            {/* Quick 3-Step Guide */}
-            <div className="grid grid-cols-3 gap-2 text-center text-xs text-slate-400 py-1">
-              <div className="bg-slate-800/40 p-2.5 rounded-xl border border-slate-800">
-                <span className="block font-bold text-cyan-400 text-sm mb-0.5">1</span>
-                Bot öffnen
-              </div>
-              <div className="bg-slate-800/40 p-2.5 rounded-xl border border-slate-800">
-                <span className="block font-bold text-cyan-400 text-sm mb-0.5">2</span>
-                Start drücken
-              </div>
-              <div className="bg-slate-800/40 p-2.5 rounded-xl border border-slate-800">
-                <span className="block font-bold text-cyan-400 text-sm mb-0.5">3</span>
-                Spielen & Win
-              </div>
-            </div>
-
-            {/* Action CTA Button */}
-            <a
-              href={botUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="group flex items-center justify-center gap-2.5 w-full py-4 px-6 rounded-2xl font-black text-slate-950 bg-gradient-to-r from-cyan-400 via-cyan-300 to-indigo-400 hover:from-cyan-300 hover:to-indigo-300 shadow-xl shadow-cyan-500/25 transition-all transform hover:-translate-y-0.5 active:translate-y-0 text-base"
-            >
-              <Send size={20} className="transition-transform group-hover:rotate-12" />
-              <span>Im Telegram Bot öffnen (@{botUsername})</span>
-              <ExternalLink size={18} className="opacity-75" />
-            </a>
-
-            <p className="text-center text-xs text-slate-500 pt-1">
-              Offizieller Bot: <span className="text-cyan-400 font-mono">@{botUsername}</span>
-            </p>
+        {/* 3-Step Guide */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', marginBottom: '22px', textAlign: 'center' }}>
+          <div style={{ background: 'rgba(30, 41, 59, 0.5)', border: '1px solid rgba(255, 255, 255, 0.05)', borderRadius: '14px', padding: '12px 6px' }}>
+            <span style={{ display: 'block', fontSize: '15px', fontWeight: 900, color: '#00f2fe', marginBottom: '2px' }}>1</span>
+            <span style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 700 }}>{lang === 'de' ? 'Bot öffnen' : 'Open Bot'}</span>
           </div>
-        )}
-
-        {/* English Content */}
-        {lang === 'en' && (
-          <div className="space-y-4">
-            <div className="bg-slate-950/60 border border-slate-800/80 rounded-2xl p-4 text-left">
-              <h2 className="text-base font-bold text-white mb-2 flex items-center gap-2">
-                <Send size={18} className="text-cyan-400" />
-                Launch inside Telegram Bot required
-              </h2>
-              <p className="text-sm text-slate-300 leading-relaxed">
-                <strong>CoinCade</strong> runs as an official <strong>Telegram Mini App</strong>.
-                To record highscores, trade in the ingame marketplace, and participate in real
-                crypto season airdrops, please launch the game directly via our Telegram Bot.
-              </p>
-            </div>
-
-            {/* Quick 3-Step Guide */}
-            <div className="grid grid-cols-3 gap-2 text-center text-xs text-slate-400 py-1">
-              <div className="bg-slate-800/40 p-2.5 rounded-xl border border-slate-800">
-                <span className="block font-bold text-cyan-400 text-sm mb-0.5">1</span>
-                Open Bot
-              </div>
-              <div className="bg-slate-800/40 p-2.5 rounded-xl border border-slate-800">
-                <span className="block font-bold text-cyan-400 text-sm mb-0.5">2</span>
-                Press Start
-              </div>
-              <div className="bg-slate-800/40 p-2.5 rounded-xl border border-slate-800">
-                <span className="block font-bold text-cyan-400 text-sm mb-0.5">3</span>
-                Play & Earn
-              </div>
-            </div>
-
-            {/* Action CTA Button */}
-            <a
-              href={botUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="group flex items-center justify-center gap-2.5 w-full py-4 px-6 rounded-2xl font-black text-slate-950 bg-gradient-to-r from-cyan-400 via-cyan-300 to-indigo-400 hover:from-cyan-300 hover:to-indigo-300 shadow-xl shadow-cyan-500/25 transition-all transform hover:-translate-y-0.5 active:translate-y-0 text-base"
-            >
-              <Send size={20} className="transition-transform group-hover:rotate-12" />
-              <span>Launch in Telegram Bot (@{botUsername})</span>
-              <ExternalLink size={18} className="opacity-75" />
-            </a>
-
-            <p className="text-center text-xs text-slate-500 pt-1">
-              Official Bot: <span className="text-cyan-400 font-mono">@{botUsername}</span>
-            </p>
+          <div style={{ background: 'rgba(30, 41, 59, 0.5)', border: '1px solid rgba(255, 255, 255, 0.05)', borderRadius: '14px', padding: '12px 6px' }}>
+            <span style={{ display: 'block', fontSize: '15px', fontWeight: 900, color: '#00f2fe', marginBottom: '2px' }}>2</span>
+            <span style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 700 }}>{lang === 'de' ? 'Start drücken' : 'Press Start'}</span>
           </div>
-        )}
+          <div style={{ background: 'rgba(30, 41, 59, 0.5)', border: '1px solid rgba(255, 255, 255, 0.05)', borderRadius: '14px', padding: '12px 6px' }}>
+            <span style={{ display: 'block', fontSize: '15px', fontWeight: 900, color: '#00f2fe', marginBottom: '2px' }}>3</span>
+            <span style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 700 }}>{lang === 'de' ? 'Spielen & Win' : 'Play & Win'}</span>
+          </div>
+        </div>
 
+        {/* Giant Glowing CTA Button */}
+        <a
+          href={botUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '10px',
+            width: '100%',
+            padding: '16px 20px',
+            borderRadius: '18px',
+            background: 'linear-gradient(135deg, #00f2fe 0%, #38bdf8 50%, #818cf8 100%)',
+            color: '#020617',
+            fontSize: '15px',
+            fontWeight: 900,
+            textDecoration: 'none',
+            boxShadow: '0 0 25px rgba(0, 242, 254, 0.4), 0 10px 20px rgba(0,0,0,0.4)',
+            transition: 'all 0.2s',
+            boxSizing: 'border-box',
+          }}
+        >
+          <Send size={19} />
+          <span>{lang === 'de' ? `Im Telegram Bot öffnen (@${cleanUsername})` : `Launch in Telegram Bot (@${cleanUsername})`}</span>
+          <ExternalLink size={16} style={{ opacity: 0.75 }} />
+        </a>
 
-        {/* Feature Badges Footer */}
-        <div className="mt-6 pt-5 border-t border-slate-800/80 flex items-center justify-around text-xs text-slate-400">
-          <div className="flex items-center gap-1.5">
-            <Trophy size={14} className="text-amber-400" />
+        <div style={{ textAlign: 'center', fontSize: '11px', color: '#64748b', marginTop: '12px' }}>
+          {lang === 'de' ? 'Direktlink:' : 'Direct Link:'}{' '}
+          <a href={botUrl} target="_blank" rel="noopener noreferrer" style={{ color: '#00f2fe', textDecoration: 'none', fontFamily: 'monospace', fontWeight: 700 }}>
+            t.me/{cleanUsername}
+          </a>
+        </div>
+
+        {/* Footer Feature Badges */}
+        <div style={{
+          marginTop: '24px', paddingTop: '18px',
+          borderTop: '1px solid rgba(255, 255, 255, 0.08)',
+          display: 'flex', justifyContent: 'space-around',
+          fontSize: '11px', color: '#94a3b8', fontWeight: 700,
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+            <Trophy size={13} color="#fbbf24" />
             <span>Leaderboards</span>
           </div>
-          <div className="flex items-center gap-1.5">
-            <ShieldCheck size={14} className="text-emerald-400" />
-            <span>Fair Gaming</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+            <Flame size={13} color="#f97316" />
+            <span>Token Burn</span>
           </div>
-          <div className="flex items-center gap-1.5">
-            <Sparkles size={14} className="text-cyan-400" />
+          <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+            <Sparkles size={13} color="#00f2fe" />
             <span>LTC / BTC Payouts</span>
           </div>
         </div>
@@ -188,3 +225,4 @@ export const TelegramRedirectLanding: React.FC<TelegramRedirectLandingProps> = (
     </div>
   );
 };
+

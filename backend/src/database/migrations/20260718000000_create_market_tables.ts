@@ -77,7 +77,7 @@ export async function up(knex: Knex): Promise<void> {
   const defaultCoins = [
     {
       symbol: 'DOODLE',
-      name: 'Doodle Jump Coin',
+      name: 'Neon Jump Coin',
       game_id: 'doodlejump',
       current_price: 0.00000001,
       base_price: 0.00000001,

@@ -42,6 +42,8 @@ export async function getLeaderboard(req: Request, res: Response) {
           username: e.username,
           firstName: e.firstName,
           displayName: e.displayName,
+          isVip: e.isVip,
+          seasonPassType: e.seasonPassType,
           score: e.netProfit, // Net profit amount in Game$
           netProfit: e.netProfit,
           totalRounds: e.totalRounds,

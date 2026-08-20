@@ -7,11 +7,25 @@ export interface TelegramUser {
   last_name?: string;
 }
 
+function checkIsInsideTelegram(): boolean {
+  if (typeof window === 'undefined') return false;
+  const webapp = (window as any).Telegram?.WebApp;
+  const hasInitData = Boolean(webapp && webapp.initData && webapp.initData.length > 0);
+  if (hasInitData) return true;
+
+  const isLocalDev =
+    window.location.hostname === 'localhost' ||
+    window.location.hostname === '127.0.0.1' ||
+    window.location.search.includes('dev=true');
+
+  return isLocalDev;
+}
+
 export function useTelegram() {
   const [tg, setTg] = useState<any>(null);
   const [user, setUser] = useState<TelegramUser | null>(null);
   const [initData, setInitData] = useState<string>('');
-  const [isInsideTelegram, setIsInsideTelegram] = useState<boolean | null>(null);
+  const [isInsideTelegram, setIsInsideTelegram] = useState<boolean>(checkIsInsideTelegram());
 
   useEffect(() => {
     const webapp = (window as any).Telegram?.WebApp;
@@ -21,8 +35,7 @@ export function useTelegram() {
       typeof window !== 'undefined' &&
       (window.location.hostname === 'localhost' ||
         window.location.hostname === '127.0.0.1' ||
-        window.location.search.includes('dev=true') ||
-        import.meta.env.DEV);
+        window.location.search.includes('dev=true'));
 
     if (hasInitData) {
       webapp.ready();

@@ -276,7 +276,7 @@ export function Profile({ profile, onRefresh, initData, backendUrl }: ProfilePro
             {editingName ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%' }}>
                 <div style={{ fontSize: '11px', color: 'var(--accent-gold)', fontWeight: 700 }}>
-                  🏷️ Namensänderung kostet 10.00 InGame$ (Guthaben: {(profile.user.game_cash || 0).toFixed(2)} $)
+                  {t.profile.nameChangeCostNotice.replace('{cash}', (profile.user.game_cash || 0).toFixed(2))}
                 </div>
                 <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                   <input
@@ -284,7 +284,7 @@ export function Profile({ profile, onRefresh, initData, backendUrl }: ProfilePro
                     value={nameInput}
                     onChange={(e) => setNameInput(e.target.value)}
                     maxLength={15}
-                    placeholder="Wunschname (3–15 Zeichen)..."
+                    placeholder={t.profile.enterNamePlaceholder}
                     autoFocus
                     style={{
                       flex: 1, background: 'rgba(0,0,0,0.4)',
@@ -308,7 +308,7 @@ export function Profile({ profile, onRefresh, initData, backendUrl }: ProfilePro
                       opacity: nameSaving ? 0.6 : 1,
                     }}
                   >
-                    {nameSaving ? '...' : '10 $ Zahlen'}
+                    {nameSaving ? '...' : t.profile.pay10Dollars}
                   </button>
                   <button
                     onClick={() => { setEditingName(false); setNameError(''); }}
@@ -330,7 +330,7 @@ export function Profile({ profile, onRefresh, initData, backendUrl }: ProfilePro
                 </span>
                 <button
                   onClick={() => { setEditingName(true); setTimeout(() => nameInputRef.current?.focus(), 50); }}
-                  title="Anzeigename für 10.00 InGame$ ändern"
+                  title={t.profile.nameChangeButton}
                   style={{
                     background: 'rgba(0,242,254,0.1)', border: '1px solid rgba(0,242,254,0.2)',
                     borderRadius: '8px', padding: '3px 8px',
@@ -338,7 +338,7 @@ export function Profile({ profile, onRefresh, initData, backendUrl }: ProfilePro
                     cursor: 'pointer', color: 'var(--accent-cyan)', fontSize: '10px', fontWeight: 700,
                   }}
                 >
-                  <Edit3 size={11} /> Name ändern (10 $)
+                  <Edit3 size={11} /> {t.profile.nameChangeButton}
                 </button>
               </div>
             )}
@@ -357,7 +357,7 @@ export function Profile({ profile, onRefresh, initData, backendUrl }: ProfilePro
               {profile.user.referrals_count}
             </div>
             <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase', letterSpacing: '0.08em', marginTop: '2px' }}>
-              Referrals
+              {t.profile.referrals}
             </div>
           </div>
         </div>
@@ -485,7 +485,7 @@ export function Profile({ profile, onRefresh, initData, backendUrl }: ProfilePro
       {/* ── Wallet Addresses ──────────────────────────────────────────────── */}
       <SectionCard>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <SectionTitle icon={<Wallet size={12} style={{ color: '#a78bfa' }} />} label="Auszahlungsadressen" />
+          <SectionTitle icon={<Wallet size={12} style={{ color: '#a78bfa' }} />} label={t.profile.payoutAddresses} />
           {!editingWallets && (
             <button
               onClick={() => setEditingWallets(true)}
@@ -496,7 +496,7 @@ export function Profile({ profile, onRefresh, initData, backendUrl }: ProfilePro
                 cursor: 'pointer', color: '#a78bfa', fontSize: '10px', fontWeight: 700,
               }}
             >
-              <Edit3 size={11} /> Bearbeiten
+              <Edit3 size={11} /> {t.profile.edit}
             </button>
           )}
         </div>
@@ -506,12 +506,12 @@ export function Profile({ profile, onRefresh, initData, backendUrl }: ProfilePro
             {/* LTC Input */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
               <label style={{ fontSize: '10px', fontWeight: 700, color: 'rgba(255,255,255,0.4)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
-                🟣 Litecoin (LTC) Auszahlungs-Adresse
+                {t.profile.ltcPayoutAddress}
               </label>
               <input
                 value={ltcInput}
                 onChange={(e) => setLtcInput(e.target.value)}
-                placeholder="LTC-Adresse eingeben (L..., M... oder ltc1...)"
+                placeholder={t.profile.ltcPlaceholder}
                 style={{
                   background: 'rgba(0,0,0,0.35)', border: '1px solid rgba(167,139,250,0.3)',
                   borderRadius: '12px', padding: '11px 14px',
@@ -532,7 +532,7 @@ export function Profile({ profile, onRefresh, initData, backendUrl }: ProfilePro
                   cursor: walletSaving ? 'not-allowed' : 'pointer', opacity: walletSaving ? 0.7 : 1,
                 }}
               >
-                {walletSaving ? 'Speichert...' : 'LTC-Adresse Speichern'}
+                {walletSaving ? t.profile.saving : t.profile.saveLtcAddress}
               </button>
               <button
                 onClick={() => { setEditingWallets(false); setWalletError(''); setLtcInput(profile.user.wallet_ltc || ''); }}
@@ -556,20 +556,20 @@ export function Profile({ profile, onRefresh, initData, backendUrl }: ProfilePro
             }}>
               <span style={{ fontSize: '16px', flexShrink: 0 }}>🟣</span>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 700 }}>Litecoin (LTC) — Airdrop-Auszahlung</div>
+                <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 700 }}>{t.profile.ltcAirdropPayout}</div>
                 <div style={{ fontSize: '12px', color: profile.user.wallet_ltc ? '#e2e8f0' : 'rgba(255,255,255,0.2)', fontFamily: 'monospace', marginTop: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {profile.user.wallet_ltc || 'Keine Adresse hinterlegt'}
+                  {profile.user.wallet_ltc || t.profile.noAddressSet}
                 </div>
               </div>
               {profile.user.wallet_ltc && <Check size={14} style={{ color: '#4ade80', flexShrink: 0 }} />}
             </div>
             {walletSuccess && (
               <div style={{ fontSize: '11px', color: '#4ade80', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                <Check size={12} /> LTC-Adresse erfolgreich gespeichert
+                <Check size={12} /> {t.profile.ltcSavedSuccess}
               </div>
             )}
             <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.25)', margin: 0, lineHeight: 1.5 }}>
-              Alle Season-Airdrops und Gewinne werden bei CoinCade ausschließlich in Litecoin (LTC) ausgezahlt.
+              {t.profile.ltcPayoutExplanation}
             </p>
           </div>
         )}
@@ -577,7 +577,7 @@ export function Profile({ profile, onRefresh, initData, backendUrl }: ProfilePro
 
       {/* ── Account Security / Danger Zone ───────────────────────────────── */}
       <SectionCard style={{ border: '1px solid rgba(239,68,68,0.15)' }}>
-        <SectionTitle icon={<Shield size={12} style={{ color: '#f87171' }} />} label="Konto" />
+        <SectionTitle icon={<Shield size={12} style={{ color: '#f87171' }} />} label={t.profile.account} />
 
         <button
           onClick={() => setShowDeleteModal(true)}
@@ -592,9 +592,9 @@ export function Profile({ profile, onRefresh, initData, backendUrl }: ProfilePro
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <Trash2 size={16} />
             <div style={{ textAlign: 'left' }}>
-              <div style={{ fontSize: '13px', fontWeight: 700 }}>Konto löschen</div>
+              <div style={{ fontSize: '13px', fontWeight: 700 }}>{t.profile.deleteAccountTitle}</div>
               <div style={{ fontSize: '10px', color: 'rgba(248,113,113,0.6)', marginTop: '2px' }}>
-                Alle Daten werden nach 48h unwiderruflich gelöscht
+                {t.profile.deleteAccountSub}
               </div>
             </div>
           </div>
@@ -635,8 +635,8 @@ export function Profile({ profile, onRefresh, initData, backendUrl }: ProfilePro
                   <AlertTriangle size={20} style={{ color: '#f87171' }} />
                 </div>
                 <div>
-                  <div style={{ fontSize: '16px', fontWeight: 900, color: '#f87171' }}>Konto löschen?</div>
-                  <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', marginTop: '2px' }}>Diese Aktion ist endgültig</div>
+                  <div style={{ fontSize: '16px', fontWeight: 900, color: '#f87171' }}>{t.profile.deletionWarningTitle}</div>
+                  <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', marginTop: '2px' }}>{t.profile.deleteModalActionIrreversible}</div>
                 </div>
               </div>
               <button onClick={() => setShowDeleteModal(false)}
@@ -653,11 +653,11 @@ export function Profile({ profile, onRefresh, initData, backendUrl }: ProfilePro
             }}>
               <ul style={{ margin: 0, paddingLeft: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 {[
-                  'Dein Spielfortschritt und alle Scores werden gelöscht',
-                  'Deine hinterlegten Wallet-Adressen werden entfernt',
-                  'Dein Referral-Konto und alle Boni gehen verloren',
-                  'Die Löschung erfolgt 48 Stunden nach Bestätigung',
-                  'Wenn du dich innerhalb der 48h erneut einloggst, wird die Löschung automatisch abgebrochen',
+                  t.profile.bullet1,
+                  t.profile.bullet2,
+                  t.profile.bullet3,
+                  t.profile.bullet4,
+                  t.profile.bullet5,
                 ].map((item, i) => (
                   <li key={i} style={{ fontSize: '12px', color: 'rgba(255,255,255,0.6)', lineHeight: 1.5 }}>{item}</li>
                 ))}
@@ -680,7 +680,7 @@ export function Profile({ profile, onRefresh, initData, backendUrl }: ProfilePro
                 }}
               >
                 <Trash2 size={15} />
-                {deleteConfirming ? 'Wird verarbeitet...' : 'Bestätigen & Ausloggen'}
+                {deleteConfirming ? t.profile.processing : t.profile.confirmAndLogout}
               </button>
               <button
                 onClick={() => setShowDeleteModal(false)}
@@ -690,7 +690,7 @@ export function Profile({ profile, onRefresh, initData, backendUrl }: ProfilePro
                   color: '#fff', fontWeight: 700, fontSize: '13px', cursor: 'pointer',
                 }}
               >
-                Abbrechen
+                {t.common.cancel}
               </button>
             </div>
           </div>

@@ -135,18 +135,10 @@ export async function submitScore(req: AuthenticatedRequest, res: Response) {
       validation_payload: validationPayload ? JSON.stringify(validationPayload) : null,
     });
 
-    // Check if user has VIP Pass for 1.25x score multiplier
-    const user = await db('users').where({ id: userId }).first();
-    const isVip = user?.season_pass_type === 'VIP';
-    const leaderboardScore = isVip ? Math.round(parsedScore * 1.25) : parsedScore;
-
-    // Write to leaderboards (Redis or local memory fallback)
-    await submitScoreToLeaderboards(userId, leaderboardScore);
-
     // Record score volume in Market Engine & award Game$ cash reward
     const { recordGameplayVolume } = require('../services/marketEngine');
     const marketResult = await recordGameplayVolume(gameId, parsedScore);
-    const earnedCash = marketResult.earnedCash || 0.0;
+    const earnedCash = parseFloat(Number(marketResult.earnedCash || 0.0).toFixed(4));
 
     if (earnedCash > 0) {
       await db('users')
@@ -154,7 +146,17 @@ export async function submitScore(req: AuthenticatedRequest, res: Response) {
         .increment('game_cash', earnedCash);
     }
 
-    // Record activity round & net profit for active season
+    // Check if user has VIP Pass for 1.25x InGame$ leaderboard multiplier
+    const user = await db('users').where({ id: userId }).first();
+    const isVip = user?.season_pass_type === 'VIP';
+    const leaderboardCash = isVip ? parseFloat((earnedCash * 1.25).toFixed(4)) : earnedCash;
+
+    // Write earned InGame$ to daily, weekly, and monthly leaderboards
+    if (leaderboardCash > 0) {
+      await submitScoreToLeaderboards(userId, leaderboardCash);
+    }
+
+    // Record activity round & net profit for active season (only if season is currently active)
     await recordUserGameActivity(userId, earnedCash);
 
     const updatedUser = await db('users').where({ id: userId }).first();
@@ -197,6 +199,31 @@ export async function getGameBenchmark(req: AuthenticatedRequest, res: Response)
     return res.json({ success: true, benchmark });
   } catch (error) {
     console.error('Error fetching game benchmark:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+}
+
+/**
+ * GET /api/game/benchmarks
+ * Returns all game live benchmarks as a map for instant lobby display.
+ */
+export async function getAllGameBenchmarks(_req: AuthenticatedRequest, res: Response) {
+  try {
+    const { getDynamicGameBenchmark } = require('../services/marketEngine');
+    const gameIds = ['doodlejump', 'neonbird', 'crossyneonroad', 'neonstacking'];
+    const benchmarks: Record<string, { targetScore: number; totalRoundsPlayed: number }> = {};
+    
+    for (const gid of gameIds) {
+      const bm = await getDynamicGameBenchmark(gid);
+      benchmarks[gid] = {
+        targetScore: bm.targetScore,
+        totalRoundsPlayed: bm.totalRoundsPlayed,
+      };
+    }
+
+    return res.json({ success: true, benchmarks });
+  } catch (error) {
+    console.error('Error fetching all game benchmarks:', error);
     return res.status(500).json({ error: 'Internal server error' });
   }
 }
