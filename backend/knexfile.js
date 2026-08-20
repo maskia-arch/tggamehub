@@ -62,7 +62,7 @@ else {
 const fs = __importStar(require("fs"));
 const distMigrations = path.join(__dirname, './dist/database/migrations');
 const srcMigrations = path.join(__dirname, './src/database/migrations');
-const migrationDir = fs.existsSync(distMigrations) && process.env.NODE_ENV === 'production' ? distMigrations : srcMigrations;
+const migrationDir = fs.existsSync(distMigrations) ? distMigrations : srcMigrations;
 const migrationExt = migrationDir === distMigrations ? 'js' : 'ts';
 const config = {
     development: {
