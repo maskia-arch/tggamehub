@@ -2,39 +2,53 @@ import { Request, Response, NextFunction } from 'express';
 import { config } from '../config';
 
 /**
- * Admin authentication middleware.
- * In development mode, access is unrestricted.
- * In production, requires Basic Auth with the ADMIN_PASSWORD env var.
+ * Checks whether an incoming request originates from local loopback (localhost).
+ */
+function isLocalhostRequest(req: Request): boolean {
+  const ip = req.ip || req.socket.remoteAddress || '';
+  const host = (req.hostname || req.headers.host || '').split(':')[0].toLowerCase();
+
+  const isLocalIp =
+    ip === '127.0.0.1' ||
+    ip === '::1' ||
+    ip === '::ffff:127.0.0.1' ||
+    ip === 'localhost';
+
+  const isLocalHost =
+    host === 'localhost' ||
+    host === '127.0.0.1' ||
+    host === '::1';
+
+  return isLocalIp || isLocalHost;
+}
+
+/**
+ * Admin authentication & visibility middleware.
+ * - In production online environments: strictly rejects non-localhost requests with 404 (completely invisible).
+ * - Locally: allows seamless execution and access on localhost.
  */
 export function adminAuth(req: Request, res: Response, next: NextFunction) {
   const env = (config.nodeEnv || 'development').trim().toLowerCase();
-  // Always allow in development mode, when dev simulation is enabled, or when non-production
-  if (env === 'development' || env !== 'production' || config.enableDevSimulation) {
-    return next();
+
+  // In production, block all external/public internet traffic to admin routes
+  if (env === 'production' && !isLocalhostRequest(req)) {
+    return res.status(404).send('Not Found');
   }
 
+  // If ADMIN_PASSWORD is set and request is authenticated via Basic Auth, verify it; otherwise allow local dev
   const adminPassword = process.env.ADMIN_PASSWORD;
-
-  // If no password is set in production, deny all access
-  if (!adminPassword) {
-    return res.status(503).json({ error: 'Admin access is not configured on this server.' });
-  }
-
   const authHeader = req.headers['authorization'];
 
-  if (!authHeader || !authHeader.startsWith('Basic ')) {
-    res.setHeader('WWW-Authenticate', 'Basic realm="TG Game Hub Admin"');
-    return res.status(401).send('Unauthorized');
-  }
-
-  const base64Credentials = authHeader.split(' ')[1];
-  const credentials = Buffer.from(base64Credentials, 'base64').toString('utf-8');
-  const [, password] = credentials.split(':');
-
-  if (password !== adminPassword) {
-    res.setHeader('WWW-Authenticate', 'Basic realm="TG Game Hub Admin"');
-    return res.status(401).send('Invalid credentials');
+  if (adminPassword && authHeader && authHeader.startsWith('Basic ')) {
+    const base64Credentials = authHeader.split(' ')[1];
+    const credentials = Buffer.from(base64Credentials, 'base64').toString('utf-8');
+    const [, password] = credentials.split(':');
+    if (password !== adminPassword) {
+      res.setHeader('WWW-Authenticate', 'Basic realm="TG Game Hub Admin"');
+      return res.status(401).send('Invalid credentials');
+    }
   }
 
   return next();
 }
+

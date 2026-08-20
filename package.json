@@ -1,0 +1,13 @@
+{
+  "name": "tggamehub-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "TG Game Hub - Full-Stack Telegram Mini App & Gaming Arcade",
+  "scripts": {
+    "install:all": "npm --prefix frontend install && npm --prefix backend install",
+    "build:frontend": "npm --prefix frontend run build",
+    "build:backend": "npm --prefix backend run build",
+    "build": "npm --prefix frontend install && npm --prefix frontend run build && npm --prefix backend install && npm --prefix backend run build",
+    "start": "node backend/dist/index.js"
+  }
+}

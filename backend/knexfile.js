@@ -59,19 +59,24 @@ else {
         filename: path.resolve(__dirname, filePath),
     };
 }
+const fs = __importStar(require("fs"));
+const distMigrations = path.join(__dirname, './dist/database/migrations');
+const srcMigrations = path.join(__dirname, './src/database/migrations');
+const migrationDir = fs.existsSync(distMigrations) && process.env.NODE_ENV === 'production' ? distMigrations : srcMigrations;
+const migrationExt = migrationDir === distMigrations ? 'js' : 'ts';
 const config = {
     development: {
         client: clientName,
         connection: connectionConfig,
         useNullAsDefault: !isPostgres,
         migrations: {
-            directory: path.join(__dirname, './src/database/migrations'),
+            directory: srcMigrations,
             extension: 'ts',
         },
         seeds: {
             directory: path.join(__dirname, './src/database/seeds'),
         },
-        pool: isPostgres ? { min: 2, max: 20 } : {
+        pool: isPostgres ? { min: 2, max: 20, idleTimeoutMillis: 30000, acquireTimeoutMillis: 30000 } : {
             afterCreate: (conn, cb) => {
                 conn.run('PRAGMA foreign_keys = ON', cb);
             }
@@ -82,10 +87,10 @@ const config = {
         connection: connectionConfig,
         useNullAsDefault: !isPostgres,
         migrations: {
-            directory: path.join(__dirname, './src/database/migrations'),
-            extension: 'js',
+            directory: migrationDir,
+            extension: migrationExt,
         },
-        pool: isPostgres ? { min: 2, max: 50 } : undefined,
+        pool: isPostgres ? { min: 2, max: 50, idleTimeoutMillis: 30000, acquireTimeoutMillis: 30000 } : undefined,
     }
 };
 exports.default = config;

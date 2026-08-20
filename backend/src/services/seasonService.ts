@@ -60,7 +60,7 @@ export async function getCurrentSeason(): Promise<SeasonInfo> {
 
   if (!season) {
     const nowStr = new Date().toISOString();
-    const [insertedId] = await db('seasons').insert({
+    await db('seasons').insert({
       season_number: 0,
       name: 'Season 0',
       status: 'preparing',
@@ -77,7 +77,7 @@ export async function getCurrentSeason(): Promise<SeasonInfo> {
       created_at: nowStr,
       updated_at: nowStr,
     });
-    season = await db('seasons').where({ id: insertedId }).first();
+    season = await db('seasons').orderBy('id', 'desc').first();
   }
 
   const currentPot = parseFloat(String(season.current_pot || 0));
@@ -420,7 +420,7 @@ export async function settleAndFinalizeSeason(seasonId?: number) {
 
   // Create next season (Season N + 1) in 'preparing' state
   const nextSeasonNumber = currentSeason.seasonNumber + 1;
-  const [newId] = await db('seasons').insert({
+  await db('seasons').insert({
     season_number: nextSeasonNumber,
     name: `Season ${nextSeasonNumber}`,
     status: 'preparing',
@@ -437,6 +437,9 @@ export async function settleAndFinalizeSeason(seasonId?: number) {
     created_at: nowIso,
     updated_at: nowIso,
   });
+
+  const createdSeason = await db('seasons').orderBy('id', 'desc').first();
+  const newId = createdSeason?.id;
 
   console.log(`[Season Engine]: Season ${currentSeason.seasonNumber} settled! Airdrops recorded. Created Season ${nextSeasonNumber} (ID: ${newId}).`);
   return { success: true, oldSeasonId: targetId, newSeasonId: newId, preview };

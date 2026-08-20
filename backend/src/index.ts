@@ -37,17 +37,63 @@ const serveAdminDashboard = (_req: express.Request, res: express.Response) => {
   res.sendFile(htmlPath);
 };
 
-app.get('/', adminAuth, serveAdminDashboard);
 app.get('/admin', adminAuth, serveAdminDashboard);
 app.get('/admin-dashboard', adminAuth, serveAdminDashboard);
 
 // Register api router
 app.use('/api', routes);
 
-// Base health check
-app.get('/health', (_req, res) => {
-  res.json({ status: 'ok', time: new Date() });
+import { getRedisStatus } from './services/redis';
+
+// Base health check with storage structure status
+app.get('/health', async (_req, res) => {
+  let dbOk = false;
+  try {
+    await db.raw('SELECT 1');
+    dbOk = true;
+  } catch (err: any) {
+    dbOk = false;
+  }
+
+  const redisStatus = getRedisStatus();
+
+  res.json({
+    status: dbOk ? 'ok' : 'degraded',
+    time: new Date(),
+    storage: {
+      database: {
+        type: config.isPostgres ? 'PostgreSQL' : 'SQLite',
+        connected: dbOk,
+      },
+      redis: redisStatus,
+    }
+  });
 });
+
+// ── Serve Vite Frontend MiniApp (Single-Service Monolith Deployment) ────────
+const possibleFrontendPaths = [
+  path.join(__dirname, '../../frontend/dist'),
+  path.join(process.cwd(), 'frontend/dist'),
+  path.join(__dirname, '../frontend/dist'),
+  path.join(process.cwd(), 'dist/frontend'),
+];
+const frontendDistPath = possibleFrontendPaths.find((p) => fs.existsSync(p));
+
+if (frontendDistPath) {
+  console.log(`[SERVER]: Serving Vite Frontend SPA from ${frontendDistPath}`);
+  app.use(express.static(frontendDistPath));
+
+  // SPA fallback for all remaining client routes
+  app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api') || req.path.startsWith('/admin') || req.path.startsWith('/health')) {
+      return next();
+    }
+    res.sendFile(path.join(frontendDistPath, 'index.html'));
+  });
+} else {
+  // If no frontend build exists, serve Admin Dashboard at root
+  app.get('/', adminAuth, serveAdminDashboard);
+}
 
 import { runAutoMigrations } from './database/autoMigrate';
 

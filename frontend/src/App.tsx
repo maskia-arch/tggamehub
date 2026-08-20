@@ -10,9 +10,10 @@ import { SeasonBanner } from './components/SeasonBanner';
 import { EnergyModal } from './components/EnergyModal';
 import { useLanguage } from './i18n/LanguageContext';
 import { LanguageToggle } from './components/LanguageToggle';
+import { TelegramRedirectLanding } from './components/TelegramRedirectLanding';
 
-// Read API URL from environment, fallback to local Express server port
-const BACKEND_URL = (import.meta.env.VITE_API_URL as string) || 'http://localhost:5000';
+// Read API URL from environment, fallback to current origin (single-service) or local dev server
+const BACKEND_URL = (import.meta.env.VITE_API_URL as string) || (typeof window !== 'undefined' && window.location.origin ? window.location.origin : 'http://localhost:5000');
 
 interface ProfileData {
   user: {
@@ -44,11 +45,17 @@ interface ProfileData {
 
 export default function App() {
   const { t } = useLanguage();
-  const { initData } = useTelegram();
+  const { initData, isInsideTelegram } = useTelegram();
   const [activeTab, setActiveTab] = useState<'games' | 'market' | 'leaderboard' | 'shop' | 'profile'>('games');
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
   const [showEnergyPopup, setShowEnergyPopup] = useState(false);
+
+  // If visitor is browsing directly on web outside Telegram, show the Telegram redirect landing page
+  if (isInsideTelegram === false) {
+    return <TelegramRedirectLanding />;
+  }
+
 
   // Fetch/Refresh profile details
   const fetchProfile = useCallback(async () => {

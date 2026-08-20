@@ -392,22 +392,28 @@ export async function getAdminOrders(req: Request, res: Response) {
   }
 }
 
+import { getRedisStatus } from '../services/redis';
+
 // ─────────────────────────────────────────────────────────────────────────────
 // GET /api/admin/config  — runtime config info (non-sensitive)
 // ─────────────────────────────────────────────────────────────────────────────
 export async function getAdminConfig(_req: Request, res: Response) {
+  const redisStatus = getRedisStatus();
   return res.json({
     nodeEnv: config.nodeEnv,
     port: config.port,
     isPostgres: config.isPostgres,
+    databaseType: config.isPostgres ? 'PostgreSQL (18)' : 'SQLite',
     maxEnergy: config.maxEnergy,
     energyRechargeInterval: config.energyRechargeInterval,
     referralEnergyBonus: config.referralEnergyBonus,
     hasRedis: !!config.redisUrl,
+    redisStatus: redisStatus,
     hasTelegramBot: !!config.telegramBotToken,
     frontendUrl: config.frontendUrl,
   });
 }
+
 
 /**
  * PATCH /api/admin/users/:id — Update player settings, energy, wallet, ad count, deletion status, and adjust score.

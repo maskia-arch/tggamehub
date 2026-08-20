@@ -2,23 +2,42 @@ import Redis from 'ioredis';
 import { config } from '../config';
 import db from '../database/client';
 
+let isRedisConnected = false;
 let redis: Redis | null = null;
 
 if (config.redisUrl) {
   try {
     redis = new Redis(config.redisUrl, {
-      maxRetriesPerRequest: 1,
+      maxRetriesPerRequest: 2,
+      enableReadyCheck: true,
+      lazyConnect: false,
+      connectTimeout: 5000,
       retryStrategy(times) {
-        if (times > 3) {
-          console.warn('[REDIS WARNING]: Failed to connect to Redis. Falling back to in-memory leaderboards.');
-          redis = null;
-          return null; // Stop retrying
-        }
-        return Math.min(times * 100, 2000);
+        // Automatic exponential backoff with max 3s delay for resilient auto-reconnect
+        const delay = Math.min(times * 150, 3000);
+        return delay;
       }
     });
+
+    redis.on('connect', () => {
+      console.log('[REDIS]: Connecting to Redis server...');
+    });
+
+    redis.on('ready', () => {
+      isRedisConnected = true;
+      console.log('[REDIS]: Connection established and ready.');
+    });
+
+    redis.on('reconnecting', () => {
+      console.log('[REDIS]: Reconnecting to Redis...');
+    });
+
+    redis.on('close', () => {
+      isRedisConnected = false;
+    });
+
     redis.on('error', (err) => {
-      // Catch errors silently so server doesn't crash if Redis goes down
+      isRedisConnected = false;
       console.warn('[REDIS ERROR]:', err.message);
     });
   } catch (error) {
@@ -27,6 +46,18 @@ if (config.redisUrl) {
 } else {
   console.log('[LEADERBOARD]: No REDIS_URL provided. Using in-memory leaderboard emulator.');
 }
+
+/**
+ * Returns current Redis connection and health status
+ */
+export function getRedisStatus() {
+  return {
+    enabled: !!config.redisUrl,
+    connected: isRedisConnected,
+    mode: (redis && isRedisConnected) ? 'redis' : 'in-memory-fallback',
+  };
+}
+
 
 // In-memory fallback database for leaderboards
 const memoryLeaderboards = new Map<string, Map<string, number>>();

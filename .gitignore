@@ -77,3 +77,11 @@ Desktop.ini
 *.sln
 *.sw?
 *.swo
+
+# 8. Local Start & Automation Scripts
+start-*.bat
+*.bat
+*.cmd
+*.ps1
+*.sh
+
