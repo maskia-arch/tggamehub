@@ -1,4 +1,5 @@
 import { Knex } from 'knex';
+import { config } from '../config';
 
 /**
  * Database Auto-Migration & Self-Healing Synchronizer
@@ -279,7 +280,7 @@ export async function runAutoMigrations(knex: Knex): Promise<void> {
     const hasShopOrdersTable = await knex.schema.hasTable('shop_orders');
     if (!hasShopOrdersTable) {
       await knex.schema.createTable('shop_orders', (table) => {
-        table.string('id').primary();
+        table.string('id', 255).primary();
         table.string('user_id').notNullable();
         table.string('product_id').notNullable();
         table.decimal('amount_eur', 12, 2).notNullable();
@@ -293,6 +294,15 @@ export async function runAutoMigrations(knex: Knex): Promise<void> {
       });
       console.log('[DATABASE AUTO-SYNC]: Created shop_orders table.');
     } else {
+      // If table already exists, ensure id column is VARCHAR(255) on PostgreSQL
+      if (config.isPostgres) {
+        try {
+          await knex.raw('ALTER TABLE shop_orders ALTER COLUMN id TYPE VARCHAR(255) USING id::text;');
+          console.log('[DATABASE AUTO-SYNC]: Verified shop_orders id column is VARCHAR(255).');
+        } catch (colErr: any) {
+          console.warn('[DATABASE AUTO-SYNC]: shop_orders id column type migration notice:', colErr.message);
+        }
+      }
       await ensureColumn(knex, 'shop_orders', 'user_id', (t) => t.string('user_id').notNullable().defaultTo(''));
       await ensureColumn(knex, 'shop_orders', 'product_id', (t) => t.string('product_id').notNullable().defaultTo(''));
       await ensureColumn(knex, 'shop_orders', 'amount_eur', (t) => t.decimal('amount_eur', 12, 2).notNullable().defaultTo(0));

@@ -151,16 +151,25 @@ function verifyWalletSignature(req: Request): boolean {
   if (!signature || typeof signature !== 'string') return false;
 
   const bodyStr = JSON.stringify(req.body);
-  const expected = crypto
-    .createHmac('sha256', config.shopWebhookSecret)
-    .update(bodyStr)
-    .digest('hex');
+  const secrets = [config.shopWebhookSecret, config.adminApiKey].filter(Boolean);
+  for (const s of secrets) {
+    const expected = crypto
+      .createHmac('sha256', s)
+      .update(bodyStr)
+      .digest('hex');
 
-  const sigBuf = Buffer.from(signature);
-  const expBuf = Buffer.from(expected);
-  if (sigBuf.length !== expBuf.length) return false;
+    const sigBuf = Buffer.from(signature);
+    const expBuf = Buffer.from(expected);
+    if (sigBuf.length === expBuf.length && crypto.timingSafeEqual(sigBuf, expBuf)) {
+      return true;
+    }
+  }
+  return false;
+}
 
-  return crypto.timingSafeEqual(sigBuf, expBuf);
+function isAuthorizedSecret(secret: string): boolean {
+  if (!secret) return false;
+  return secret === config.shopWebhookSecret || secret === config.adminApiKey;
 }
 
 // ============================================================================
@@ -362,7 +371,7 @@ export async function getOrderStatus(req: AuthenticatedRequest, res: Response) {
 export async function getActivePayments(req: Request, res: Response) {
   try {
     const secret = req.headers.authorization?.replace('Bearer ', '') || '';
-    if (secret !== config.shopWebhookSecret) {
+    if (!isAuthorizedSecret(secret)) {
       return res.status(403).json({ error: 'Unauthorized secret token' });
     }
 
@@ -390,7 +399,7 @@ export async function getActivePayments(req: Request, res: Response) {
 export async function getAddressPoolStatus(req: Request, res: Response) {
   try {
     const secret = req.headers.authorization?.replace('Bearer ', '') || '';
-    if (secret !== config.shopWebhookSecret) {
+    if (!isAuthorizedSecret(secret)) {
       return res.status(403).json({ error: 'Unauthorized secret token' });
     }
 
@@ -513,7 +522,7 @@ export async function processWalletCallback(req: Request, res: Response) {
 
 export async function getSyncQueue(req: Request, res: Response) {
   const secret = req.headers.authorization?.replace('Bearer ', '') || '';
-  if (secret !== config.shopWebhookSecret) {
+  if (!isAuthorizedSecret(secret)) {
     return res.status(403).json({ error: 'Unauthorized secret token' });
   }
   return res.json({ queue: [] });
