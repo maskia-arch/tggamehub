@@ -26,8 +26,13 @@ export function calculateEnergy(
   const elapsedSeconds = Math.max(0, Math.floor(elapsedMs / 1000));
   const cooldown = config.energyRechargeInterval;
 
-  // Season Pass / VIP Pass increases max energy cap to 8 (otherwise 5)
-  const maxEnergy = (seasonPassType === 'SEASON' || seasonPassType === 'VIP') ? 8 : config.maxEnergy;
+  // VIP Pass increases max energy cap to 15, Season Pass to 8 (otherwise standard 5)
+  let maxEnergy = config.maxEnergy;
+  if (seasonPassType === 'VIP') {
+    maxEnergy = 15;
+  } else if (seasonPassType === 'SEASON') {
+    maxEnergy = 8;
+  }
 
   // Time booster check
   let isTimeBoosterActive = false;

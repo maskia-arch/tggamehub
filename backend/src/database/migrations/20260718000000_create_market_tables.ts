@@ -87,7 +87,7 @@ export async function up(knex: Knex): Promise<void> {
     },
     {
       symbol: 'FLAPPY',
-      name: 'Neon Flappy Coin',
+      name: 'Neon Bird Coin',
       game_id: 'neonbird',
       current_price: 0.00000001,
       base_price: 0.00000001,

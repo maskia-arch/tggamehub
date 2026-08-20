@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Zap, Target } from 'lucide-react';
 import { EnergyModal } from './EnergyModal';
@@ -127,41 +127,57 @@ export function GameWrapper({
     setGameSessionToken(null);
   }, []);
 
-  // Starts the game by consuming 1 energy point and obtaining the JWT token
-  const handleStartGame = useCallback(async (game: Game) => {
-    setActiveGame(game);
-    if (currentEnergy < 1) {
-      setShowEnergyPopup(true);
-      return;
-    }
-
-    try {
-      const response = await fetch(`${backendUrl}/api/game/start`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${initData}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ gameId: game.id }),
-      });
-
-      const data = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(data.message || 'Fehler beim Starten des Spiels');
+  const handleStartGame = useCallback(
+    async (game: Game) => {
+      if (currentEnergy < 1) {
+        setShowEnergyPopup(true);
+        return;
       }
 
-      setGameSessionToken(data.gameSessionToken);
-      setIsPlaying(true);
-    } catch (err: any) {
-      alert(err.message || 'Serverfehler beim Spielstart.');
-    }
-  }, [currentEnergy, initData, backendUrl]);
+      setActiveGame(game);
+      setSubmitting(true);
+      try {
+        const response = await fetch(`${backendUrl}/api/game/start`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${initData}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ gameId: game.id }),
+        });
+
+        const data = await response.json();
+        
+        if (!response.ok || !data.gameSessionToken) {
+          setActiveGame(null);
+          setSubmitting(false);
+          setShowEnergyPopup(true);
+          return;
+        }
+
+        setGameSessionToken(data.gameSessionToken);
+        setIsPlaying(true);
+        setSubmitting(false);
+        onGameFinished(); // Deducts -1 energy in top header immediately
+      } catch (err: any) {
+        setActiveGame(null);
+        setSubmitting(false);
+        setShowEnergyPopup(true);
+      }
+    },
+    [currentEnergy, initData, backendUrl, onGameFinished]
+  );
+
+  const submittedTokens = useRef<Set<string>>(new Set());
 
   // Submits the score to the secure backend api (silently or with loading indicator)
   const handleSubmitScore = useCallback(
     async (score: number, validationPayload?: any, showSpinner: boolean = false) => {
       if (!activeGame || !gameSessionToken) return;
+      if (submittedTokens.current.has(gameSessionToken)) {
+        return;
+      }
+      submittedTokens.current.add(gameSessionToken);
       
       if (showSpinner) {
         setSubmitting(true);
@@ -208,37 +224,40 @@ export function GameWrapper({
           const score = event.data.score;
           const payload = event.data.validationPayload;
 
+          // 1. Submit the completed round's score
           await handleSubmitScore(score, payload, false);
 
-          if (currentEnergy >= 1) {
-            setSubmitting(true);
-            try {
-              const response = await fetch(`${backendUrl}/api/game/start`, {
-                method: 'POST',
-                headers: {
-                  'Authorization': `Bearer ${initData}`,
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ gameId: activeGame!.id }),
-              });
+          // 2. Request new game session token with -1 energy deduction
+          setSubmitting(true);
+          try {
+            const response = await fetch(`${backendUrl}/api/game/start`, {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${initData}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({ gameId: activeGame!.id }),
+            });
 
-              const data = await response.json();
-              if (response.ok) {
-                setGameSessionToken(data.gameSessionToken);
-                setIsPlaying(false);
-                setTimeout(() => {
-                  setIsPlaying(true);
-                  setSubmitting(false);
-                }, 100);
-              } else {
+            const data = await response.json();
+            if (response.ok && data.gameSessionToken) {
+              setGameSessionToken(data.gameSessionToken);
+              onGameFinished(); // Deducts -1 energy in top header immediately
+              setIsPlaying(false);
+              setTimeout(() => {
+                setIsPlaying(true);
                 setSubmitting(false);
-                setShowEnergyPopup(true);
-              }
-            } catch (err) {
+              }, 60);
+            } else {
+              // Insufficient energy! Exit game and show Energy Modal with Ad & Shop options
+              setIsPlaying(false);
+              setActiveGame(null);
               setSubmitting(false);
               setShowEnergyPopup(true);
             }
-          } else {
+          } catch (err) {
+            setIsPlaying(false);
+            setActiveGame(null);
             setSubmitting(false);
             setShowEnergyPopup(true);
           }
@@ -248,7 +267,7 @@ export function GameWrapper({
 
     window.addEventListener('message', handleIframeMessage);
     return () => window.removeEventListener('message', handleIframeMessage);
-  }, [handleSubmitScore, currentEnergy, activeGame, gameSessionToken, backendUrl, initData, handleCloseGame]);
+  }, [handleSubmitScore, activeGame, gameSessionToken, backendUrl, initData, handleCloseGame, onGameFinished]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', paddingBottom: '24px' }}>

@@ -163,6 +163,15 @@ export async function buildMarketMenu(userId: string): Promise<MenuRenderResult>
   const user = await db('users').where({ id: userId }).first();
   const gameCash = (user?.game_cash || 0.0).toFixed(2);
 
+  function formatBotPrice(price: number): string {
+    if (price < 0.001) {
+      return price.toFixed(10);
+    } else if (price < 1) {
+      return price.toFixed(6);
+    }
+    return price.toFixed(4);
+  }
+
   let coinsText = '';
   const tradeButtons: any[] = [];
 
@@ -171,9 +180,10 @@ export async function buildMarketMenu(userId: string): Promise<MenuRenderResult>
     const changeStr = `${changeSign}${c.change24hPercent.toFixed(2)}%`;
     const userHolding = marketData.portfolio.find((p) => p.coinSymbol === c.symbol);
     const holdingAmount = userHolding ? userHolding.amount.toLocaleString('de-DE') : '0';
+    const priceFormatted = formatBotPrice(c.currentPrice);
 
     coinsText += `🔹 *${c.name} ($${c.symbol})*\n` +
-      `  • Kurs: \`${c.currentPrice.toFixed(8)} $\` (${changeStr})\n` +
+      `  • Kurs: \`${priceFormatted} $\` (${changeStr})\n` +
       `  • 24h Volumen: \`${c.volume24h.toFixed(2)} $\`\n` +
       `  • Dein Bestand: \`${holdingAmount} ${c.symbol}\`\n\n`;
 

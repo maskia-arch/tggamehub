@@ -45,6 +45,7 @@ export async function runAutoMigrations(knex: Knex): Promise<void> {
         table.timestamp('time_booster_until').nullable();
         table.string('season_pass_type').defaultTo('NONE');
         table.string('last_daily_free_refill_date').nullable();
+        table.integer('daily_refill_count').defaultTo(0);
         table.timestamp('created_at').defaultTo(knex.fn.now());
       });
       console.log('[DATABASE AUTO-SYNC]: Created users table.');
@@ -66,6 +67,7 @@ export async function runAutoMigrations(knex: Knex): Promise<void> {
       await ensureColumn(knex, 'users', 'time_booster_until', (t) => t.timestamp('time_booster_until').nullable());
       await ensureColumn(knex, 'users', 'season_pass_type', (t) => t.string('season_pass_type').defaultTo('NONE'));
       await ensureColumn(knex, 'users', 'last_daily_free_refill_date', (t) => t.string('last_daily_free_refill_date').nullable());
+      await ensureColumn(knex, 'users', 'daily_refill_count', (t) => t.integer('daily_refill_count').defaultTo(0));
     }
 
     // ── Table: SCORES ─────────────────────────────────────────────────────────
@@ -333,12 +335,12 @@ export async function runAutoMigrations(knex: Knex): Promise<void> {
 
       await knex('market_coins').insert([
         { symbol: 'DOODLE', name: 'Neon Jump Coin', game_id: 'doodlejump', current_price: 0.00000001, base_price: 0.00000001, circulating_supply: 1000000000.0, total_burned: 0.0, volume_24h: 0.0 },
-        { symbol: 'FLAPPY', name: 'Neon Flappy Coin', game_id: 'neonbird', current_price: 0.00000001, base_price: 0.00000001, circulating_supply: 1000000000.0, total_burned: 0.0, volume_24h: 0.0 },
+        { symbol: 'FLAPPY', name: 'Neon Bird Coin', game_id: 'neonbird', current_price: 0.00000001, base_price: 0.00000001, circulating_supply: 1000000000.0, total_burned: 0.0, volume_24h: 0.0 },
       ]);
     } else {
       // Ensure canonical names
       await knex('market_coins').where({ symbol: 'DOODLE' }).update({ name: 'Neon Jump Coin' });
-      await knex('market_coins').where({ symbol: 'FLAPPY' }).update({ name: 'Neon Flappy Coin' });
+      await knex('market_coins').where({ symbol: 'FLAPPY' }).update({ name: 'Neon Bird Coin' });
     }
 
     // ── Table: USER_PORTFOLIOS ────────────────────────────────────────────────

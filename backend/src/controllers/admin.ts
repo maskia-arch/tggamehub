@@ -3,14 +3,14 @@ import db from '../database/client';
 import { submitScoreToLeaderboards, resetLeaderboardCache } from '../services/redis';
 import { config } from '../config';
 import * as crypto from 'crypto';
-
-
+import { recycleExpiredOrders } from './shop';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // GET /api/admin/stats  — main overview stats
 // ─────────────────────────────────────────────────────────────────────────────
 export async function getAdminStats(_req: Request, res: Response) {
   try {
+    await recycleExpiredOrders();
     const safeCount = async (table: string, whereFn?: (q: any) => void) => {
       try {
         let q = db(table);
@@ -346,6 +346,7 @@ export async function settleAdminSeason(_req: Request, res: Response) {
 // ─────────────────────────────────────────────────────────────────────────────
 export async function getAdminOrders(req: Request, res: Response) {
   try {
+    await recycleExpiredOrders();
     const page = Math.max(1, parseInt(String(req.query.page || '1'), 10));
     const limit = Math.min(100, Math.max(5, parseInt(String(req.query.limit || '50'), 10)));
     const offset = (page - 1) * limit;

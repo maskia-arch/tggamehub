@@ -19,6 +19,8 @@ interface ProfileData {
     daily_ad_limit: number;
     season_pass_type?: 'NONE' | 'SEASON' | 'VIP';
     can_claim_free_refill?: boolean;
+    daily_refill_remaining?: number;
+    daily_refill_limit?: number;
     wallet_ltc: string | null;
     deletion_scheduled_at: string | null;
     game_cash?: number;
@@ -156,13 +158,13 @@ export function Profile({ profile, onRefresh, initData, backendUrl }: ProfilePro
   const saveDisplayName = async () => {
     const cleanName = nameInput.trim();
     if (!cleanName || cleanName.length < 3 || cleanName.length > 15) {
-      setNameError('Anzeigename muss zwischen 3 und 15 Zeichen lang sein.');
+      setNameError(t.profile.nameMinMaxError);
       return;
     }
 
     const currentCash = profile.user.game_cash || 0;
     if (currentCash < 10.0) {
-      setNameError(`Zu wenig Game Cash (Kosten: 10.00 $, Dein Guthaben: ${currentCash.toFixed(2)} $).`);
+      setNameError(t.profile.nameChangeInsufficientHint.replace('{needed}', (10.0 - currentCash).toFixed(2)));
       return;
     }
 
@@ -273,75 +275,51 @@ export function Profile({ profile, onRefresh, initData, backendUrl }: ProfilePro
 
           {/* Name + username */}
           <div style={{ flex: 1, minWidth: 0 }}>
-            {editingName ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%' }}>
-                <div style={{ fontSize: '11px', color: 'var(--accent-gold)', fontWeight: 700 }}>
-                  {t.profile.nameChangeCostNotice.replace('{cash}', (profile.user.game_cash || 0).toFixed(2))}
-                </div>
-                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                  <input
-                    ref={nameInputRef}
-                    value={nameInput}
-                    onChange={(e) => setNameInput(e.target.value)}
-                    maxLength={15}
-                    placeholder={t.profile.enterNamePlaceholder}
-                    autoFocus
-                    style={{
-                      flex: 1, background: 'rgba(0,0,0,0.4)',
-                      border: '1px solid rgba(0,242,254,0.35)',
-                      borderRadius: '10px', padding: '8px 12px',
-                      color: '#fff', fontSize: '14px', fontWeight: 700,
-                      outline: 'none',
-                    }}
-                    onKeyDown={(e) => { if (e.key === 'Enter') saveDisplayName(); if (e.key === 'Escape') setEditingName(false); }}
-                  />
-                  <button
-                    onClick={saveDisplayName}
-                    disabled={nameSaving || (profile.user.game_cash || 0) < 10.0}
-                    style={{
-                      background: (profile.user.game_cash || 0) < 10.0 ? 'rgba(255,255,255,0.1)' : 'var(--primary-glow)',
-                      border: 'none',
-                      borderRadius: '10px', padding: '8px 14px',
-                      color: (profile.user.game_cash || 0) < 10.0 ? 'rgba(255,255,255,0.4)' : '#000',
-                      fontWeight: 800, fontSize: '12px',
-                      cursor: (profile.user.game_cash || 0) < 10.0 ? 'not-allowed' : 'pointer',
-                      opacity: nameSaving ? 0.6 : 1,
-                    }}
-                  >
-                    {nameSaving ? '...' : t.profile.pay10Dollars}
-                  </button>
-                  <button
-                    onClick={() => { setEditingName(false); setNameError(''); }}
-                    style={{
-                      background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)',
-                      borderRadius: '10px', padding: '8px 10px',
-                      color: '#aaa', cursor: 'pointer',
-                    }}
-                  >
-                    <X size={14} />
-                  </button>
-                </div>
-                {nameError && <span style={{ fontSize: '11px', color: '#f87171' }}>{nameError}</span>}
-              </div>
-            ) : (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                <span style={{ fontSize: '18px', fontWeight: 900, color: '#fff', lineHeight: 1.2 }}>
-                  {displayName}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+              <span style={{ fontSize: '18px', fontWeight: 900, color: '#fff', lineHeight: 1.2 }}>
+                {displayName}
+              </span>
+              {profile.user.season_pass_type === 'VIP' && (
+                <span style={{
+                  fontSize: '10px', fontWeight: 900, color: '#fbbf24',
+                  background: 'linear-gradient(135deg, rgba(245,158,11,0.25) 0%, rgba(251,191,36,0.12) 100%)',
+                  border: '1px solid rgba(251,191,36,0.45)',
+                  borderRadius: '6px', padding: '2px 7px',
+                  display: 'inline-flex', alignItems: 'center', gap: '3px',
+                  boxShadow: '0 0 10px rgba(251,191,36,0.3)',
+                }}>
+                  👑 VIP
                 </span>
-                <button
-                  onClick={() => { setEditingName(true); setTimeout(() => nameInputRef.current?.focus(), 50); }}
-                  title={t.profile.nameChangeButton}
-                  style={{
-                    background: 'rgba(0,242,254,0.1)', border: '1px solid rgba(0,242,254,0.2)',
-                    borderRadius: '8px', padding: '3px 8px',
-                    display: 'flex', alignItems: 'center', gap: '4px',
-                    cursor: 'pointer', color: 'var(--accent-cyan)', fontSize: '10px', fontWeight: 700,
-                  }}
-                >
-                  <Edit3 size={11} /> {t.profile.nameChangeButton}
-                </button>
-              </div>
-            )}
+              )}
+              {profile.user.season_pass_type === 'SEASON' && (
+                <span style={{
+                  fontSize: '10px', fontWeight: 800, color: '#38bdf8',
+                  background: 'rgba(56,189,248,0.15)',
+                  border: '1px solid rgba(56,189,248,0.35)',
+                  borderRadius: '6px', padding: '2px 6px',
+                }}>
+                  🌟 PASS
+                </span>
+              )}
+              <button
+                onClick={() => {
+                  setNameInput(profile.user.display_name || profile.user.first_name || '');
+                  setEditingName(true);
+                  setNameError('');
+                  setTimeout(() => nameInputRef.current?.focus(), 50);
+                }}
+                title={t.profile.nameChangeButton}
+                style={{
+                  background: 'rgba(0,242,254,0.1)', border: '1px solid rgba(0,242,254,0.2)',
+                  borderRadius: '8px', padding: '3px 8px',
+                  display: 'flex', alignItems: 'center', gap: '4px',
+                  cursor: 'pointer', color: 'var(--accent-cyan)', fontSize: '10px', fontWeight: 700,
+                  transition: 'all 0.2s',
+                }}
+              >
+                <Edit3 size={11} /> {t.profile.nameChangeButton}
+              </button>
+            </div>
             <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.35)', marginTop: '3px', display: 'block' }}>
               {profile.user.username ? `@${profile.user.username}` : `ID: ${profile.user.id}`}
             </span>
@@ -428,23 +406,29 @@ export function Profile({ profile, onRefresh, initData, backendUrl }: ProfilePro
             {/* Watch ad */}
             <button
               onClick={watchAd}
-              disabled={adLoading || profile.user.daily_ad_count >= profile.user.daily_ad_limit}
+              disabled={adLoading || (profile.user.daily_ad_limit < 999 && profile.user.daily_ad_count >= profile.user.daily_ad_limit)}
               style={{
-                background: adLoading || profile.user.daily_ad_count >= profile.user.daily_ad_limit ? 'rgba(255,255,255,0.05)' : 'var(--primary-glow)',
-                boxShadow: adLoading || profile.user.daily_ad_count >= profile.user.daily_ad_limit ? 'none' : 'var(--shadow-neon)',
+                background: adLoading || (profile.user.daily_ad_limit < 999 && profile.user.daily_ad_count >= profile.user.daily_ad_limit) ? 'rgba(255,255,255,0.05)' : 'var(--primary-glow)',
+                boxShadow: adLoading || (profile.user.daily_ad_limit < 999 && profile.user.daily_ad_count >= profile.user.daily_ad_limit) ? 'none' : 'var(--shadow-neon)',
                 border: 'none', borderRadius: '12px',
                 padding: '10px 14px',
-                color: adLoading || profile.user.daily_ad_count >= profile.user.daily_ad_limit ? 'rgba(255,255,255,0.3)' : '#000',
-                fontWeight: 800, fontSize: '11px', cursor: adLoading || profile.user.daily_ad_count >= profile.user.daily_ad_limit ? 'not-allowed' : 'pointer',
+                color: adLoading || (profile.user.daily_ad_limit < 999 && profile.user.daily_ad_count >= profile.user.daily_ad_limit) ? 'rgba(255,255,255,0.3)' : '#000',
+                fontWeight: 800, fontSize: '11px', cursor: adLoading || (profile.user.daily_ad_limit < 999 && profile.user.daily_ad_count >= profile.user.daily_ad_limit) ? 'not-allowed' : 'pointer',
                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
                 transition: 'all 0.2s',
               }}
             >
               <Tv size={13} />
-              {adLoading ? t.common.loading : profile.user.daily_ad_count >= profile.user.daily_ad_limit ? t.header.adLimitReached : t.header.watchAdBtn}
+              {adLoading
+                ? t.common.loading
+                : (profile.user.daily_ad_limit < 999 && profile.user.daily_ad_count >= profile.user.daily_ad_limit)
+                  ? t.header.adLimitReached
+                  : t.header.watchAdBtn}
             </button>
             <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.25)' }}>
-              {Math.max(0, profile.user.daily_ad_limit - profile.user.daily_ad_count)}/{profile.user.daily_ad_limit} {t.header.videosRemaining}
+              {profile.user.daily_ad_limit >= 999
+                ? '∞ Unbegrenzte Videos (VIP)'
+                : `${Math.max(0, profile.user.daily_ad_limit - profile.user.daily_ad_count)}/${profile.user.daily_ad_limit} ${t.header.videosRemaining}`}
             </span>
           </div>
         </div>
@@ -688,6 +672,176 @@ export function Profile({ profile, onRefresh, initData, backendUrl }: ProfilePro
                   background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
                   borderRadius: '14px', padding: '14px',
                   color: '#fff', fontWeight: 700, fontSize: '13px', cursor: 'pointer',
+                }}
+              >
+                {t.common.cancel}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Dedicated Name Change Modal ─────────────────────────────────────── */}
+      {editingName && (
+        <div style={{
+          position: 'fixed', inset: 0,
+          background: 'rgba(5,7,15,0.88)',
+          backdropFilter: 'blur(16px)',
+          WebkitBackdropFilter: 'blur(16px)',
+          zIndex: 999999,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          padding: '16px',
+          animation: 'fadeIn 0.2s ease-out forwards',
+        }}>
+          <div style={{
+            background: '#0c1020',
+            border: '1px solid rgba(0, 242, 254, 0.3)',
+            boxShadow: '0 0 50px rgba(0, 242, 254, 0.15), 0 20px 40px rgba(0,0,0,0.8)',
+            borderRadius: '24px',
+            padding: '22px',
+            width: '100%', maxWidth: '380px',
+            display: 'flex', flexDirection: 'column', gap: '16px',
+            animation: 'scaleUp 0.25s cubic-bezier(0.34, 1.56, 0.64, 1) forwards',
+          }}>
+            {/* Modal Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{
+                  width: '38px', height: '38px', borderRadius: '12px',
+                  background: 'rgba(0,242,254,0.12)', border: '1px solid rgba(0,242,254,0.3)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}>
+                  <Edit3 size={18} style={{ color: 'var(--accent-cyan)' }} />
+                </div>
+                <div>
+                  <div style={{ fontSize: '15px', fontWeight: 900, color: '#fff' }}>
+                    {t.profile.nameChangeModalTitle}
+                  </div>
+                  <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', marginTop: '1px' }}>
+                    {t.profile.nameChangeModalSubtitle}
+                  </div>
+                </div>
+              </div>
+              <button
+                onClick={() => { setEditingName(false); setNameError(''); }}
+                style={{
+                  width: '32px', height: '32px', borderRadius: '50%',
+                  background: 'rgba(255, 255, 255, 0.06)', border: '1px solid rgba(255, 255, 255, 0.1)',
+                  color: '#d1d5db', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  cursor: 'pointer',
+                }}
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Cost & Balance Info */}
+            <div style={{
+              background: 'rgba(0,0,0,0.35)',
+              border: '1px solid rgba(255, 140, 0, 0.25)',
+              borderRadius: '16px', padding: '12px 16px',
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+            }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.45)', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 800 }}>
+                  {t.profile.nameChangeFeeLabel}
+                </span>
+                <span style={{ fontSize: '15px', fontWeight: 900, color: 'var(--accent-gold)' }}>
+                  {t.profile.nameChangeFeeValue}
+                </span>
+              </div>
+              <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.45)', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 800 }}>
+                  {t.profile.nameChangeBalanceLabel}
+                </span>
+                <span style={{ fontSize: '15px', fontWeight: 900, color: (profile.user.game_cash || 0) >= 10.0 ? '#4ade80' : '#f87171' }}>
+                  {(profile.user.game_cash || 0).toFixed(2)} $
+                </span>
+              </div>
+            </div>
+
+            {/* Input Group */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <label style={{ fontSize: '11px', fontWeight: 700, color: 'rgba(255,255,255,0.6)' }}>
+                  {t.profile.nameChangeNewNameLabel}
+                </label>
+                <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.35)', fontFamily: 'monospace' }}>
+                  {t.profile.nameChangeCharsCount.replace('{count}', String(nameInput.trim().length))}
+                </span>
+              </div>
+              <input
+                ref={nameInputRef}
+                value={nameInput}
+                onChange={(e) => {
+                  setNameInput(e.target.value);
+                  if (nameError) setNameError('');
+                }}
+                maxLength={15}
+                placeholder={t.profile.enterNamePlaceholder}
+                autoFocus
+                style={{
+                  background: 'rgba(0,0,0,0.5)',
+                  border: '1px solid rgba(0,242,254,0.35)',
+                  borderRadius: '12px', padding: '12px 14px',
+                  color: '#fff', fontSize: '14px', fontWeight: 700,
+                  outline: 'none', width: '100%',
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') saveDisplayName();
+                  if (e.key === 'Escape') setEditingName(false);
+                }}
+              />
+            </div>
+
+            {/* Error or Insufficient funds notice */}
+            {nameError ? (
+              <div style={{
+                background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)',
+                borderRadius: '10px', padding: '8px 12px', fontSize: '11px', color: '#f87171',
+              }}>
+                {nameError}
+              </div>
+            ) : (profile.user.game_cash || 0) < 10.0 ? (
+              <div style={{
+                background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.25)',
+                borderRadius: '10px', padding: '8px 12px', fontSize: '11px', color: '#fbbf24',
+              }}>
+                {t.profile.nameChangeInsufficientHint.replace('{needed}', (10.0 - (profile.user.game_cash || 0)).toFixed(2))}
+              </div>
+            ) : null}
+
+            {/* Action Buttons */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '4px' }}>
+              <button
+                onClick={saveDisplayName}
+                disabled={nameSaving || (profile.user.game_cash || 0) < 10.0}
+                style={{
+                  background: (profile.user.game_cash || 0) < 10.0
+                    ? 'rgba(255,255,255,0.08)'
+                    : 'linear-gradient(135deg, #00f2fe 0%, #4facfe 100%)',
+                  boxShadow: (profile.user.game_cash || 0) < 10.0
+                    ? 'none'
+                    : '0 0 20px rgba(0,242,254,0.35)',
+                  border: 'none',
+                  borderRadius: '14px', padding: '14px',
+                  color: (profile.user.game_cash || 0) < 10.0 ? 'rgba(255,255,255,0.35)' : '#000',
+                  fontWeight: 900, fontSize: '13px',
+                  cursor: (profile.user.game_cash || 0) < 10.0 ? 'not-allowed' : 'pointer',
+                  opacity: nameSaving ? 0.6 : 1,
+                  transition: 'all 0.2s',
+                }}
+              >
+                {nameSaving ? t.profile.nameChangeSavingBtn : t.profile.nameChangeSubmitBtn}
+              </button>
+
+              <button
+                onClick={() => { setEditingName(false); setNameError(''); }}
+                style={{
+                  background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
+                  borderRadius: '14px', padding: '12px',
+                  color: 'rgba(255,255,255,0.7)', fontWeight: 700, fontSize: '12px',
+                  cursor: 'pointer',
                 }}
               >
                 {t.common.cancel}

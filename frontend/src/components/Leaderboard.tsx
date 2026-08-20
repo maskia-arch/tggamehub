@@ -272,12 +272,12 @@ export function Leaderboard({ initData, backendUrl }: LeaderboardProps) {
                         {entry.displayName || entry.firstName || t.common.anonymous}
                         {entry.isVip && (
                           <span style={{
-                            fontSize: '9px', fontWeight: 900, color: '#f43f5e',
-                            background: 'rgba(244,63,94,0.15)',
-                            border: '1px solid rgba(244,63,94,0.35)',
+                            fontSize: '9px', fontWeight: 900, color: '#fbbf24',
+                            background: 'linear-gradient(135deg, rgba(245,158,11,0.25) 0%, rgba(251,191,36,0.12) 100%)',
+                            border: '1px solid rgba(251,191,36,0.45)',
                             borderRadius: '6px', padding: '1px 6px',
                             display: 'inline-flex', alignItems: 'center', gap: '3px',
-                            boxShadow: '0 0 8px rgba(244,63,94,0.2)',
+                            boxShadow: '0 0 10px rgba(251,191,36,0.3)',
                           }}>
                             👑 VIP
                           </span>
@@ -353,12 +353,12 @@ export function Leaderboard({ initData, backendUrl }: LeaderboardProps) {
                   {entry.displayName || entry.firstName || t.common.anonymous}
                   {entry.isVip && (
                     <span style={{
-                      fontSize: '9px', fontWeight: 900, color: '#f43f5e',
-                      background: 'rgba(244,63,94,0.15)',
-                      border: '1px solid rgba(244,63,94,0.35)',
+                      fontSize: '9px', fontWeight: 900, color: '#fbbf24',
+                      background: 'linear-gradient(135deg, rgba(245,158,11,0.25) 0%, rgba(251,191,36,0.12) 100%)',
+                      border: '1px solid rgba(251,191,36,0.45)',
                       borderRadius: '6px', padding: '1px 6px',
                       display: 'inline-flex', alignItems: 'center', gap: '3px',
-                      boxShadow: '0 0 8px rgba(244,63,94,0.2)',
+                      boxShadow: '0 0 10px rgba(251,191,36,0.3)',
                     }}>
                       👑 VIP
                     </span>

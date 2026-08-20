@@ -96,8 +96,11 @@ export async function getProfile(req: AuthenticatedRequest, res: Response) {
     const berlinDateStr = new Date().toLocaleDateString('en-US', { timeZone: 'Europe/Berlin' });
     const dailyAdCount = user.last_ad_date === berlinDateStr ? (user.daily_ad_count || 0) : 0;
     const passType = user.season_pass_type || 'NONE';
-    const dailyAdLimit = (passType === 'SEASON' || passType === 'VIP') ? 15 : 10;
-    const canClaimFreeRefill = passType !== 'NONE' && user.last_daily_free_refill_date !== berlinDateStr;
+    const dailyAdLimit = passType === 'VIP' ? 999 : (passType === 'SEASON' ? 15 : 10);
+    const maxDailyRefills = passType === 'VIP' ? 6 : (passType === 'SEASON' ? 1 : 0);
+    const dailyRefillCount = user.last_daily_free_refill_date === berlinDateStr ? (user.daily_refill_count || 0) : 0;
+    const canClaimFreeRefill = passType !== 'NONE' && dailyRefillCount < maxDailyRefills;
+    const dailyRefillRemaining = Math.max(0, maxDailyRefills - dailyRefillCount);
 
     return res.json({
       user: {
@@ -114,6 +117,8 @@ export async function getProfile(req: AuthenticatedRequest, res: Response) {
         daily_ad_limit: dailyAdLimit,
         season_pass_type: passType,
         can_claim_free_refill: canClaimFreeRefill,
+        daily_refill_remaining: dailyRefillRemaining,
+        daily_refill_limit: maxDailyRefills,
         wallet_ltc: user.wallet_ltc || null,
         wallet_btc: user.wallet_btc || null,
         deletion_scheduled_at: user.deletion_scheduled_at || null,
@@ -135,7 +140,7 @@ export async function getProfile(req: AuthenticatedRequest, res: Response) {
 
 /**
  * Endpoint to reward energy via Ad Incentive simulation.
- * Enforces a daily limit of 10 ads (or 15 for Season/VIP Pass) resetting at 00:00 Europe/Berlin time.
+ * VIP Pass: Unlimited ads! (Season Pass: 15/day, Standard: 10/day)
  */
 export async function addEnergyAd(req: AuthenticatedRequest, res: Response) {
   try {
@@ -153,12 +158,12 @@ export async function addEnergyAd(req: AuthenticatedRequest, res: Response) {
       }
 
       const passType = user.season_pass_type || 'NONE';
-      const dailyAdLimit = (passType === 'SEASON' || passType === 'VIP') ? 15 : 10;
+      const dailyAdLimit = passType === 'VIP' ? 999 : (passType === 'SEASON' ? 15 : 10);
       const berlinDateStr = new Date().toLocaleDateString('en-US', { timeZone: 'Europe/Berlin' });
       let newAdCount = 1;
 
       if (user.last_ad_date === berlinDateStr) {
-        if ((user.daily_ad_count || 0) >= dailyAdLimit) {
+        if (passType !== 'VIP' && (user.daily_ad_count || 0) >= dailyAdLimit) {
           return { limitReached: true, count: user.daily_ad_count, dailyAdLimit };
         }
         newAdCount = (user.daily_ad_count || 0) + 1;
@@ -174,7 +179,7 @@ export async function addEnergyAd(req: AuthenticatedRequest, res: Response) {
 
       // Award +1 energy
       const energyInfo = await addEnergy(userId, 1, true);
-      return { limitReached: false, energy: energyInfo, count: newAdCount, dailyAdLimit };
+      return { limitReached: false, energy: energyInfo, count: newAdCount, dailyAdLimit, isVip: passType === 'VIP' };
     });
 
     if (result.limitReached) {
@@ -186,7 +191,9 @@ export async function addEnergyAd(req: AuthenticatedRequest, res: Response) {
 
     return res.json({
       success: true,
-      message: `Werbe-Belohnung verbucht. +1 Energie. (${result.dailyAdLimit - result.count!} verbleibend heute)`,
+      message: result.isVip
+        ? 'Werbe-Belohnung verbucht. +1 Energie (∞ Unbegrenzte VIP-Ads).'
+        : `Werbe-Belohnung verbucht. +1 Energie. (${result.dailyAdLimit - result.count!} verbleibend heute)`,
       energy: result.energy
     });
   } catch (error: any) {
@@ -197,7 +204,7 @@ export async function addEnergyAd(req: AuthenticatedRequest, res: Response) {
 
 /**
  * POST /api/user/claim-daily-free-refill
- * Claims 1x daily free refill (+5 ⚡) for Season & VIP Pass holders.
+ * Claims daily free refill (+5 ⚡): 6x/day for Season Pass VIP, 1x/day for Season Pass.
  */
 export async function claimDailyFreeRefill(req: AuthenticatedRequest, res: Response) {
   try {
@@ -218,16 +225,29 @@ export async function claimDailyFreeRefill(req: AuthenticatedRequest, res: Respo
         return { allowed: false, reason: 'Du benötigst einen Season-Pass für den täglichen Free-Refill.' };
       }
 
-      if (user.last_daily_free_refill_date === berlinDateStr) {
-        return { allowed: false, reason: 'Du hast deinen täglichen Free-Refill heute bereits abgeholt.' };
+      const maxDailyRefills = passType === 'VIP' ? 6 : (passType === 'SEASON' ? 1 : 0);
+      const currentRefillCount = user.last_daily_free_refill_date === berlinDateStr ? (user.daily_refill_count || 0) : 0;
+
+      if (currentRefillCount >= maxDailyRefills) {
+        return {
+          allowed: false,
+          reason: passType === 'VIP'
+            ? 'Du hast alle 6 täglichen Free-Refills für heute bereits abgeholt.'
+            : 'Du hast deinen täglichen Free-Refill heute bereits abgeholt.'
+        };
       }
 
+      const newRefillCount = currentRefillCount + 1;
       await trx('users')
         .where({ id: userId })
-        .update({ last_daily_free_refill_date: berlinDateStr });
+        .update({
+          daily_refill_count: newRefillCount,
+          last_daily_free_refill_date: berlinDateStr
+        });
 
       const energyInfo = await addEnergy(userId, 5, true);
-      return { allowed: true, energyInfo };
+      const remaining = Math.max(0, maxDailyRefills - newRefillCount);
+      return { allowed: true, energyInfo, remaining, maxDailyRefills };
     });
 
     if (!result.allowed) {
@@ -236,8 +256,10 @@ export async function claimDailyFreeRefill(req: AuthenticatedRequest, res: Respo
 
     return res.json({
       success: true,
-      message: 'Täglicher Free-Refill erfolgreich abgeholt (+5 ⚡ Energie)!',
+      message: `Täglicher Free-Refill erfolgreich abgeholt (+5 ⚡ Energie)! (${result.remaining} von ${result.maxDailyRefills} Refills verbleibend heute)`,
       energy: result.energyInfo,
+      remaining: result.remaining,
+      limit: result.maxDailyRefills,
     });
   } catch (error) {
     console.error('Error claiming daily free refill:', error);

@@ -5,17 +5,18 @@ export interface DynamicHourlyBoost {
   tier: 'NONE' | 'BRONZE' | 'SILBER' | 'GOLD' | 'PLATIN';
   label: string;
   multiplier: number;
+  hourlyPoints: number;
   hourlyRounds: number;
   difficultyFactor: number;
   nextTierTarget: number;
+  nextTierTargetPoints: number;
   nextTierLabel: string;
   progressPercent: number;
 }
 
 /**
- * Dynamically computes hourly coin market boosts using standardized community round velocity
- * and adaptive difficulty scaling. If Gold or Platinum was reached in previous cycles,
- * the required round threshold for the current cycle increases dynamically!
+ * Dynamically computes hourly coin market boosts using verified community points per hour
+ * and adaptive difficulty scaling.
  */
 export async function calculateDynamicHourlyBoost(
   coinSymbol: string,
@@ -25,29 +26,34 @@ export async function calculateDynamicHourlyBoost(
   const now = Date.now();
   const oneHourAgo = new Date(now - 3600 * 1000);
   const fourHoursAgo = new Date(now - 4 * 3600 * 1000);
+  const benchmarkScore = Math.max(1, targetScore);
 
   try {
     const hasHistoryTable = await db.schema.hasTable('market_price_history');
     if (!hasHistoryTable) {
+      const defaultBronzePoints = Math.round(15 * benchmarkScore);
       return {
         tier: 'NONE',
         label: 'Standard (1.00x)',
         multiplier: 1.0,
+        hourlyPoints: 0,
         hourlyRounds: 0,
         difficultyFactor: 1.0,
-        nextTierTarget: 15,
-        nextTierLabel: 'Bronze (15 Runden)',
+        nextTierTarget: defaultBronzePoints,
+        nextTierTargetPoints: defaultBronzePoints,
+        nextTierLabel: `Bronze (${defaultBronzePoints.toLocaleString()} Pkt)`,
         progressPercent: 0,
       };
     }
 
-    // Past 1h score history
+    // Past 1h verified score history
     const hourlyHistory = await db('market_price_history')
       .where({ coin_symbol: coinSymbol })
       .where('timestamp', '>=', oneHourAgo);
 
     const past1hScoreSum = hourlyHistory.reduce((sum: number, h: any) => sum + Number(h.volume || 0), 0);
-    const normalizedRounds1h = (past1hScoreSum / Math.max(1, targetScore)) + extraRounds;
+    const hourlyPoints = Math.round(past1hScoreSum + (extraRounds * benchmarkScore));
+    const normalizedRounds1h = hourlyPoints / benchmarkScore;
 
     // Past 4h history to assess previous cycle performance and calculate adaptive difficulty
     const prevCycleHistory = await db('market_price_history')
@@ -56,7 +62,7 @@ export async function calculateDynamicHourlyBoost(
       .where('timestamp', '<', oneHourAgo);
 
     const prevScoreSum = prevCycleHistory.reduce((sum: number, h: any) => sum + Number(h.volume || 0), 0);
-    const prevAvgHourlyRounds = (prevScoreSum / Math.max(1, targetScore)) / 3.0; // 3-hour average
+    const prevAvgHourlyRounds = (prevScoreSum / benchmarkScore) / 3.0; // 3-hour average
 
     // Adaptive difficulty scaling:
     // If previous activity was intense (e.g. Gold tier >= 30 rounds/h), difficulty increases by up to +35%
@@ -65,66 +71,71 @@ export async function calculateDynamicHourlyBoost(
       difficultyFactor = 1.0 + Math.min(0.35, Math.max(0, (prevAvgHourlyRounds - 30) / 100) * 0.35);
     }
 
-    // Base tier requirements (in standardized community rounds per hour)
-    const bronzeReq = Math.max(10, Math.round(15 * difficultyFactor));
-    const silberReq = Math.max(25, Math.round(40 * difficultyFactor));
-    const goldReq = Math.max(60, Math.round(100 * difficultyFactor));
-    const platinReq = Math.max(150, Math.round(250 * difficultyFactor));
+    // Base tier requirements in points (scaled to benchmark score & adaptive difficulty)
+    const bronzePoints = Math.max(1, Math.round(15 * benchmarkScore * difficultyFactor));
+    const silberPoints = Math.max(1, Math.round(40 * benchmarkScore * difficultyFactor));
+    const goldPoints = Math.max(1, Math.round(100 * benchmarkScore * difficultyFactor));
+    const platinPoints = Math.max(1, Math.round(250 * benchmarkScore * difficultyFactor));
 
     let tier: 'NONE' | 'BRONZE' | 'SILBER' | 'GOLD' | 'PLATIN' = 'NONE';
     let label = 'Standard (1.00x)';
     let multiplier = 1.0;
-    let nextTierTarget = bronzeReq;
-    let nextTierLabel = `Bronze (${bronzeReq} Runden)`;
+    let nextTierTargetPoints = bronzePoints;
+    let nextTierLabel = `Bronze (${bronzePoints.toLocaleString()} Pkt)`;
 
-    if (normalizedRounds1h >= platinReq) {
+    if (hourlyPoints >= platinPoints) {
       tier = 'PLATIN';
       label = 'Platin (1.50x Boost)';
       multiplier = 1.50;
-      nextTierTarget = platinReq;
+      nextTierTargetPoints = platinPoints;
       nextTierLabel = 'Max Stufe erreicht';
-    } else if (normalizedRounds1h >= goldReq) {
+    } else if (hourlyPoints >= goldPoints) {
       tier = 'GOLD';
       label = 'Gold (1.25x Boost)';
       multiplier = 1.25;
-      nextTierTarget = platinReq;
-      nextTierLabel = `Platin (${platinReq} Runden)`;
-    } else if (normalizedRounds1h >= silberReq) {
+      nextTierTargetPoints = platinPoints;
+      nextTierLabel = `Platin (${platinPoints.toLocaleString()} Pkt)`;
+    } else if (hourlyPoints >= silberPoints) {
       tier = 'SILBER';
       label = 'Silber (1.12x Boost)';
       multiplier = 1.12;
-      nextTierTarget = goldReq;
-      nextTierLabel = `Gold (${goldReq} Runden)`;
-    } else if (normalizedRounds1h >= bronzeReq) {
+      nextTierTargetPoints = goldPoints;
+      nextTierLabel = `Gold (${goldPoints.toLocaleString()} Pkt)`;
+    } else if (hourlyPoints >= bronzePoints) {
       tier = 'BRONZE';
       label = 'Bronze (1.05x Boost)';
       multiplier = 1.05;
-      nextTierTarget = silberReq;
-      nextTierLabel = `Silber (${silberReq} Runden)`;
+      nextTierTargetPoints = silberPoints;
+      nextTierLabel = `Silber (${silberPoints.toLocaleString()} Pkt)`;
     }
 
-    const progressPercent = tier === 'PLATIN' ? 100 : Math.min(100, Math.round((normalizedRounds1h / nextTierTarget) * 100));
+    const progressPercent = tier === 'PLATIN' ? 100 : Math.min(100, Math.round((hourlyPoints / nextTierTargetPoints) * 100));
 
     return {
       tier,
       label,
       multiplier,
+      hourlyPoints,
       hourlyRounds: Math.round(normalizedRounds1h * 10) / 10,
       difficultyFactor: Math.round(difficultyFactor * 100) / 100,
-      nextTierTarget,
+      nextTierTarget: nextTierTargetPoints,
+      nextTierTargetPoints,
       nextTierLabel,
       progressPercent,
     };
   } catch (err) {
     console.error('[Market Engine]: Error calculating dynamic hourly boost:', err);
+    const defaultBronzePoints = Math.round(15 * benchmarkScore);
     return {
       tier: 'NONE',
       label: 'Standard (1.00x)',
       multiplier: 1.0,
+      hourlyPoints: 0,
       hourlyRounds: 0,
       difficultyFactor: 1.0,
-      nextTierTarget: 15,
-      nextTierLabel: 'Bronze (15 Runden)',
+      nextTierTarget: defaultBronzePoints,
+      nextTierTargetPoints: defaultBronzePoints,
+      nextTierLabel: `Bronze (${defaultBronzePoints.toLocaleString()} Pkt)`,
       progressPercent: 0,
     };
   }
@@ -264,7 +275,7 @@ export interface CandlePoint {
  */
 export const GAME_COIN_MAP: Record<string, { symbol: string; name: string }> = {
   doodlejump: { symbol: 'DOODLE', name: 'Neon Jump Coin' },
-  neonbird: { symbol: 'FLAPPY', name: 'Neon Flappy Coin' },
+  neonbird: { symbol: 'FLAPPY', name: 'Neon Bird Coin' },
 };
 
 // Global activity tracker map for continuous market ticker
@@ -571,8 +582,8 @@ export async function recordGameplayVolume(gameId: string, score: number): Promi
       timestamp: new Date(),
     });
 
-    // Record significant market event
-    if (Math.abs(priceChangePercent) >= 0.08) {
+    // Record significant market event for gameplay round (supports both DOODLE and FLAPPY)
+    if (isPositiveImpact || burnedTokens >= 5.0 || Math.abs(priceChangePercent) >= 0.01) {
       const eventTitle = isPositiveImpact ? '🔥 Highscore Token Burn' : '📉 Score Unter Benchmark';
       const eventDesc = isPositiveImpact
         ? `Ein Spieler hat ${score.toLocaleString()} Punkte erzielt und ${burnedTokens.toFixed(1)} $${coinSymbol} verbrannt!`
@@ -650,7 +661,7 @@ export async function getMarketOverview(userId: string) {
 
       return {
         symbol: c.symbol,
-        name: c.symbol === 'DOODLE' ? 'Neon Jump Coin' : c.name,
+        name: c.symbol === 'DOODLE' ? 'Neon Jump Coin' : (c.symbol === 'FLAPPY' ? 'Neon Bird Coin' : c.name),
         gameId: c.game_id,
         currentPrice: currentPrice,
         basePrice: Number(c.base_price),

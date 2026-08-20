@@ -59,8 +59,9 @@ export function EnergyModal({
 
   if (!isOpen) return null;
 
+  const isUnlimitedAds = dailyAdLimit >= 999;
   const remainingAds = Math.max(0, dailyAdLimit - (dailyAdCount || 0));
-  const isAdLimitReached = remainingAds <= 0;
+  const isAdLimitReached = !isUnlimitedAds && remainingAds <= 0;
 
   const formatCountdown = (totalSec: number): string => {
     if (totalSec <= 0) return t.common.ok;
@@ -228,9 +229,11 @@ export function EnergyModal({
                     {t.header.watchAdBtn}
                   </span>
                   <span style={{ fontSize: '9px', color: isAdLimitReached ? '#f87171' : 'rgba(255,255,255,0.5)', display: 'block', marginTop: '2px' }}>
-                    {isAdLimitReached
-                      ? t.header.adLimitReached
-                      : `${remainingAds}/${dailyAdLimit} ${t.header.videosRemaining}`}
+                    {isUnlimitedAds
+                      ? '∞ Unbegrenzte Videos (VIP)'
+                      : isAdLimitReached
+                        ? t.header.adLimitReached
+                        : `${remainingAds}/${dailyAdLimit} ${t.header.videosRemaining}`}
                   </span>
                 </div>
               </div>

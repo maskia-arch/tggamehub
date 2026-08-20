@@ -39,6 +39,8 @@ interface ProfileData {
     daily_ad_limit: number;
     season_pass_type?: 'NONE' | 'SEASON' | 'VIP';
     can_claim_free_refill?: boolean;
+    daily_refill_remaining?: number;
+    daily_refill_limit?: number;
     wallet_ltc: string | null;
     deletion_scheduled_at: string | null;
     game_cash?: number;

@@ -130,15 +130,15 @@ const SHOP_PRODUCTS: ShopProductItem[] = [
     passType: 'SEASON',
   },
   {
-    id: 'vip_airdrop_pass',
+    id: 'season_pass_vip',
     category: 'passes',
-    name: 'VIP Airdrop Pass',
-    description: 'Alle Season-Pass Vorteile + 1.25x Multiplikator auf erspielte Season-/Airdrop-Punkte + exklusiver VIP-Badge im Leaderboard.',
+    name: 'Season Pass VIP',
+    description: 'Energie-Cap von 15, unbegrenzte tägliche Ads, 6x täglich 5 Energie Refill & exklusiver goldener VIP-Badge.',
     priceEur: 19.99,
-    badge: 'Max Rewards',
-    badgeColor: '#f43f5e',
+    badge: 'VIP Status',
+    badgeColor: '#fbbf24',
     icon: '👑',
-    gradient: 'linear-gradient(135deg, rgba(244,63,94,0.16) 0%, rgba(225,29,72,0.08) 100%)',
+    gradient: 'linear-gradient(135deg, rgba(245,158,11,0.2) 0%, rgba(251,191,36,0.08) 100%)',
     passType: 'VIP',
   },
 ];
@@ -322,20 +322,27 @@ export function Shop({ initData, backendUrl, onPurchaseSuccess, profile }: ShopP
           {userPassType !== 'NONE' && (
             <div style={{
               background: userPassType === 'VIP'
-                ? 'linear-gradient(135deg, rgba(244,63,94,0.14) 0%, rgba(225,29,72,0.06) 100%)'
+                ? 'linear-gradient(135deg, rgba(245,158,11,0.18) 0%, rgba(251,191,36,0.08) 100%)'
                 : 'linear-gradient(135deg, rgba(251,191,36,0.12) 0%, rgba(245,158,11,0.05) 100%)',
-              border: userPassType === 'VIP' ? '1px solid rgba(244,63,94,0.3)' : '1px solid rgba(251,191,36,0.3)',
+              border: userPassType === 'VIP' ? '1px solid rgba(251,191,36,0.45)' : '1px solid rgba(251,191,36,0.3)',
               borderRadius: '16px', padding: '12px 14px',
               display: 'flex', alignItems: 'center', justifyContent: 'space-between',
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Trophy size={16} style={{ color: userPassType === 'VIP' ? '#f43f5e' : '#fbbf24' }} />
+                <Trophy size={16} style={{ color: '#fbbf24' }} />
                 <div>
-                  <div style={{ fontSize: '12px', fontWeight: 900, color: '#fff' }}>
+                  <div style={{ fontSize: '12px', fontWeight: 900, color: '#fff', display: 'flex', alignItems: 'center', gap: '6px' }}>
                     {userPassType === 'VIP' ? t.shop.vipPassActive : t.shop.seasonPassActive}
+                    {userPassType === 'VIP' && (
+                      <span style={{ fontSize: '9px', fontWeight: 900, color: '#fbbf24', background: 'rgba(251,191,36,0.15)', border: '1px solid rgba(251,191,36,0.35)', borderRadius: '4px', padding: '1px 5px', boxShadow: '0 0 8px rgba(251,191,36,0.25)' }}>
+                        👑 VIP
+                      </span>
+                    )}
                   </div>
                   <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.5)', marginTop: '2px' }}>
-                    Max 8 ⚡ Cap | 15 Ads/Tag {userPassType === 'VIP' && '| 1.25x Multiplier'}
+                    {userPassType === 'VIP'
+                      ? 'Max 15 ⚡ Cap | ∞ Ads/Tag | 6x Free-Refill'
+                      : 'Max 8 ⚡ Cap | 15 Ads/Tag | 1x Free-Refill'}
                   </div>
                 </div>
               </div>
@@ -351,7 +358,11 @@ export function Shop({ initData, backendUrl, onPurchaseSuccess, profile }: ShopP
                   }}
                 >
                   <Gift size={12} />
-                  <span>{t.shop.claimFreeRefill}</span>
+                  <span>
+                    {userPassType === 'VIP' && profile?.user?.daily_refill_remaining !== undefined
+                      ? `${t.shop.claimFreeRefill} (${profile.user.daily_refill_remaining}/${profile.user.daily_refill_limit || 6})`
+                      : t.shop.claimFreeRefill}
+                  </span>
                 </button>
               )}
             </div>

@@ -11,7 +11,10 @@ interface GameSessionPayload {
   userId: string;
   gameId: string;
   startedAt: number;
+  sessionId?: string;
 }
+
+const consumedSessions = new Map<string, number>();
 
 /**
  * Initiates a game session by deducting 1 energy point and issuing a signed JWT game token.
@@ -93,6 +96,28 @@ export async function submitScore(req: AuthenticatedRequest, res: Response) {
     }
     if (decoded.gameId !== gameId) {
       return res.status(403).json({ error: 'tampered_session', message: 'Game ID does not match session game.' });
+    }
+
+    // Guard against duplicate/double submission of the same game session
+    const sessionFingerprint = `${decoded.userId}_${decoded.sessionId || decoded.startedAt}_${decoded.gameId}`;
+    if (consumedSessions.has(sessionFingerprint)) {
+      const user = await db('users').where({ id: userId }).first();
+      return res.json({
+        success: true,
+        score: parsedScore,
+        earnedCash: 0,
+        totalCash: Number(user?.game_cash || 0.0),
+        message: 'Score already processed.',
+      });
+    }
+    consumedSessions.set(sessionFingerprint, Date.now());
+
+    // Clean up old consumed session tokens older than 20 minutes
+    if (consumedSessions.size > 5000) {
+      const cutoff = Date.now() - 20 * 60 * 1000;
+      for (const [k, ts] of consumedSessions.entries()) {
+        if (ts < cutoff) consumedSessions.delete(k);
+      }
     }
 
     // Check session duration to detect speed hacking/direct submission bypass

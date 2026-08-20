@@ -24,7 +24,8 @@ interface MarketCoin {
     tier: 'NONE' | 'BRONZE' | 'SILBER' | 'GOLD' | 'PLATIN';
     label: string;
     multiplier: number;
-    hourlyRounds: number;
+    hourlyPoints: number;
+    hourlyRounds?: number;
     difficultyFactor: number;
     nextTierTarget: number;
     nextTierLabel: string;
@@ -528,47 +529,66 @@ export function Market({ initData, backendUrl, onBalanceUpdate }: MarketProps) {
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', fontWeight: 900, color: '#fbbf24', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
                       <Zap size={13} className="animate-pulse" /> {t.market.liveTriggersTitle}
                     </div>
-                    <span style={{ fontSize: '9px', color: 'rgba(255,255,255,0.35)' }}>{t.market.randomMarketImpulses}</span>
+                    <div style={{
+                      display: 'inline-flex', alignItems: 'center', gap: '4px',
+                      background: 'rgba(239, 68, 68, 0.15)',
+                      border: '1px solid rgba(239, 68, 68, 0.35)',
+                      borderRadius: '9999px', padding: '2px 7px',
+                      color: '#f87171', fontSize: '9px', fontWeight: 900,
+                      letterSpacing: '0.08em', textTransform: 'uppercase',
+                    }}>
+                      <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#ef4444', boxShadow: '0 0 6px #ef4444' }} className="animate-pulse" />
+                      LIVE
+                    </div>
                   </div>
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '140px', overflowY: 'auto' }}>
-                    {data.events.slice(0, 4).map((evt) => {
-                      const isPositive = evt.priceImpactPercent >= 0;
-                      return (
-                        <div
-                          key={evt.id}
-                          style={{
-                            background: 'rgba(0,0,0,0.25)',
-                            border: '1px solid rgba(255,255,255,0.05)',
-                            borderRadius: '10px', padding: '8px 10px',
-                            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                            fontSize: '11px',
-                          }}
-                        >
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <span style={{
-                              fontWeight: 900, fontSize: '10px', padding: '2px 6px', borderRadius: '6px',
-                              background: isPositive ? 'rgba(74,222,128,0.15)' : 'rgba(248,113,113,0.15)',
-                              color: isPositive ? '#4ade80' : '#f87171',
-                              border: `1px solid ${isPositive ? 'rgba(74,222,128,0.3)' : 'rgba(248,113,113,0.3)'}`,
+                    {(() => {
+                      const uniqueEvents = (data.events || []).filter((evt, index, self) =>
+                        index === self.findIndex((e) =>
+                          e.id === evt.id ||
+                          (e.coinSymbol === evt.coinSymbol && e.title === evt.title && e.description === evt.description)
+                        )
+                      );
+
+                      return uniqueEvents.slice(0, 4).map((evt) => {
+                        const isPositive = evt.priceImpactPercent >= 0;
+                        return (
+                          <div
+                            key={evt.id}
+                            style={{
+                              background: 'rgba(0,0,0,0.25)',
+                              border: '1px solid rgba(255,255,255,0.05)',
+                              borderRadius: '10px', padding: '8px 10px',
+                              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                              fontSize: '11px',
+                            }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <span style={{
+                                fontWeight: 900, fontSize: '10px', padding: '2px 6px', borderRadius: '6px',
+                                background: isPositive ? 'rgba(74,222,128,0.15)' : 'rgba(248,113,113,0.15)',
+                                color: isPositive ? '#4ade80' : '#f87171',
+                                border: `1px solid ${isPositive ? 'rgba(74,222,128,0.3)' : 'rgba(248,113,113,0.3)'}`,
+                              }}>
+                                ${evt.coinSymbol}
+                              </span>
+                              <div>
+                                <strong style={{ color: '#fff', fontSize: '11px' }}>{evt.title}</strong>
+                                <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.4)' }}>{evt.description}</div>
+                              </div>
+                            </div>
+
+                            <div style={{
+                              fontWeight: 900, fontSize: '11px', fontFamily: 'monospace',
+                              color: isPositive ? '#4ade80' : '#f87171', flexShrink: 0,
                             }}>
-                              ${evt.coinSymbol}
-                            </span>
-                            <div>
-                              <strong style={{ color: '#fff', fontSize: '11px' }}>{evt.title}</strong>
-                              <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.4)' }}>{evt.description}</div>
+                              {isPositive ? '+' : ''}{evt.priceImpactPercent.toFixed(2)}%
                             </div>
                           </div>
-
-                          <div style={{
-                            fontWeight: 900, fontSize: '11px', fontFamily: 'monospace',
-                            color: isPositive ? '#4ade80' : '#f87171', flexShrink: 0,
-                          }}>
-                            {isPositive ? '+' : ''}{evt.priceImpactPercent.toFixed(2)}%
-                          </div>
-                        </div>
-                      );
-                    })}
+                        );
+                      });
+                    })()}
                   </div>
                 </div>
               )}
@@ -686,7 +706,7 @@ export function Market({ initData, backendUrl, onBalanceUpdate }: MarketProps) {
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '10px', fontWeight: 800, color: '#fbbf24', flexWrap: 'wrap' }}>
                           <span>⚡ 1h Power: {selectedCoin.hourlyBoost.label}</span>
                           <span style={{ fontSize: '9px', color: 'rgba(255,255,255,0.45)', background: 'rgba(255,255,255,0.06)', padding: '1px 5px', borderRadius: '4px' }}>
-                            {selectedCoin.hourlyBoost.hourlyRounds} Rnd/Std
+                            {(selectedCoin.hourlyBoost.hourlyPoints ?? Math.round((selectedCoin.hourlyBoost.hourlyRounds || 0) * (selectedCoin.targetScore || 1000))).toLocaleString()} Pkt/Std
                           </span>
                           {selectedCoin.hourlyBoost.difficultyFactor > 1.0 && (
                             <span style={{ fontSize: '9px', color: '#f87171', background: 'rgba(248,113,113,0.12)', border: '1px solid rgba(248,113,113,0.25)', padding: '1px 5px', borderRadius: '4px' }}>
