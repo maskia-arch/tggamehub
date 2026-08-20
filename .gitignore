@@ -85,3 +85,9 @@ start-*.bat
 *.ps1
 *.sh
 
+# 9. Local Private Documentation
+localREADME.md
+*localREADME*
+LOCAL_README*
+
+
