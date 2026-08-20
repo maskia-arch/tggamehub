@@ -5,7 +5,7 @@
   "main": "dist/index.js",
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
-    "build": "tsc && node -e \"const fs=require('fs'); fs.copyFileSync('src/admin-dashboard.html', 'dist/admin-dashboard.html'); try { fs.mkdirSync('../LOKAL', {recursive:true}); fs.copyFileSync('src/admin-dashboard.html', '../LOKAL/admin-dashboard.html'); } catch(e){}\"",
+    "build": "tsc",
     "start": "node dist/index.js",
     "migrate": "knex migrate:latest",
     "migrate:make": "knex migrate:make",
