@@ -160,9 +160,9 @@ export async function submitScore(req: AuthenticatedRequest, res: Response) {
       validation_payload: validationPayload ? JSON.stringify(validationPayload) : null,
     });
 
-    // Record score volume in Market Engine & award Game$ cash reward
-    const { recordGameplayVolume } = require('../services/marketEngine');
-    const marketResult = await recordGameplayVolume(gameId, parsedScore);
+    // Record score volume in Market Engine with Normalized Score Impact & AMM
+    const { recordGameScore } = require('../services/marketEngine');
+    const marketResult = await recordGameScore(gameId, parsedScore, undefined, userId);
     const earnedCash = parseFloat(Number(marketResult.earnedCash || 0.0).toFixed(4));
 
     if (earnedCash > 0) {
@@ -193,8 +193,11 @@ export async function submitScore(req: AuthenticatedRequest, res: Response) {
       totalCash: Number(updatedUser?.game_cash || 0.0),
       marketImpact: {
         targetScore: marketResult.targetScore || 1000,
+        zScore: marketResult.zScore || 0,
         performanceRatio: marketResult.performanceRatio || 0,
         isPositiveImpact: marketResult.isPositiveImpact ?? true,
+        isRecordBreak: marketResult.isRecordBreak ?? false,
+        burnedTokens: marketResult.burned || 0,
         priceChangePercent: marketResult.priceChangePercent || 0,
         newPrice: marketResult.newPrice,
       },

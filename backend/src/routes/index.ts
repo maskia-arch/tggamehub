@@ -10,6 +10,9 @@ import {
   getAdminSeason,
   getAdminOrders,
   getAdminConfig,
+  getAdminCoins,
+  updateAdminCoin,
+  resetAdminCoinPool,
   updateAdminUser,
   updateAdminSeason,
   startAdminSeason,
@@ -101,6 +104,10 @@ router.get('/admin/users', adminAuth, getAdminUsers);
 router.get('/admin/season', adminAuth, getAdminSeason);
 router.get('/admin/orders', adminAuth, getAdminOrders);
 router.get('/admin/config', adminAuth, getAdminConfig);
+router.get('/admin/coins', adminAuth, getAdminCoins);
+router.patch('/admin/coins/:symbol', adminAuth, updateAdminCoin);
+router.put('/admin/coins/:symbol', adminAuth, updateAdminCoin);
+router.post('/admin/coins/:symbol/reset', adminAuth, resetAdminCoinPool);
 router.patch('/admin/users/:id', adminAuth, updateAdminUser);
 router.patch('/admin/season', adminAuth, updateAdminSeason);
 router.post('/admin/season/start', adminAuth, startAdminSeason);

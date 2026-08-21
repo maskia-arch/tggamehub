@@ -324,23 +324,77 @@ export async function runAutoMigrations(knex: Knex): Promise<void> {
         table.string('symbol').primary(); // DOODLE, FLAPPY
         table.string('name').notNullable();
         table.string('game_id').notNullable();
-        table.float('current_price').notNullable();
-        table.float('base_price').notNullable();
-        table.float('circulating_supply').notNullable();
+        table.float('current_price').notNullable().defaultTo(0.00000001);
+        table.float('base_price').notNullable().defaultTo(0.00000001);
+        table.float('virtual_game_reserve').notNullable().defaultTo(100000.0);
+        table.float('virtual_token_reserve').notNullable().defaultTo(10000000000000.0);
+        table.float('constant_product_k').notNullable().defaultTo(1000000000000000000.0);
+        table.float('circulating_supply').notNullable().defaultTo(10000000000000.0);
         table.float('total_burned').defaultTo(0.0);
         table.float('volume_24h').defaultTo(0.0);
         table.timestamp('updated_at').defaultTo(knex.fn.now());
       });
-      console.log('[DATABASE AUTO-SYNC]: Created market_coins table.');
+      console.log('[DATABASE AUTO-SYNC]: Created market_coins table with AMM pool parameters.');
 
       await knex('market_coins').insert([
-        { symbol: 'DOODLE', name: 'Neon Jump Coin', game_id: 'doodlejump', current_price: 0.00000001, base_price: 0.00000001, circulating_supply: 1000000000.0, total_burned: 0.0, volume_24h: 0.0 },
-        { symbol: 'FLAPPY', name: 'Neon Bird Coin', game_id: 'neonbird', current_price: 0.00000001, base_price: 0.00000001, circulating_supply: 1000000000.0, total_burned: 0.0, volume_24h: 0.0 },
+        {
+          symbol: 'DOODLE',
+          name: 'Neon Jump Coin',
+          game_id: 'doodlejump',
+          current_price: 0.00000001,
+          base_price: 0.00000001,
+          virtual_game_reserve: 100000.0,
+          virtual_token_reserve: 10000000000000.0,
+          constant_product_k: 1000000000000000000.0,
+          circulating_supply: 10000000000000.0,
+          total_burned: 0.0,
+          volume_24h: 0.0
+        },
+        {
+          symbol: 'FLAPPY',
+          name: 'Neon Bird Coin',
+          game_id: 'neonbird',
+          current_price: 0.00000001,
+          base_price: 0.00000001,
+          virtual_game_reserve: 100000.0,
+          virtual_token_reserve: 10000000000000.0,
+          constant_product_k: 1000000000000000000.0,
+          circulating_supply: 10000000000000.0,
+          total_burned: 0.0,
+          volume_24h: 0.0
+        },
       ]);
     } else {
-      // Ensure canonical names
-      await knex('market_coins').where({ symbol: 'DOODLE' }).update({ name: 'Neon Jump Coin' });
-      await knex('market_coins').where({ symbol: 'FLAPPY' }).update({ name: 'Neon Bird Coin' });
+      await ensureColumn(knex, 'market_coins', 'virtual_game_reserve', (t) => t.float('virtual_game_reserve').defaultTo(100000.0));
+      await ensureColumn(knex, 'market_coins', 'virtual_token_reserve', (t) => t.float('virtual_token_reserve').defaultTo(10000000000000.0));
+      await ensureColumn(knex, 'market_coins', 'constant_product_k', (t) => t.float('constant_product_k').defaultTo(1000000000000000000.0));
+
+      // Ensure canonical names & initialize pool reserves if missing or 0
+      await knex('market_coins').where({ symbol: 'DOODLE' }).update({
+        name: 'Neon Jump Coin',
+      });
+      await knex('market_coins').where({ symbol: 'FLAPPY' }).update({
+        name: 'Neon Bird Coin',
+      });
+
+      // Self-heal pool reserves for any coins with 0 or null reserves
+      const allCoins = await knex('market_coins').select('*');
+      for (const coin of allCoins) {
+        const vGame = Number(coin.virtual_game_reserve || 0);
+        const vTokens = Number(coin.virtual_token_reserve || 0);
+        const k = Number(coin.constant_product_k || 0);
+        const updates: Record<string, any> = {};
+
+        if (!vGame || vGame <= 0) updates.virtual_game_reserve = 100000.0;
+        if (!vTokens || vTokens <= 0) updates.virtual_token_reserve = 10000000000000.0;
+        if (!k || k <= 0) updates.constant_product_k = 1000000000000000000.0;
+        if (Number(coin.circulating_supply || 0) < 10000000000.0) updates.circulating_supply = 10000000000000.0;
+
+        if (Object.keys(updates).length > 0) {
+          await knex('market_coins').where({ symbol: coin.symbol }).update(updates);
+          console.log(`[DATABASE AUTO-SYNC]: Initialized AMM pool parameters for $${coin.symbol}`);
+        }
+      }
     }
 
     // ── Table: USER_PORTFOLIOS ────────────────────────────────────────────────
@@ -373,6 +427,8 @@ export async function runAutoMigrations(knex: Knex): Promise<void> {
         table.timestamp('created_at').defaultTo(knex.fn.now());
       });
       console.log('[DATABASE AUTO-SYNC]: Created user_trades table.');
+    } else {
+      await ensureColumn(knex, 'user_trades', 'price_impact_percent', (t) => t.float('price_impact_percent').defaultTo(0.0));
     }
 
     // ── Table: MARKET_PRICE_HISTORY ───────────────────────────────────────────

@@ -14,6 +14,9 @@ interface MarketCoin {
   gameId: string;
   currentPrice: number;
   basePrice: number;
+  virtualGameReserve?: number;
+  virtualTokenReserve?: number;
+  constantProductK?: number;
   circulatingSupply: number;
   totalBurned: number;
   volume24h: number;
@@ -60,7 +63,7 @@ interface MarketOverviewData {
   userCash: number;
   coins: MarketCoin[];
   portfolio: UserPortfolioItem[];
-  events?: MarketEvent[];
+  events: MarketEvent[];
 }
 
 interface CandlePoint {
@@ -74,19 +77,23 @@ interface CandlePoint {
 }
 
 const formatPrice = (price: number): string => {
-  if (price < 0.001) {
+  if (price < 0.00001) {
     return price.toFixed(10) + ' $';
-  } else if (price < 1) {
+  } else if (price < 0.001) {
+    return price.toFixed(8) + ' $';
+  } else if (price < 0.1) {
     return price.toFixed(6) + ' $';
   }
   return price.toFixed(4) + ' $';
 };
 
 const formatTokens = (amount: number): string => {
-  if (amount >= 1000000000) {
-    return (amount / 1000000000).toFixed(2) + 'B';
-  } else if (amount >= 1000000) {
-    return (amount / 1000000).toFixed(2) + 'M';
+  if (amount >= 1e12) {
+    return (amount / 1e12).toFixed(2) + 'T';
+  } else if (amount >= 1e9) {
+    return (amount / 1e9).toFixed(2) + 'B';
+  } else if (amount >= 1e6) {
+    return (amount / 1e6).toFixed(2) + 'M';
   } else if (amount >= 1000) {
     return (amount / 1000).toFixed(2) + 'K';
   }
@@ -844,38 +851,65 @@ export function Market({ initData, backendUrl, onBalanceUpdate }: MarketProps) {
                 </div>
 
                 {/* Calculation Summary */}
-                <div style={{
-                  background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.05)',
-                  borderRadius: '12px', padding: '12px', display: 'flex', flexDirection: 'column', gap: '6px',
-                  fontSize: '11px', color: 'rgba(255,255,255,0.5)',
-                }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span>{tradeType === 'BUY' ? t.market.receivedTokens : t.market.receivedCash}</span>
-                    <span style={{ color: '#fff', fontWeight: 800, fontFamily: 'monospace' }}>
-                      {tradeType === 'BUY'
-                        ? `${numAmount > 0 ? formatTokens(numAmount / selectedCoin.currentPrice) : '0'} $${selectedCoin.symbol}`
-                        : `${numAmount > 0 ? Math.max(0, (numAmount * selectedCoin.currentPrice) - estimatedGas).toFixed(4) : '0.0000'} Game$`}
-                    </span>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span>{t.market.estimatedGas}</span>
-                    <span style={{ color: '#fbbf24', fontWeight: 700 }}>{estimatedGas.toFixed(4)} Game$</span>
-                  </div>
-                  {numAmount > 0 && (
-                    <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '4px', marginTop: '2px' }}>
-                      <span>{t.market.estimatedImpact}</span>
-                      <span style={{
-                        color: tradeType === 'BUY' ? '#4ade80' : '#f87171',
-                        fontWeight: 700,
-                        fontFamily: 'monospace',
-                      }}>
-                        {tradeType === 'BUY'
-                          ? `+${(Math.min(0.15, Math.sqrt(numAmount) * 0.025) * 100).toFixed(2)}% 🟢`
-                          : `-${(Math.min(0.30, Math.sqrt(numAmount * selectedCoin.currentPrice) * 0.035) * 100).toFixed(2)}% 🔴`}
-                      </span>
+                {(() => {
+                  const k = selectedCoin.constantProductK || 1e18;
+                  const x = selectedCoin.virtualGameReserve || 100000.0;
+                  const y = selectedCoin.virtualTokenReserve || 10000000000000.0;
+
+                  let tokensOut = 0;
+                  let cashOut = 0;
+                  let impactPercent = 0;
+
+                  if (numAmount > 0) {
+                    if (tradeType === 'BUY') {
+                      const newX = x + numAmount;
+                      const newY = k / newX;
+                      tokensOut = Math.max(0, y - newY);
+                      const spotAfter = newX / newY;
+                      impactPercent = ((spotAfter - selectedCoin.currentPrice) / selectedCoin.currentPrice) * 100;
+                    } else {
+                      const newY = y + numAmount;
+                      const newX = k / newY;
+                      const grossCash = Math.max(0, x - newX);
+                      cashOut = Math.max(0, grossCash - estimatedGas);
+                      const spotAfter = newX / newY;
+                      impactPercent = ((spotAfter - selectedCoin.currentPrice) / selectedCoin.currentPrice) * 100;
+                    }
+                  }
+
+                  return (
+                    <div style={{
+                      background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.05)',
+                      borderRadius: '12px', padding: '12px', display: 'flex', flexDirection: 'column', gap: '6px',
+                      fontSize: '11px', color: 'rgba(255,255,255,0.5)',
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span>{tradeType === 'BUY' ? t.market.receivedTokens : t.market.receivedCash}</span>
+                        <span style={{ color: '#fff', fontWeight: 800, fontFamily: 'monospace' }}>
+                          {tradeType === 'BUY'
+                            ? `${numAmount > 0 ? formatTokens(tokensOut) : '0'} $${selectedCoin.symbol}`
+                            : `${numAmount > 0 ? cashOut.toFixed(4) : '0.0000'} Game$`}
+                        </span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span>{t.market.estimatedGas}</span>
+                        <span style={{ color: '#fbbf24', fontWeight: 700 }}>{estimatedGas.toFixed(4)} Game$</span>
+                      </div>
+                      {numAmount > 0 && (
+                        <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '4px', marginTop: '2px' }}>
+                          <span>{t.market.estimatedImpact}</span>
+                          <span style={{
+                            color: impactPercent >= 0 ? '#4ade80' : '#f87171',
+                            fontWeight: 700,
+                            fontFamily: 'monospace',
+                          }}>
+                            {impactPercent >= 0 ? `+${impactPercent.toFixed(2)}% 🟢` : `${impactPercent.toFixed(2)}% 🔴`}
+                          </span>
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
+                  );
+                })()}
 
                 {/* Action Submit Button */}
                 <button

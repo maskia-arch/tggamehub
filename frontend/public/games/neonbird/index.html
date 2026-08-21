@@ -275,6 +275,7 @@
     let pipes = [];
     let particles = [];
     let score = 0;
+    let savedHighscore = parseInt(localStorage.getItem('tggamehub_neonbird_highscore') || '0', 10);
     let gameState = 'start'; // 'start', 'playing', 'gameover'
     let animationFrameId;
     let totalJumps = 0;
@@ -595,10 +596,59 @@
       soundManager.toggleMusic();
     });
 
+    // ── Progressive Difficulty Curve (0 to 100 Points) ──────────────────────
+    function getDifficultyParams(currentScore) {
+      // Progress fraction t in [0.0, 1.0] where 100 points triggers maximum difficulty
+      const t = Math.min(1.0, Math.max(0, (currentScore || 0) / 100.0));
+      
+      // Pipe Vertical Gap: starts wide & forgiving (190px), shrinks down to 115px at 100 points
+      const gap = Math.round(190 - t * 75);
+      
+      // Horizontal Spacing between pipes: 245px at start down to 175px at 100 points
+      const spacing = Math.round(245 - t * 70);
+      
+      // Scroll speed: starts relaxed at 2.1, scales up to 2.8 at 100 points
+      const speed = 2.1 + t * 0.7;
+
+      // Progressive Stage Name & Badge Color
+      let level = 1;
+      let levelName = 'STAGE 1';
+      let badgeColor = '#4ade80';
+      if (currentScore >= 100) { level = 5; levelName = 'CYBER GOD (MAX)'; badgeColor = '#ffd358'; }
+      else if (currentScore >= 75) { level = 4; levelName = 'STAGE 4'; badgeColor = '#ff007f'; }
+      else if (currentScore >= 45) { level = 3; levelName = 'STAGE 3'; badgeColor = '#a78bfa'; }
+      else if (currentScore >= 20) { level = 2; levelName = 'STAGE 2'; badgeColor = '#00f2fe'; }
+
+      return { t, gap, spacing, speed, level, levelName, badgeColor };
+    }
+
+    // ── Pre-rendered Static Grid Background (Zero Render Overhead) ─────────
+    const bgCanvas = document.createElement('canvas');
+    bgCanvas.width = 360;
+    bgCanvas.height = 550;
+    const bgCtx = bgCanvas.getContext('2d');
+
+    bgCtx.fillStyle = '#05070f';
+    bgCtx.fillRect(0, 0, 360, 550);
+    bgCtx.strokeStyle = 'rgba(0, 242, 254, 0.035)';
+    bgCtx.lineWidth = 1;
+    for (let i = 0; i < 360; i += 20) {
+      bgCtx.beginPath();
+      bgCtx.moveTo(i, 0);
+      bgCtx.lineTo(i, 550);
+      bgCtx.stroke();
+    }
+    for (let j = 0; j < 550; j += 20) {
+      bgCtx.beginPath();
+      bgCtx.moveTo(0, j);
+      bgCtx.lineTo(360, j);
+      bgCtx.stroke();
+    }
+
     class NeonBird {
       constructor() {
-        this.x = 90;
-        this.y = 250;
+        this.x = 85;
+        this.y = 240;
         this.width = 30;
         this.height = 24;
         this.vy = 0;
@@ -610,10 +660,10 @@
         this.vy = FLAP_STRENGTH;
         soundManager.playFlap();
         
-        // Spawn energetic flap sparks
-        for (let i = 0; i < 4; i++) {
+        // Spawn flap sparks
+        for (let i = 0; i < 3; i++) {
           particles.push(new TrailParticle(
-            this.x, 
+            this.x - 2, 
             this.y + this.height/2, 
             -1.5 - Math.random() * 2, 
             (Math.random() - 0.5) * 2, 
@@ -622,19 +672,19 @@
         }
       }
 
-      update() {
-        this.vy += GRAVITY;
-        this.y += this.vy;
-        this.wingTimer += 0.15;
+      update(dt = 1) {
+        this.vy += GRAVITY * dt;
+        this.y += this.vy * dt;
+        this.wingTimer += 0.15 * dt;
 
         // Velocity-based rotation angle
         this.angle = Math.min(Math.PI / 4, Math.max(-Math.PI / 7, this.vy * 0.08));
 
-        // Spawn constant flight trailing exhaust
-        if (Math.random() < 0.35) {
+        // Constant flight trailing exhaust
+        if (Math.random() < 0.28) {
           particles.push(new TrailParticle(
-            this.x,
-            this.y + this.height/2 + (Math.sin(this.wingTimer) * 5),
+            this.x - 2,
+            this.y + this.height/2 + (Math.sin(this.wingTimer) * 4),
             -1.0 - Math.random() * 1.5,
             (Math.random() - 0.5) * 0.8,
             Math.random() < 0.5 ? '#00f2fe' : '#ff007f'
@@ -648,14 +698,13 @@
         ctx.rotate(this.angle);
 
         // Core Glowing Cyberpunk Bird Wing/Body
-        ctx.shadowBlur = 12;
+        ctx.shadowBlur = 8;
         ctx.shadowColor = '#00f2fe';
         ctx.strokeStyle = '#00f2fe';
         ctx.lineWidth = 3.5;
 
         // Main Body Outline
         ctx.beginPath();
-        // Head / body circle curve
         ctx.arc(0, 0, 10, 0, Math.PI * 2);
         ctx.stroke();
 
@@ -691,53 +740,68 @@
     }
 
     class NeonPipe {
-      constructor(x, id) {
+      constructor(x, id, currentScore) {
         this.x = x;
         this.id = id;
         this.width = PIPE_WIDTH;
         
-        // Randomize the height partition between top & bottom pipes
-        const minHeight = 50;
-        const maxHeight = canvas.height - PIPE_GAP - minHeight;
+        const diff = getDifficultyParams(currentScore);
+        this.gap = diff.gap;
+        this.speed = diff.speed;
+        
+        // Randomize height partition between top & bottom pipes
+        const minHeight = 45;
+        const maxHeight = canvas.height - this.gap - minHeight;
         this.topHeight = Math.floor(Math.random() * (maxHeight - minHeight)) + minHeight;
-        this.bottomY = this.topHeight + PIPE_GAP;
+        this.bottomY = this.topHeight + this.gap;
         this.bottomHeight = canvas.height - this.bottomY;
         
         this.passed = false;
-        
-        // Choose glowing neon color (alternates between pink and green)
-        this.color = id % 2 === 0 ? '#ff007f' : '#39ff14';
+        this.color = id % 2 === 0 ? '#ff007f' : '#00f2fe';
+        this.glowColor = id % 2 === 0 ? 'rgba(255, 0, 127, 0.28)' : 'rgba(0, 242, 254, 0.28)';
       }
 
-      update() {
-        this.x -= PIPE_SPEED;
+      update(dt = 1) {
+        this.x -= this.speed * dt;
       }
 
       draw() {
         ctx.save();
-        ctx.shadowBlur = 14;
-        ctx.shadowColor = this.color;
-        ctx.strokeStyle = this.color;
-        ctx.lineWidth = 3.5;
+        
+        // Layer 1: Smooth wide glow outline (0ms GPU lag)
+        ctx.lineWidth = 7;
+        ctx.strokeStyle = this.glowColor;
 
-        // Draw top pipe structure
         ctx.beginPath();
         ctx.roundRect(this.x, -10, this.width, this.topHeight + 10, [0, 0, 8, 8]);
         ctx.stroke();
 
-        // Draw top pipe lip cap
+        ctx.beginPath();
+        ctx.roundRect(this.x, this.bottomY, this.width, this.bottomHeight + 10, [8, 8, 0, 0]);
+        ctx.stroke();
+
+        // Layer 2: Core high-intensity neon stroke
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = this.color;
+
+        // Top pipe structure
+        ctx.beginPath();
+        ctx.roundRect(this.x, -10, this.width, this.topHeight + 10, [0, 0, 8, 8]);
+        ctx.stroke();
+
+        // Top pipe lip cap
         ctx.fillStyle = '#05070f';
         ctx.beginPath();
         ctx.roundRect(this.x - 4, this.topHeight - 16, this.width + 8, 16, 5);
         ctx.fill();
         ctx.stroke();
 
-        // Draw bottom pipe structure
+        // Bottom pipe structure
         ctx.beginPath();
         ctx.roundRect(this.x, this.bottomY, this.width, this.bottomHeight + 10, [8, 8, 0, 0]);
         ctx.stroke();
 
-        // Draw bottom pipe lip cap
+        // Bottom pipe lip cap
         ctx.beginPath();
         ctx.roundRect(this.x - 4, this.bottomY, this.width + 8, 16, 5);
         ctx.fill();
@@ -753,23 +817,21 @@
         this.y = y;
         this.vx = vx;
         this.vy = vy;
-        this.size = Math.random() * 3 + 1.5;
+        this.size = Math.random() * 2.8 + 1.2;
         this.color = color;
         this.alpha = 1;
-        this.decay = 0.03 + Math.random() * 0.02;
+        this.decay = 0.035 + Math.random() * 0.02;
       }
 
-      update() {
-        this.x += this.vx;
-        this.y += this.vy;
-        this.alpha -= this.decay;
+      update(dt = 1) {
+        this.x += this.vx * dt;
+        this.y += this.vy * dt;
+        this.alpha -= this.decay * dt;
       }
 
       draw() {
         ctx.save();
-        ctx.globalAlpha = this.alpha;
-        ctx.shadowBlur = 8;
-        ctx.shadowColor = this.color;
+        ctx.globalAlpha = Math.max(0, this.alpha);
         ctx.fillStyle = this.color;
         ctx.beginPath();
         ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
@@ -787,24 +849,26 @@
       roundStartTime = Date.now();
       lastPipeScoreId = -1;
 
-      // Spawn first pipe
-      pipes.push(new NeonPipe(canvas.width + 100, 0));
+      // Spawn first pipe with Score 0 parameters (Gap = 190px, Spacing = 245px)
+      pipes.push(new NeonPipe(canvas.width + 80, 0, 0));
     }
 
-    function update() {
-      bird.update();
+    function update(dt = 1) {
+      bird.update(dt);
 
-      // Spawn next pipes based on spacing
+      const diff = getDifficultyParams(score);
+
+      // Spawn next pipes based on dynamic score-based spacing
       if (pipes.length > 0) {
         const lastPipe = pipes[pipes.length - 1];
-        if (lastPipe.x < canvas.width - PIPE_SPACING) {
-          pipes.push(new NeonPipe(canvas.width, lastPipe.id + 1));
+        if (lastPipe.x < canvas.width - diff.spacing) {
+          pipes.push(new NeonPipe(canvas.width, lastPipe.id + 1, score));
         }
       }
 
       // Update pipes
       pipes.forEach(p => {
-        p.update();
+        p.update(dt);
         
         // Pass pipe point check
         if (!p.passed && p.x + p.width / 2 < bird.x) {
@@ -817,69 +881,73 @@
       // Filter offscreen pipes
       pipes = pipes.filter(p => p.x > -PIPE_WIDTH - 20);
 
-      // Collisions check
+      // Collisions check (refined hitboxes)
       pipes.forEach(p => {
-        // Broad phase bounding box
-        if (bird.x + bird.width - 2 > p.x && bird.x + 2 < p.x + p.width) {
+        if (bird.x + bird.width - 4 > p.x && bird.x + 4 < p.x + p.width) {
           // Check collision with top pipe
-          if (bird.y + 2 < p.topHeight) {
+          if (bird.y + 3 < p.topHeight) {
             triggerGameOver();
           }
           // Check collision with bottom pipe
-          if (bird.y + bird.height - 2 > p.bottomY) {
+          if (bird.y + bird.height - 3 > p.bottomY) {
             triggerGameOver();
           }
         }
       });
 
       // Ceiling and floor bounds death check
-      if (bird.y > canvas.height + 40 || bird.y < -60) {
+      if (bird.y > canvas.height + 30 || bird.y < -50) {
         triggerGameOver();
       }
 
       // Update trail/burst particles
-      particles.forEach(p => p.update());
+      particles.forEach(p => p.update(dt));
       particles = particles.filter(p => p.alpha > 0);
     }
 
     function draw() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      
-      // Draw grid-like scanner background
-      ctx.strokeStyle = 'rgba(0, 242, 254, 0.03)';
-      ctx.lineWidth = 1;
-      for (let i = 0; i < canvas.width; i += 20) {
-        ctx.beginPath();
-        ctx.moveTo(i, 0);
-        ctx.lineTo(i, canvas.height);
-        ctx.stroke();
-      }
-      for (let j = 0; j < canvas.height; j += 20) {
-        ctx.beginPath();
-        ctx.moveTo(0, j);
-        ctx.lineTo(canvas.width, j);
-        ctx.stroke();
-      }
+      // Blit pre-rendered background instantly (0.01ms)
+      ctx.drawImage(bgCanvas, 0, 0);
 
       // Draw game entities
       pipes.forEach(p => p.draw());
       bird.draw();
       particles.forEach(p => p.draw());
 
-      // Draw score counter
+      // Draw score counter & difficulty HUD
+      const diff = getDifficultyParams(score);
+      const displayHighscore = Math.max(savedHighscore, score);
+      const isNewRecord = score > savedHighscore && savedHighscore > 0;
+
       ctx.save();
-      ctx.fillStyle = '#ff007f';
-      ctx.font = '900 24px "Outfit", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
       ctx.textAlign = 'center';
+
+      // 1. Live Score Counter
+      ctx.fillStyle = '#ff007f';
+      ctx.font = '900 28px "Outfit", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
       ctx.shadowBlur = 10;
-      ctx.shadowColor = 'rgba(255, 0, 127, 0.4)';
-      ctx.fillText(score.toLocaleString(), canvas.width / 2, 44);
+      ctx.shadowColor = 'rgba(255, 0, 127, 0.5)';
+      ctx.fillText(score.toLocaleString(), canvas.width / 2, 34);
+
+      // 2. Highscore Display (Moves in lockstep if score > savedHighscore)
+      ctx.shadowBlur = 0;
+      if (displayHighscore > 0) {
+        ctx.fillStyle = isNewRecord ? '#ffd358' : 'rgba(255, 255, 255, 0.65)';
+        ctx.font = isNewRecord ? '800 11px "Outfit", monospace' : '600 10px "Outfit", monospace';
+        ctx.letterSpacing = '0.5px';
+        const hsPrefix = isNewRecord ? '🔥 Highscore: ' : 'Highscore: ';
+        ctx.fillText(`${hsPrefix}${displayHighscore.toLocaleString()}`, canvas.width / 2, 50);
+      }
+
+      // 3. Progressive Stage & Gap Badge
+      ctx.fillStyle = diff.badgeColor;
+      ctx.font = '700 9px "Outfit", monospace';
+      ctx.letterSpacing = '1px';
+      ctx.fillText(`${diff.levelName} · ABSTAND ${diff.gap}px`, canvas.width / 2, 64);
       ctx.restore();
     }
 
     let lastFrameTime = 0;
-    let frameAccumulator = 0;
-    const TIME_STEP = 1000 / 60; // Exact 60 FPS standard (16.667 ms)
 
     function gameLoop(timestamp) {
       if (gameState !== 'playing') return;
@@ -892,16 +960,14 @@
       let elapsed = now - lastFrameTime;
       lastFrameTime = now;
 
-      // Cap max delta to prevent spiral of death on lag / tab switch
+      // Cap max delta to prevent physics glitch on tab switch
       if (elapsed > 100) elapsed = 100;
-      frameAccumulator += elapsed;
+      if (elapsed < 1) elapsed = 16.667;
 
-      // Execute updates at strict 60Hz rate
-      while (frameAccumulator >= TIME_STEP) {
-        update();
-        frameAccumulator -= TIME_STEP;
-      }
+      // Normalized delta time where 1.0 = exactly 60 FPS
+      const dt = elapsed / 16.6667;
 
+      update(dt);
       draw();
       animationFrameId = requestAnimationFrame(gameLoop);
     }
@@ -930,6 +996,14 @@
       setTimeout(() => soundManager.playGameOver(), 180);
       soundManager.stopMusic();
       
+      // Persist new personal highscore if beaten
+      if (score > savedHighscore) {
+        savedHighscore = score;
+        try {
+          localStorage.setItem('tggamehub_neonbird_highscore', savedHighscore.toString());
+        } catch(e) {}
+      }
+
       finalScoreEl.innerText = score.toLocaleString();
       gameOverScreen.style.display = 'flex';
       

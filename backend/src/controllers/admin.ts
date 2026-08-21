@@ -669,4 +669,147 @@ export async function resetDatabaseDangerZone(req: Request, res: Response) {
   }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// GET /api/admin/coins — List all market coins, AMM pool reserves, volume & price
+// ─────────────────────────────────────────────────────────────────────────────
+export async function getAdminCoins(_req: Request, res: Response) {
+  try {
+    const hasMarketCoins = await db.schema.hasTable('market_coins');
+    if (!hasMarketCoins) {
+      return res.json({ success: true, coins: [] });
+    }
 
+    const coins = await db('market_coins').select('*').orderBy('symbol', 'asc');
+    return res.json({
+      success: true,
+      coins: coins.map((c: any) => ({
+        symbol: c.symbol,
+        name: c.name,
+        gameId: c.game_id,
+        currentPrice: Number(c.current_price || 0.00000001),
+        basePrice: Number(c.base_price || 0.00000001),
+        virtualGameReserve: Number(c.virtual_game_reserve || 100000.0),
+        virtualTokenReserve: Number(c.virtual_token_reserve || 10000000000000.0),
+        constantProductK: Number(c.constant_product_k || 1e18),
+        circulatingSupply: Number(c.circulating_supply || 10000000000000.0),
+        totalBurned: Number(c.total_burned || 0),
+        volume24h: Number(c.volume_24h || 0),
+        updatedAt: c.updated_at,
+      })),
+    });
+  } catch (error: any) {
+    console.error('[ADMIN COINS ERROR]:', error);
+    return res.status(500).json({ error: 'Fehler beim Laden der Coins', detail: error.message });
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PATCH /api/admin/coins/:symbol — Adjust price, AMM reserves, volume & supply
+// ─────────────────────────────────────────────────────────────────────────────
+export async function updateAdminCoin(req: Request, res: Response) {
+  try {
+    const symbol = (req.params.symbol || '').toUpperCase().trim();
+    const {
+      currentPrice,
+      basePrice,
+      virtualGameReserve,
+      virtualTokenReserve,
+      constantProductK,
+      circulatingSupply,
+      volume24h,
+      totalBurned,
+    } = req.body;
+
+    const coin = await db('market_coins').where({ symbol }).first();
+    if (!coin) {
+      return res.status(404).json({ error: `Coin $${symbol} nicht gefunden.` });
+    }
+
+    const updates: Record<string, any> = {
+      updated_at: new Date().toISOString(),
+    };
+
+    let newPrice = currentPrice !== undefined && !isNaN(parseFloat(currentPrice)) ? parseFloat(currentPrice) : Number(coin.current_price);
+    let newGameReserve = virtualGameReserve !== undefined && !isNaN(parseFloat(virtualGameReserve)) ? parseFloat(virtualGameReserve) : Number(coin.virtual_game_reserve || 100000.0);
+    let newTokenReserve = virtualTokenReserve !== undefined && !isNaN(parseFloat(virtualTokenReserve)) ? parseFloat(virtualTokenReserve) : Number(coin.virtual_token_reserve || 10000000000000.0);
+    let newK = constantProductK !== undefined && !isNaN(parseFloat(constantProductK)) ? parseFloat(constantProductK) : Number(coin.constant_product_k || 1e18);
+
+    // Consistency calculations:
+    // When virtualGameReserve or currentPrice is adjusted, automatically compute matching token reserve and constant product k
+    if (virtualGameReserve !== undefined || currentPrice !== undefined) {
+      if (newPrice > 0 && newGameReserve > 0) {
+        newTokenReserve = newGameReserve / newPrice;
+        newK = newGameReserve * newTokenReserve;
+      }
+    } else if (virtualTokenReserve !== undefined) {
+      if (newTokenReserve > 0 && newGameReserve > 0) {
+        newPrice = newGameReserve / newTokenReserve;
+        newK = newGameReserve * newTokenReserve;
+      }
+    }
+
+    updates.current_price = Math.max(1e-8, Math.round(newPrice * 1e12) / 1e12);
+    updates.virtual_game_reserve = Math.max(100.0, newGameReserve);
+    updates.virtual_token_reserve = Math.max(100.0, newTokenReserve);
+    updates.constant_product_k = Math.max(1.0, newK);
+
+    if (basePrice !== undefined && !isNaN(parseFloat(basePrice))) {
+      updates.base_price = Math.max(1e-8, parseFloat(basePrice));
+    }
+    if (circulatingSupply !== undefined && !isNaN(parseFloat(circulatingSupply))) {
+      updates.circulating_supply = Math.max(0, parseFloat(circulatingSupply));
+    } else if (virtualTokenReserve !== undefined || currentPrice !== undefined || virtualGameReserve !== undefined) {
+      updates.circulating_supply = updates.virtual_token_reserve;
+    }
+    if (volume24h !== undefined && !isNaN(parseFloat(volume24h))) {
+      updates.volume_24h = Math.max(0, parseFloat(volume24h));
+    }
+    if (totalBurned !== undefined && !isNaN(parseFloat(totalBurned))) {
+      updates.total_burned = Math.max(0, parseFloat(totalBurned));
+    }
+
+    await db('market_coins').where({ symbol }).update(updates);
+
+    // Insert a price history point so charts update immediately
+    await db('market_price_history').insert({
+      coin_symbol: symbol,
+      price: updates.current_price,
+      volume: 0,
+      timestamp: new Date(),
+    });
+
+    console.log(`[ADMIN COIN UPDATE]: $${symbol} updated: Price=${updates.current_price}, GameReserve=${updates.virtual_game_reserve}, TokenReserve=${updates.virtual_token_reserve}, K=${updates.constant_product_k}`);
+
+    return res.json({
+      success: true,
+      message: `Coin $${symbol} erfolgreich aktualisiert!`,
+      coin: {
+        symbol,
+        ...updates,
+      },
+    });
+  } catch (error: any) {
+    console.error('[ADMIN UPDATE COIN ERROR]:', error);
+    return res.status(500).json({ error: 'Fehler beim Aktualisieren des Coins', detail: error.message });
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// POST /api/admin/coins/:symbol/reset — Reset AMM pool to default parameters
+// ─────────────────────────────────────────────────────────────────────────────
+export async function resetAdminCoinPool(req: Request, res: Response) {
+  try {
+    const symbol = (req.params.symbol || '').toUpperCase().trim();
+    const { initCoinPool } = require('../services/marketEngine');
+
+    await initCoinPool(symbol, 0.00000001, 100000.0);
+
+    return res.json({
+      success: true,
+      message: `Pool für $${symbol} wurde erfolgreich auf die Standard-Parameter (P0=0.00000001, x=100.000 Game$, y=10 Trillion, k=10^18) zurückgesetzt.`,
+    });
+  } catch (error: any) {
+    console.error('[ADMIN RESET POOL ERROR]:', error);
+    return res.status(500).json({ error: 'Fehler beim Zurücksetzen des Pools', detail: error.message });
+  }
+}

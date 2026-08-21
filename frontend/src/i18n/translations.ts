@@ -302,6 +302,12 @@ export const translations = {
       liveAverage: 'Live-Schnitt:',
       randomMarketImpulses: 'Zufällige Markt-Impulse',
       dynamicsExplanation: 'Der Ziel-Richtwert errechnet sich live aus allen tatsächlich erspielten Punkten! Übertrifft dein Score den Live-Durchschnitt 🟢 steigt der Kurs; darunter kühlt der Kurs leicht ab 🔴.',
+      poolReserves: 'AMM Pool Reserven',
+      virtualGameReserve: 'Game$ Liquidität',
+      virtualTokenReserve: 'Token Reserve',
+      slippageProtection: 'Slippage-Schutz',
+      maxSlippage: 'Max. Slippage: 15%',
+      recordSpike: '🚀 Rekord-Impuls',
     },
     // Games & GameWrapper
     games: {
@@ -645,6 +651,12 @@ export const translations = {
       liveAverage: 'Live Avg:',
       randomMarketImpulses: 'Random Market Signals',
       dynamicsExplanation: 'The target benchmark is calculated live from all actual scores! Beating the live average 🟢 pushes the price up; scoring below cools the price down 🔴.',
+      poolReserves: 'AMM Pool Reserves',
+      virtualGameReserve: 'Game$ Liquidity',
+      virtualTokenReserve: 'Token Reserve',
+      slippageProtection: 'Slippage Protection',
+      maxSlippage: 'Max Slippage: 15%',
+      recordSpike: '🚀 Record Spike',
     },
     // Games & GameWrapper
     games: {
