@@ -111,7 +111,7 @@ export function getLeaderboardKeys(date: Date = new Date()): {
  * Updates Redis if present, otherwise updates the in-memory emulator.
  */
 export async function submitScoreToLeaderboards(userId: string, earnedCash: number): Promise<void> {
-  if (!earnedCash || isNaN(earnedCash) || earnedCash <= 0) return;
+  if (!userId || userId.startsWith('guest_') || !earnedCash || isNaN(earnedCash) || earnedCash <= 0) return;
   const keys = getLeaderboardKeys();
 
   if (redis) {

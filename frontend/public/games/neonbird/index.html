@@ -922,28 +922,30 @@
       ctx.save();
       ctx.textAlign = 'center';
 
-      // 1. Live Score Counter
+      // 1. Highscore Display (Positioned ABOVE current score, in Gold)
+      if (displayHighscore > 0) {
+        ctx.shadowBlur = 8;
+        ctx.shadowColor = 'rgba(251, 191, 36, 0.4)';
+        ctx.fillStyle = '#fbbf24'; // Gold
+        ctx.font = isNewRecord ? '800 11px "Outfit", monospace' : '700 10px "Outfit", monospace';
+        ctx.letterSpacing = '0.5px';
+        const hsPrefix = isNewRecord ? '🔥 Highscore: ' : '🏆 Highscore: ';
+        ctx.fillText(`${hsPrefix}${displayHighscore.toLocaleString()}`, canvas.width / 2, 22);
+      }
+
+      // 2. Live Score Counter
       ctx.fillStyle = '#ff007f';
       ctx.font = '900 28px "Outfit", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
       ctx.shadowBlur = 10;
       ctx.shadowColor = 'rgba(255, 0, 127, 0.5)';
-      ctx.fillText(score.toLocaleString(), canvas.width / 2, 34);
+      ctx.fillText(score.toLocaleString(), canvas.width / 2, 50);
 
-      // 2. Highscore Display (Moves in lockstep if score > savedHighscore)
+      // 3. Progressive Stage Badge (Only Stage Name, ABSTAND completely removed)
       ctx.shadowBlur = 0;
-      if (displayHighscore > 0) {
-        ctx.fillStyle = isNewRecord ? '#ffd358' : 'rgba(255, 255, 255, 0.65)';
-        ctx.font = isNewRecord ? '800 11px "Outfit", monospace' : '600 10px "Outfit", monospace';
-        ctx.letterSpacing = '0.5px';
-        const hsPrefix = isNewRecord ? '🔥 Highscore: ' : 'Highscore: ';
-        ctx.fillText(`${hsPrefix}${displayHighscore.toLocaleString()}`, canvas.width / 2, 50);
-      }
-
-      // 3. Progressive Stage & Gap Badge
       ctx.fillStyle = diff.badgeColor;
       ctx.font = '700 9px "Outfit", monospace';
       ctx.letterSpacing = '1px';
-      ctx.fillText(`${diff.levelName} · ABSTAND ${diff.gap}px`, canvas.width / 2, 64);
+      ctx.fillText(diff.levelName, canvas.width / 2, 65);
       ctx.restore();
     }
 

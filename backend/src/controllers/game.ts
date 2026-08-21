@@ -152,13 +152,34 @@ export async function submitScore(req: AuthenticatedRequest, res: Response) {
       });
     }
 
-    // Save score to persistent history log
+    // Save score to persistent history log (records all rounds including test/guest rounds for dynamic averages)
     await db('scores').insert({
       user_id: userId,
       game_id: gameId,
       score: parsedScore,
       validation_payload: validationPayload ? JSON.stringify(validationPayload) : null,
     });
+
+    // Web Guest Accounts: Return instant feedback without polluting AMM Market or Leaderboards
+    if (userId.startsWith('guest_') || req.telegramUser?.isGuest) {
+      return res.json({
+        success: true,
+        score: parsedScore,
+        earnedCash: 0,
+        totalCash: 0,
+        isGuest: true,
+        message: 'Gast-Runde abgeschlossen! Registriere dich in Telegram, um deinen Spielstand zu sichern.',
+        marketImpact: {
+          targetScore: parsedScore,
+          zScore: 0,
+          performanceRatio: 1,
+          isPositiveImpact: true,
+          isRecordBreak: false,
+          burnedTokens: 0,
+          priceChangePercent: 0,
+        },
+      });
+    }
 
     // Record score volume in Market Engine with Normalized Score Impact & AMM
     const { recordGameScore } = require('../services/marketEngine');
@@ -224,7 +245,14 @@ export async function getGameBenchmark(req: AuthenticatedRequest, res: Response)
 
     const { getDynamicGameBenchmark } = require('../services/marketEngine');
     const benchmark = await getDynamicGameBenchmark(gameId);
-    return res.json({ success: true, benchmark });
+    return res.json({
+      success: true,
+      benchmark: {
+        ...benchmark,
+        targetScore: benchmark.targetScore ?? benchmark.benchmarkTarget ?? benchmark.mean,
+        totalRoundsPlayed: benchmark.totalRoundsPlayed ?? benchmark.sampleSize ?? 0,
+      }
+    });
   } catch (error) {
     console.error('Error fetching game benchmark:', error);
     return res.status(500).json({ error: 'Internal server error' });
@@ -244,8 +272,8 @@ export async function getAllGameBenchmarks(_req: AuthenticatedRequest, res: Resp
     for (const gid of gameIds) {
       const bm = await getDynamicGameBenchmark(gid);
       benchmarks[gid] = {
-        targetScore: bm.targetScore,
-        totalRoundsPlayed: bm.totalRoundsPlayed,
+        targetScore: bm.targetScore ?? bm.benchmarkTarget ?? bm.mean ?? 1000,
+        totalRoundsPlayed: bm.totalRoundsPlayed ?? bm.sampleSize ?? 0,
       };
     }
 

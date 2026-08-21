@@ -102,6 +102,20 @@ export function authMiddleware(req: AuthenticatedRequest, res: Response, next: N
       first_name: 'CoinCade',
       last_name: 'Dev',
       startParam: startParam,
+      isGuest: false,
+    };
+    return next();
+  }
+
+  // Web Guest Account (Ephemaral browser session without Telegram WebApp context)
+  if (initData.startsWith('guest_')) {
+    const guestId = initData.trim();
+    req.telegramUser = {
+      id: guestId,
+      username: `guest_${guestId.substring(6, 12)}`,
+      first_name: 'Guest Player',
+      last_name: '(Web)',
+      isGuest: true,
     };
     return next();
   }

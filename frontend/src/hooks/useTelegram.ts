@@ -74,17 +74,38 @@ export function useTelegram() {
       setInitData(`dev_${devId}`);
       setIsInsideTelegram(true);
     } else {
-      // Accessed directly via web browser on production domain
-      console.log('[TELEGRAM SDK]: Direct browser access detected outside Telegram.');
+      // Accessed directly via web browser on production domain -> Assign temporary ephemeral guest session
+      console.log('[TELEGRAM SDK]: Direct browser access detected. Assigning temporary ephemeral guest session.');
+      let guestId = '';
+      try {
+        guestId = sessionStorage.getItem('coincade_guest_id') || '';
+        if (!guestId) {
+          guestId = 'guest_' + Math.random().toString(36).substring(2, 10);
+          sessionStorage.setItem('coincade_guest_id', guestId);
+        }
+      } catch (e) {
+        guestId = 'guest_' + Math.random().toString(36).substring(2, 10);
+      }
+
+      setUser({
+        id: guestId,
+        username: `guest_${guestId.substring(6, 12)}`,
+        first_name: 'Guest Player',
+        last_name: '(Web)',
+      });
+      setInitData(guestId);
       setIsInsideTelegram(false);
     }
   }, []);
+
+  const isGuest = Boolean(user?.id && user.id.startsWith('guest_'));
 
   return {
     tg,
     user,
     initData,
     isInsideTelegram,
+    isGuest,
   };
 }
 

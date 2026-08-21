@@ -59,6 +59,8 @@ export interface GameScoreStatistics {
   stdDev: number;
   sampleSize: number;
   benchmarkTarget: number;
+  targetScore: number;
+  totalRoundsPlayed: number;
   minScoreThreshold: number;
   basePayoutCash: number;
 }
@@ -253,7 +255,9 @@ export async function getRollingScoreStatistics(gameId: string): Promise<GameSco
         mean: baseline.mean,
         stdDev: baseline.stdDev,
         sampleSize: 0,
+        targetScore: baseline.mean,
         benchmarkTarget: baseline.mean,
+        totalRoundsPlayed: 0,
         minScoreThreshold: Math.max(1, Math.round(baseline.mean * 0.5)),
         basePayoutCash: 0.05,
       };
@@ -267,15 +271,17 @@ export async function getRollingScoreStatistics(gameId: string): Promise<GameSco
       .limit(MARKET_CONFIG.ROLLING_SCORE_SAMPLE_SIZE);
 
     const sampleSize = recentScores.length;
-    if (sampleSize < 5) {
+    if (sampleSize === 0) {
       return {
         gameId: cleanGameId,
         symbol: coinMapping.symbol,
         name: coinMapping.name,
         mean: baseline.mean,
         stdDev: baseline.stdDev,
-        sampleSize,
+        sampleSize: 0,
+        targetScore: baseline.mean,
         benchmarkTarget: baseline.mean,
+        totalRoundsPlayed: 0,
         minScoreThreshold: Math.max(1, Math.round(baseline.mean * 0.5)),
         basePayoutCash: 0.05,
       };
@@ -285,7 +291,9 @@ export async function getRollingScoreStatistics(gameId: string): Promise<GameSco
     const mean = scoresArray.reduce((sum, val) => sum + val, 0) / sampleSize;
 
     const variance =
-      scoresArray.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / Math.max(1, sampleSize - 1);
+      sampleSize > 1
+        ? scoresArray.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / (sampleSize - 1)
+        : Math.pow(baseline.stdDev, 2);
     const stdDev = Math.max(1.0, Math.sqrt(variance));
 
     const benchmarkTarget = Math.max(1, Math.round(mean));
@@ -298,7 +306,9 @@ export async function getRollingScoreStatistics(gameId: string): Promise<GameSco
       mean: Math.round(mean * 10) / 10,
       stdDev: Math.round(stdDev * 10) / 10,
       sampleSize,
+      targetScore: benchmarkTarget,
       benchmarkTarget,
+      totalRoundsPlayed: sampleSize,
       minScoreThreshold,
       basePayoutCash: 0.05,
     };
@@ -311,7 +321,9 @@ export async function getRollingScoreStatistics(gameId: string): Promise<GameSco
       mean: baseline.mean,
       stdDev: baseline.stdDev,
       sampleSize: 0,
+      targetScore: baseline.mean,
       benchmarkTarget: baseline.mean,
+      totalRoundsPlayed: 0,
       minScoreThreshold: Math.max(1, Math.round(baseline.mean * 0.5)),
       basePayoutCash: 0.05,
     };

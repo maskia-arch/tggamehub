@@ -1408,28 +1408,30 @@
       ctx.save();
       ctx.textAlign = 'center';
 
-      // 1. Live Altitude Score
+      // 1. Highscore Display (Positioned ABOVE current score, in Gold)
+      if (displayHighscore > 0) {
+        ctx.shadowBlur = 8;
+        ctx.shadowColor = 'rgba(251, 191, 36, 0.4)';
+        ctx.fillStyle = '#fbbf24'; // Gold
+        ctx.font = isNewRecord ? '800 11px "Outfit", monospace' : '700 10px "Outfit", monospace';
+        ctx.letterSpacing = '0.5px';
+        const hsPrefix = isNewRecord ? '🔥 Highscore: ' : '🏆 Highscore: ';
+        ctx.fillText(`${hsPrefix}${displayHighscore.toLocaleString()}`, canvas.width / 2, 22);
+      }
+
+      // 2. Live Altitude Score
       ctx.fillStyle = '#00f2fe';
       ctx.font = '900 26px "Outfit", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
       ctx.shadowBlur = 12;
       ctx.shadowColor = 'rgba(0, 242, 254, 0.5)';
-      ctx.fillText(score.toLocaleString(), canvas.width / 2, 36);
-
-      // 2. Highscore Display (Tracks in lockstep if score > savedHighscore)
-      ctx.shadowBlur = 0;
-      if (displayHighscore > 0) {
-        ctx.fillStyle = isNewRecord ? '#ffd358' : 'rgba(255, 255, 255, 0.65)';
-        ctx.font = isNewRecord ? '800 11px "Outfit", monospace' : '600 10px "Outfit", monospace';
-        ctx.letterSpacing = '0.5px';
-        const hsPrefix = isNewRecord ? '🔥 Highscore: ' : 'Highscore: ';
-        ctx.fillText(`${hsPrefix}${displayHighscore.toLocaleString()}`, canvas.width / 2, 52);
-      }
+      ctx.fillText(score.toLocaleString(), canvas.width / 2, 50);
 
       // 3. Sub-label for altitude
+      ctx.shadowBlur = 0;
       ctx.fillStyle = 'rgba(156, 163, 175, 0.6)';
       ctx.font = '600 9px "Outfit", monospace';
       ctx.letterSpacing = '1px';
-      ctx.fillText('ALTITUDE', canvas.width / 2, 66);
+      ctx.fillText('ALTITUDE', canvas.width / 2, 65);
       ctx.restore();
     }
 

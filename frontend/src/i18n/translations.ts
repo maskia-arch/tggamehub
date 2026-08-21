@@ -53,6 +53,12 @@ export const translations = {
       timeBoosterActive: 'Time Booster Aktiv',
       unlimitedPlay: '∞ Unbegrenzt spielen',
     },
+    // Guest Mode Banner (Web Preview)
+    guestBanner: {
+      title: 'Gast-Modus aktiv (Web-Vorschau)',
+      description: 'Du spielst als temporärer Gast im Browser. Öffne CoinCade in Telegram, um deinen Spielstand dauerhaft zu speichern, im Leaderboard aufzusteigen und Krypto-Airdrops zu gewinnen!',
+      ctaBtn: 'In Telegram öffnen',
+    },
     // Season & Banner
     season: {
       goalPot: 'Ziel-Pot',
@@ -401,6 +407,12 @@ export const translations = {
       videosRemaining: 'videos remaining today',
       timeBoosterActive: 'Time Booster Active',
       unlimitedPlay: '∞ Unlimited Play',
+    },
+    // Guest Mode Banner (Web Preview)
+    guestBanner: {
+      title: 'Guest Mode Active (Web Preview)',
+      description: 'You are playing as a temporary guest in your browser. Open CoinCade in Telegram to permanently save your score, climb leaderboards, and win crypto airdrops!',
+      ctaBtn: 'Open in Telegram',
     },
     // Season & Banner
     season: {

@@ -10,7 +10,6 @@ import { SeasonBanner } from './components/SeasonBanner';
 import { EnergyModal } from './components/EnergyModal';
 import { useLanguage } from './i18n/LanguageContext';
 import { LanguageToggle } from './components/LanguageToggle';
-import { TelegramRedirectLanding } from './components/TelegramRedirectLanding';
 
 // Read API URL from environment, fallback to backend on local dev or current origin in prod
 const BACKEND_URL =
@@ -56,16 +55,11 @@ interface ProfileData {
 
 export default function App() {
   const { t } = useLanguage();
-  const { initData, isInsideTelegram } = useTelegram();
+  const { initData, isGuest } = useTelegram();
   const [activeTab, setActiveTab] = useState<'games' | 'market' | 'leaderboard' | 'shop' | 'profile'>('games');
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
   const [showEnergyPopup, setShowEnergyPopup] = useState(false);
-
-  // If visitor is browsing directly on web outside Telegram, show the Telegram redirect landing page
-  if (isInsideTelegram === false) {
-    return <TelegramRedirectLanding />;
-  }
 
 
   // Fetch/Refresh profile details
@@ -156,6 +150,71 @@ export default function App() {
           )}
         </div>
       </header>
+
+      {/* Web Guest Mode CTA Banner */}
+      {isGuest && (
+        <div
+          style={{
+            margin: '8px 0 12px 0',
+            background: 'linear-gradient(135deg, rgba(251,191,36,0.14) 0%, rgba(0,242,254,0.08) 100%)',
+            border: '1px solid rgba(251,191,36,0.35)',
+            borderRadius: '16px',
+            padding: '12px 14px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '12px',
+            boxShadow: '0 4px 20px rgba(0,0,0,0.35)',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+            <span style={{ fontSize: '22px', flexShrink: 0 }}>🎮</span>
+            <div style={{ minWidth: 0 }}>
+              <div style={{
+                fontSize: '11px',
+                fontWeight: 900,
+                color: 'var(--gold)',
+                letterSpacing: '0.05em',
+                textTransform: 'uppercase',
+                marginBottom: '2px',
+              }}>
+                {t.guestBanner.title}
+              </div>
+              <div style={{
+                fontSize: '10.5px',
+                color: 'rgba(255,255,255,0.75)',
+                lineHeight: 1.35,
+              }}>
+                {t.guestBanner.description}
+              </div>
+            </div>
+          </div>
+
+          <a
+            href="https://t.me/coincadebot/webapp"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '6px',
+              background: 'linear-gradient(135deg, #00f2fe 0%, #4facfe 100%)',
+              color: '#000',
+              fontWeight: 900,
+              fontSize: '11px',
+              padding: '8px 14px',
+              borderRadius: '10px',
+              textDecoration: 'none',
+              boxShadow: '0 0 16px rgba(0,242,254,0.4)',
+              whiteSpace: 'nowrap',
+              flexShrink: 0,
+            }}
+          >
+            <span>✈️ {t.guestBanner.ctaBtn}</span>
+          </a>
+        </div>
+      )}
 
       {/* Season Progress & Airdrop Banner */}
       <SeasonBanner backendUrl={BACKEND_URL} />
