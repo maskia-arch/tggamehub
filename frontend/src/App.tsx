@@ -62,8 +62,8 @@ export default function App() {
   const [showEnergyPopup, setShowEnergyPopup] = useState(false);
 
 
-  // Fetch/Refresh profile details
-  const fetchProfile = useCallback(async () => {
+  // Fetch/Refresh profile details with optional retry on temporary network drop
+  const fetchProfile = useCallback(async (retryCount = 0) => {
     if (!initData) return;
     try {
       const response = await fetch(`${BACKEND_URL}/api/user/profile`, {
@@ -79,7 +79,11 @@ export default function App() {
       const data: ProfileData = await response.json();
       setProfile(data);
     } catch (err: any) {
-      console.error('Fetch profile error:', err);
+      console.warn('Fetch profile error:', err);
+      // Auto-retry once on waking up from background / temporary network glitch
+      if (retryCount < 1) {
+        setTimeout(() => fetchProfile(retryCount + 1), 1200);
+      }
     } finally {
       setLoading(false);
     }
@@ -90,6 +94,84 @@ export default function App() {
     if (initData) {
       fetchProfile();
     }
+  }, [initData, fetchProfile]);
+
+  // 1. Auto-Resume & Connection Recovery:
+  // Re-fetch profile & energy immediately when returning to the Mini App, focusing window, or reconnecting online
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        fetchProfile();
+      }
+    };
+    const handleFocus = () => {
+      fetchProfile();
+    };
+    const handleOnline = () => {
+      fetchProfile();
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleFocus);
+    window.addEventListener('online', handleOnline);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('online', handleOnline);
+    };
+  }, [fetchProfile]);
+
+  // 2. Global Energy Countdown & Auto-Regeneration Tick:
+  // Runs continuously in root App so energy naturally regenerates across all tabs & views
+  useEffect(() => {
+    if (!profile) return;
+    const { current, max, nextRechargeInSeconds } = profile.energy;
+
+    // Only tick when energy is depleted below max and cooldown timer > 0
+    if (current >= max || nextRechargeInSeconds <= 0) return;
+
+    const timer = setInterval(() => {
+      setProfile((prev) => {
+        if (!prev) return prev;
+        const prevEnergy = prev.energy;
+        if (prevEnergy.current >= prevEnergy.max) return prev;
+
+        const newSeconds = prevEnergy.nextRechargeInSeconds - 1;
+        if (newSeconds <= 0) {
+          // Timer reached 0 -> Fetch authoritative state from backend immediately
+          setTimeout(() => fetchProfile(), 100);
+          return {
+            ...prev,
+            energy: {
+              ...prevEnergy,
+              current: Math.min(prevEnergy.max, prevEnergy.current + 1),
+              nextRechargeInSeconds: 0,
+            },
+          };
+        }
+
+        return {
+          ...prev,
+          energy: {
+            ...prevEnergy,
+            nextRechargeInSeconds: newSeconds,
+          },
+        };
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [profile?.energy?.current, profile?.energy?.max, profile?.energy?.nextRechargeInSeconds, fetchProfile]);
+
+  // 3. Periodic Background Sync (every 25s when visible):
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (document.visibilityState === 'visible' && initData) {
+        fetchProfile();
+      }
+    }, 25000);
+    return () => clearInterval(interval);
   }, [initData, fetchProfile]);
 
   return (

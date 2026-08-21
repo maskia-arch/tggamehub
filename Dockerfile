@@ -25,7 +25,7 @@ ENV PORT=5000
 # Install production dependencies for backend
 COPY backend/package*.json ./backend/
 WORKDIR /app/backend
-RUN npm ci --only=production
+RUN npm ci --omit=dev
 WORKDIR /app
 
 # Copy compiled backend & runtime files

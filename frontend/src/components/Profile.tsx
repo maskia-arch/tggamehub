@@ -99,18 +99,10 @@ export function Profile({ profile, onRefresh, initData, backendUrl }: ProfilePro
   const [deleteScheduled, setDeleteScheduled] = useState(!!profile.user.deletion_scheduled_at);
   const [deletionTime, setDeletionTime] = useState(profile.user.deletion_scheduled_at);
 
-  // Sync countdown
-  useEffect(() => { setSecondsLeft(profile.energy.nextRechargeInSeconds); }, [profile.energy.nextRechargeInSeconds]);
+  // Live sync countdown directly from App root state
   useEffect(() => {
-    if (profile.energy.current >= profile.energy.max || secondsLeft <= 0) return;
-    const timer = setInterval(() => {
-      setSecondsLeft((prev) => {
-        if (prev <= 1) { clearInterval(timer); onRefresh(); return 0; }
-        return prev - 1;
-      });
-    }, 1000);
-    return () => clearInterval(timer);
-  }, [secondsLeft, profile.energy.current, profile.energy.max, onRefresh]);
+    setSecondsLeft(profile.energy.nextRechargeInSeconds);
+  }, [profile.energy.nextRechargeInSeconds]);
 
   const formatTime = (secs: number) => {
     const h = Math.floor(secs / 3600);

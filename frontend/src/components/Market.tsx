@@ -146,7 +146,7 @@ export function Market({ initData, backendUrl, onBalanceUpdate }: MarketProps) {
   timeframeRef.current = timeframe;
 
   // Pure overview data fetch (does not mutate selected symbol state)
-  const fetchMarket = useCallback(async () => {
+  const fetchMarket = useCallback(async (isBackground = false) => {
     if (!initData) return;
     try {
       const response = await fetch(`${backendUrl}/api/market/overview`, {
@@ -163,9 +163,13 @@ export function Market({ initData, backendUrl, onBalanceUpdate }: MarketProps) {
         });
       }
       setData(marketData);
+      setError(null); // Clear error on successful fetch
     } catch (err: any) {
-      console.error('Market fetch error:', err);
-      setError(err.message || 'Verbindung zur Börse fehlgeschlagen');
+      console.warn('Market fetch warning:', err.message || err);
+      // Only show error alert if we don't have any cached data or on initial load
+      if (!isBackground) {
+        setError(err.message || 'Verbindung zur Börse fehlgeschlagen');
+      }
     } finally {
       setLoading(false);
     }
@@ -175,7 +179,6 @@ export function Market({ initData, backendUrl, onBalanceUpdate }: MarketProps) {
   const fetchChart = useCallback(async (symbol: string, tf: string = timeframeRef.current) => {
     if (!initData || !symbol) return;
     const cleanSymbol = symbol.replace('$', '').toUpperCase();
-    setLoadingChart(true);
     try {
       const response = await fetch(`${backendUrl}/api/market/chart/${cleanSymbol}?timeframe=${tf}`, {
         headers: { Authorization: `Bearer ${initData}` },
@@ -187,7 +190,7 @@ export function Market({ initData, backendUrl, onBalanceUpdate }: MarketProps) {
         }
       }
     } catch (err) {
-      console.warn('Chart fetch error:', err);
+      console.warn('Chart fetch warning:', err);
     } finally {
       setLoadingChart(false);
     }
@@ -196,21 +199,63 @@ export function Market({ initData, backendUrl, onBalanceUpdate }: MarketProps) {
   // Fetch chart instantly when user selects a different coin or timeframe
   useEffect(() => {
     if (selectedSymbol) {
-      setChartData([]); // Instant feedback reset
+      setError(null);
+      setLoadingChart(true);
       fetchChart(selectedSymbol, timeframe);
     }
   }, [selectedSymbol, timeframe, fetchChart]);
 
-  // Continuous background 1-second polling (uncoupled from state re-renders)
+  // Visibility-aware background polling (pauses when backgrounded/locked, auto-resumes & fetches immediately upon return)
   useEffect(() => {
-    fetchMarket();
-    const interval = setInterval(() => {
-      fetchMarket();
+    fetchMarket(false);
+    if (selectedSymbolRef.current) {
+      fetchChart(selectedSymbolRef.current, timeframeRef.current);
+    }
+
+    let intervalId: any = null;
+
+    const startPolling = () => {
+      if (intervalId) clearInterval(intervalId);
+      intervalId = setInterval(() => {
+        if (document.visibilityState === 'visible') {
+          fetchMarket(true);
+          if (selectedSymbolRef.current) {
+            fetchChart(selectedSymbolRef.current, timeframeRef.current);
+          }
+        }
+      }, 3000);
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        setError(null);
+        fetchMarket(false);
+        if (selectedSymbolRef.current) {
+          fetchChart(selectedSymbolRef.current, timeframeRef.current);
+        }
+        startPolling();
+      } else {
+        if (intervalId) clearInterval(intervalId);
+      }
+    };
+
+    const handleFocus = () => {
+      setError(null);
+      fetchMarket(false);
       if (selectedSymbolRef.current) {
         fetchChart(selectedSymbolRef.current, timeframeRef.current);
       }
-    }, 1000);
-    return () => clearInterval(interval);
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleFocus);
+    startPolling();
+
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleFocus);
+    };
   }, [fetchMarket, fetchChart]);
 
   const handleSelectCoinForTrade = (coin: MarketCoin, type: 'BUY' | 'SELL' = 'BUY') => {

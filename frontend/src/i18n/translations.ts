@@ -319,7 +319,7 @@ export const translations = {
     games: {
       title: 'Highscore Spielen & Tokens verbrennen 🔥',
       subtitle: 'Arcade Lobby - Spiele & pushe deine Stock-Kurse',
-      playBtn: 'Jetzt Spielen ⚡',
+      playBtn: 'Jetzt Spielen',
       noEnergyTitle: 'Keine Energie vorhanden!',
       noEnergyDesc: 'Du benötigst 1 Energie, um ein Spiel zu starten.',
       gameOverTitle: 'Spiel beendet!',
@@ -674,7 +674,7 @@ export const translations = {
     games: {
       title: 'Play Highscore & Burn Tokens 🔥',
       subtitle: 'Arcade Lobby - Play & push your stock charts',
-      playBtn: 'Play Now ⚡',
+      playBtn: 'Play Now',
       noEnergyTitle: 'No Energy Available!',
       noEnergyDesc: 'You need 1 Energy to start a game.',
       gameOverTitle: 'Game Over!',

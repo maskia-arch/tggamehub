@@ -337,10 +337,10 @@ export function GameWrapper({
                       background: 'rgba(5, 7, 15, 0.85)', backdropFilter: 'blur(8px)',
                       border: '1px solid rgba(255, 140, 0, 0.3)',
                       padding: '4px 10px', borderRadius: '9999px',
-                      display: 'flex', alignItems: 'center', gap: '4px',
+                      display: 'flex', alignItems: 'center', gap: '3px',
                     }}>
+                      <span>-1</span>
                       <Zap size={12} className="fill-orange-400 stroke-none" />
-                      <span>-1 ⚡</span>
                     </div>
                   </div>
                 )}
@@ -394,12 +394,15 @@ export function GameWrapper({
                       color: '#000', fontSize: '13px', fontWeight: 900,
                       textTransform: 'uppercase', letterSpacing: '0.08em',
                       cursor: 'pointer', boxShadow: '0 0 20px rgba(0,242,254,0.25)',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
                       transition: 'all 0.2s',
                     }}
                   >
                     <span>{t.games.playBtn}</span>
-                    <Zap size={15} className="fill-black stroke-none" />
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '2px', marginLeft: '4px' }}>
+                      <span>-1</span>
+                      <Zap size={15} className="fill-black stroke-none" />
+                    </span>
                   </button>
                 </div>
               </div>
