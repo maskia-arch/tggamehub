@@ -46,6 +46,7 @@ export async function runAutoMigrations(knex: Knex): Promise<void> {
         table.string('season_pass_type').defaultTo('NONE');
         table.string('last_daily_free_refill_date').nullable();
         table.integer('daily_refill_count').defaultTo(0);
+        table.timestamp('full_energy_notified_at').nullable();
         table.timestamp('created_at').defaultTo(knex.fn.now());
       });
       console.log('[DATABASE AUTO-SYNC]: Created users table.');
@@ -68,6 +69,7 @@ export async function runAutoMigrations(knex: Knex): Promise<void> {
       await ensureColumn(knex, 'users', 'season_pass_type', (t) => t.string('season_pass_type').defaultTo('NONE'));
       await ensureColumn(knex, 'users', 'last_daily_free_refill_date', (t) => t.string('last_daily_free_refill_date').nullable());
       await ensureColumn(knex, 'users', 'daily_refill_count', (t) => t.integer('daily_refill_count').defaultTo(0));
+      await ensureColumn(knex, 'users', 'full_energy_notified_at', (t) => t.timestamp('full_energy_notified_at').nullable());
     }
 
     // ── Table: SCORES ─────────────────────────────────────────────────────────

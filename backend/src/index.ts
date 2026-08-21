@@ -115,6 +115,10 @@ runAutoMigrations(db)
       // Start continuous 5-second market ticker
       const { startMarketTicker } = require('./services/marketEngine');
       startMarketTicker();
+
+      // Start reliable Telegram notification background scheduler (Full Energy & Portfolio alerts)
+      const { startNotificationScheduler } = require('./services/notificationService');
+      startNotificationScheduler();
     });
   })
   .catch((err) => {

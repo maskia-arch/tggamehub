@@ -156,12 +156,12 @@ export async function buildLeaderboardMenu(userId: string): Promise<MenuRenderRe
 }
 
 /**
- * Builds the Market / Trading Menu
+ * Builds the Portfolio / Market Overview Menu (Live Holdings, Profit/Loss, Prices)
  */
 export async function buildMarketMenu(userId: string): Promise<MenuRenderResult> {
   const marketData = await getMarketOverview(userId);
   const user = await db('users').where({ id: userId }).first();
-  const gameCash = (user?.game_cash || 0.0).toFixed(2);
+  const gameCash = Number(user?.game_cash || 0.0);
 
   function formatBotPrice(price: number): string {
     if (price < 0.001) {
@@ -172,41 +172,60 @@ export async function buildMarketMenu(userId: string): Promise<MenuRenderResult>
     return price.toFixed(4);
   }
 
+  let totalPortfolioValue = 0;
+  let totalInvestedCost = 0;
   let coinsText = '';
-  const tradeButtons: any[] = [];
 
   marketData.coins.forEach((c) => {
     const changeSign = c.change24hPercent >= 0 ? '📈 +' : '📉 ';
     const changeStr = `${changeSign}${c.change24hPercent.toFixed(2)}%`;
     const userHolding = marketData.portfolio.find((p) => p.coinSymbol === c.symbol);
-    const holdingAmount = userHolding ? userHolding.amount.toLocaleString('de-DE') : '0';
+    const holdingAmount = userHolding ? userHolding.amount : 0;
+    const avgBuyPrice = userHolding ? userHolding.avgBuyPrice : 0;
     const priceFormatted = formatBotPrice(c.currentPrice);
+
+    const holdingValue = Math.round(holdingAmount * c.currentPrice * 10000) / 10000;
+    const investedCost = Math.round(holdingAmount * avgBuyPrice * 10000) / 10000;
+    const pnlCash = Math.round((holdingValue - investedCost) * 10000) / 10000;
+    const pnlPct = investedCost > 0 ? ((pnlCash / investedCost) * 100) : 0;
+    const pnlSign = pnlCash >= 0 ? '+' : '';
+    const pnlEmoji = pnlCash > 0 ? '🟢' : (pnlCash < 0 ? '🔴' : '⚪');
+
+    totalPortfolioValue += holdingValue;
+    totalInvestedCost += investedCost;
+
+    const holdingDisplay = holdingAmount > 0
+      ? `  • Dein Bestand: \`${holdingAmount.toLocaleString('de-DE')} ${c.symbol}\`\n` +
+        `  • Aktueller Wert: \`${holdingValue.toFixed(2)} $\` (Kauf: \`${investedCost.toFixed(2)} $\`)\n` +
+        `  • Gewinn/Verlust: ${pnlEmoji} \`${pnlSign}${pnlCash.toFixed(2)} $ (${pnlSign}${pnlPct.toFixed(2)}%)\`\n\n`
+      : `  • Dein Bestand: \`0 ${c.symbol}\` _(Noch keine Coins gekauft)_\n\n`;
 
     coinsText += `🔹 *${c.name} ($${c.symbol})*\n` +
       `  • Kurs: \`${priceFormatted} $\` (${changeStr})\n` +
       `  • 24h Volumen: \`${c.volume24h.toFixed(2)} $\`\n` +
-      `  • Dein Bestand: \`${holdingAmount} ${c.symbol}\`\n\n`;
-
-    tradeButtons.push([
-      Markup.button.callback(`🟢 $${c.symbol} Kaufen`, `market_buy_${c.symbol}`),
-      Markup.button.callback(`🔴 $${c.symbol} Verkaufen`, `market_sell_${c.symbol}`),
-    ]);
+      holdingDisplay;
   });
 
-  const text = `📈 *COINCADE KRYPTO-BÖRSE*\n` +
+  const totalPnl = Math.round((totalPortfolioValue - totalInvestedCost) * 10000) / 10000;
+  const totalPnlPct = totalInvestedCost > 0 ? ((totalPnl / totalInvestedCost) * 100) : 0;
+  const totalPnlSign = totalPnl >= 0 ? '+' : '';
+  const totalPnlEmoji = totalPnl > 0 ? '🟢' : (totalPnl < 0 ? '🔴' : '⚪');
+
+  const text = `📊 *MEIN KRYPTO-PORTFOLIO & LIVE MARKT*\n` +
     `*━━━━━━━━━━━━━━━━━━━━*\n\n` +
-    `💵 *Dein Cash-Guthaben:* \`${gameCash} $\`\n\n` +
-    `*Live Marktübersicht:*\n\n` +
+    `💵 *Verfügbares Game Cash:* \`${gameCash.toFixed(2)} $\`\n` +
+    `💎 *Portfolio-Gesamtwert:* \`${totalPortfolioValue.toFixed(2)} $\`\n` +
+    `📈 *Gesamt-Gewinn/Verlust:* ${totalPnlEmoji} \`${totalPnlSign}${totalPnl.toFixed(2)} $ (${totalPnlSign}${totalPnlPct.toFixed(2)}%)\`\n\n` +
+    `*Live Markt- & Bestandsübersicht:*\n\n` +
     `${coinsText}` +
-    `Nutze dein Game Cash, um Coins zu traden, oder starte die Börse in der Mini App für interaktive Candlestick-Charts!`;
+    `_Öffne die Krypto-Börse in der CoinCade Mini App für interaktive Candlestick-Charts, Live-Orderbuch und Sofort-Trading!_`;
 
   const keyboard = Markup.inlineKeyboard([
-    ...tradeButtons,
+    [Markup.button.webApp('📈 Krypto-Börse in Mini App öffnen (Trading & Charts) 🚀', config.frontendUrl)],
     [
-      Markup.button.webApp('📊 Vollbild Charts in Mini App', config.frontendUrl),
-      Markup.button.callback('🔄 Refresh', 'menu_market'),
-    ],
-    [Markup.button.callback('« Zurück zum Hauptmenü', 'menu_main')]
+      Markup.button.callback('🔄 Portfolio aktualisieren', 'menu_market'),
+      Markup.button.callback('« Zurück zum Hauptmenü', 'menu_main')
+    ]
   ]);
 
   return { text, keyboard };

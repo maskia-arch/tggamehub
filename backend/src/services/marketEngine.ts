@@ -1227,6 +1227,14 @@ async function triggerRandomMarketEvent(coins: any[]) {
     });
 
     console.log(`[Market Trigger Event]: ${template.title} on $${symbol} -> ${priceImpactPercent >= 0 ? '+' : ''}${priceImpactPercent}%`);
+
+    // Notify coin holders if impact is significant
+    try {
+      const { checkAndSendPortfolioAlerts } = require('./notificationService');
+      await checkAndSendPortfolioAlerts(symbol, priceImpactPercent, newPrice);
+    } catch (notifErr) {
+      // non-fatal
+    }
   } catch (err) {
     console.error('[Market Event Trigger Error]:', err);
   }

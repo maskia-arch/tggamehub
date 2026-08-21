@@ -162,14 +162,15 @@ export function initTelegramBot(): Telegraf | null {
     }
   });
 
-  bot.action('menu_market', async (ctx) => {
+  bot.action(['menu_market', 'menu_portfolio'], async (ctx) => {
     try {
       await ctx.answerCbQuery();
       const userId = ctx.from.id.toString();
+      clearUserWizard(userId);
       const { text, keyboard } = await buildMarketMenu(userId);
       await renderBotScreen(ctx, text, keyboard);
     } catch (err) {
-      console.error('[BOT ERROR]: Error rendering menu_market:', err);
+      console.error('[BOT ERROR]: Error rendering menu_market/portfolio:', err);
     }
   });
 
