@@ -1,5 +1,4 @@
 import db from '../database/client';
-import { getBotInstance } from '../bot';
 
 export interface InboxMessage {
   id: number;
@@ -12,7 +11,8 @@ export interface InboxMessage {
 }
 
 /**
- * Adds an inbox notification for a player and sends a Telegram push notification.
+ * Adds an inbox notification for a player silently (without spamming chat).
+ * Unread messages are surfaced dynamically with count badges on the bot menu.
  */
 export async function addInboxMessage(
   userId: string,
@@ -30,32 +30,6 @@ export async function addInboxMessage(
     }).returning('id');
 
     const msgId = typeof result === 'object' && result?.id ? result.id : (typeof result === 'number' ? result : 1);
-
-    // Send instant Telegram message notification to user
-    const bot = getBotInstance();
-    if (bot) {
-      try {
-        const text = `📬 *Neue Nachricht in deiner CoinCade Inbox!*\n\n` +
-          `🔹 *${escapeMarkdown(title)}*\n\n` +
-          `${escapeMarkdown(message)}`;
-
-        await bot.telegram.sendMessage(userId, text, {
-          parse_mode: 'Markdown',
-          reply_markup: {
-            inline_keyboard: [
-              [
-                { text: '📥 Postfach öffnen', callback_data: `inbox_view_${msgId}` },
-                { text: '🕹️ CoinCade Hauptmenü', callback_data: 'menu_main' }
-              ]
-            ]
-          }
-        });
-      } catch (tgErr: any) {
-        // User may have blocked the bot or not started yet
-        console.log(`[INBOX NOTIFICATION]: Could not send direct Telegram notification to ${userId}:`, tgErr.message || tgErr);
-      }
-    }
-
     return msgId;
   } catch (err: any) {
     console.error('[INBOX ERROR]: Failed to insert inbox message:', err);
@@ -108,6 +82,19 @@ export async function markInboxAsRead(userId: string, messageId: number): Promis
 }
 
 /**
+ * Marks all inbox messages as read for a user.
+ */
+export async function markAllInboxAsRead(userId: string): Promise<void> {
+  try {
+    await db('user_inbox')
+      .where({ user_id: userId, is_read: false })
+      .update({ is_read: true });
+  } catch (err) {
+    console.error('[INBOX ERROR]: Failed to mark all messages as read:', err);
+  }
+}
+
+/**
  * Deletes an inbox message.
  */
 export async function deleteInboxMessage(userId: string, messageId: number): Promise<void> {
@@ -120,7 +107,20 @@ export async function deleteInboxMessage(userId: string, messageId: number): Pro
   }
 }
 
-function escapeMarkdown(text: string): string {
+/**
+ * Deletes all read inbox messages for a user to clean up their inbox.
+ */
+export async function deleteReadInboxMessages(userId: string): Promise<void> {
+  try {
+    await db('user_inbox')
+      .where({ user_id: userId, is_read: true })
+      .delete();
+  } catch (err) {
+    console.error('[INBOX ERROR]: Failed to delete read inbox messages:', err);
+  }
+}
+
+export function escapeMarkdown(text: string): string {
   if (!text) return '';
   return text.replace(/[*_`\[\]]/g, '');
 }

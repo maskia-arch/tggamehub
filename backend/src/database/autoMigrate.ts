@@ -47,6 +47,8 @@ export async function runAutoMigrations(knex: Knex): Promise<void> {
         table.string('last_daily_free_refill_date').nullable();
         table.integer('daily_refill_count').defaultTo(0);
         table.timestamp('full_energy_notified_at').nullable();
+        table.integer('last_bot_message_id').nullable();
+        table.integer('last_notification_message_id').nullable();
         table.timestamp('created_at').defaultTo(knex.fn.now());
       });
       console.log('[DATABASE AUTO-SYNC]: Created users table.');
@@ -70,6 +72,8 @@ export async function runAutoMigrations(knex: Knex): Promise<void> {
       await ensureColumn(knex, 'users', 'last_daily_free_refill_date', (t) => t.string('last_daily_free_refill_date').nullable());
       await ensureColumn(knex, 'users', 'daily_refill_count', (t) => t.integer('daily_refill_count').defaultTo(0));
       await ensureColumn(knex, 'users', 'full_energy_notified_at', (t) => t.timestamp('full_energy_notified_at').nullable());
+      await ensureColumn(knex, 'users', 'last_bot_message_id', (t) => t.integer('last_bot_message_id').nullable());
+      await ensureColumn(knex, 'users', 'last_notification_message_id', (t) => t.integer('last_notification_message_id').nullable());
     }
 
     // ── Table: SCORES ─────────────────────────────────────────────────────────

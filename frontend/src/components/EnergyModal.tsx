@@ -44,7 +44,7 @@ export function EnergyModal({
 
   // Live countdown timer ticking down every second
   useEffect(() => {
-    if (!isOpen || secondsLeft <= 0) return;
+    if (!isOpen || currentEnergy >= maxEnergy || secondsLeft <= 0) return;
     const timer = setInterval(() => {
       setSecondsLeft((prev) => {
         if (prev <= 1) {
@@ -55,7 +55,7 @@ export function EnergyModal({
       });
     }, 1000);
     return () => clearInterval(timer);
-  }, [isOpen, secondsLeft, onEnergyGranted]);
+  }, [isOpen, secondsLeft, currentEnergy, maxEnergy, onEnergyGranted]);
 
   if (!isOpen) return null;
 
@@ -187,8 +187,14 @@ export function EnergyModal({
 
           {/* Next Energy Countdown Timer */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', marginTop: '8px', fontSize: '11px', color: 'rgba(255,255,255,0.7)', fontWeight: 700 }}>
-            <Clock size={12} style={{ color: 'var(--accent-cyan)' }} />
-            <span>{t.header.rechargeIn} <strong style={{ color: 'var(--accent-cyan)', fontFamily: 'monospace' }}>{formatCountdown(secondsLeft)}</strong></span>
+            {currentEnergy < maxEnergy && secondsLeft > 0 ? (
+              <>
+                <Clock size={12} style={{ color: 'var(--accent-cyan)' }} />
+                <span>{t.header.rechargeIn} <strong style={{ color: 'var(--accent-cyan)', fontFamily: 'monospace' }}>{formatCountdown(secondsLeft)}</strong></span>
+              </>
+            ) : (
+              <span style={{ color: '#4ade80', fontWeight: 800 }}>{t.header.energyFull}</span>
+            )}
           </div>
         </div>
 

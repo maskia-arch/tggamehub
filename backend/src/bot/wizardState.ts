@@ -77,10 +77,13 @@ export async function cleanUserMessage(ctx: Context): Promise<void> {
   }
 }
 
+import db from '../database/client';
+
 /**
  * Intelligent message rendering helper:
- * Tries editing the current message via ctx.editMessageText or sending a new message
- * and tracking its ID to avoid spamming the chat.
+ * - Edits current menu message in place for button callbacks.
+ * - Cleans up previous notifications and prior menus on text commands.
+ * - Always maintains exactly ONE active menu message in the chat.
  */
 export async function renderBotScreen(
   ctx: Context,
@@ -88,39 +91,65 @@ export async function renderBotScreen(
   extra: any = {}
 ): Promise<void> {
   const userId = ctx.from?.id.toString();
-  const session = userId ? getUserSession(userId) : null;
+  if (!userId) return;
+
+  const chatId = ctx.chat?.id || ctx.from?.id;
+  const session = getUserSession(userId);
 
   const extraOptions: any = {
     parse_mode: 'Markdown',
     ...(extra && extra.reply_markup ? { reply_markup: extra.reply_markup } : (extra || {})),
   };
 
+  // 1. Clean up any pending push notification message if one exists
   try {
-    if (ctx.callbackQuery && 'message' in ctx.callbackQuery && ctx.callbackQuery.message) {
-      await ctx.editMessageText(text, extraOptions);
-      if (session) {
-        session.lastBotMessageId = ctx.callbackQuery.message.message_id;
-      }
-      return;
+    const userRow = await db('users').where({ id: userId }).select('last_bot_message_id', 'last_notification_message_id').first();
+    if (userRow?.last_notification_message_id && chatId) {
+      try {
+        await ctx.telegram.deleteMessage(chatId, userRow.last_notification_message_id);
+      } catch {}
+      await db('users').where({ id: userId }).update({ last_notification_message_id: null });
     }
-  } catch (editErr: any) {
-    // If message is identical or cannot be edited, fallback to sending new message
-    if (editErr.message?.includes('message is not modified')) {
-      return;
-    }
-  }
+  } catch {}
 
-  // If we couldn't edit (e.g. triggered by user text command), try deleting previous bot prompt
-  if (session?.lastBotMessageId && ctx.chat) {
+  // 2. If triggered by an inline button callback, attempt to edit the message in-place
+  if (ctx.callbackQuery && 'message' in ctx.callbackQuery && ctx.callbackQuery.message) {
     try {
-      await ctx.telegram.deleteMessage(ctx.chat.id, session.lastBotMessageId);
-    } catch {
-      // Ignore delete errors
+      await ctx.editMessageText(text, extraOptions);
+      const msgId = ctx.callbackQuery.message.message_id;
+      session.lastBotMessageId = msgId;
+      db('users').where({ id: userId }).update({ last_bot_message_id: msgId }).catch(() => {});
+      return;
+    } catch (editErr: any) {
+      if (editErr.message?.includes('message is not modified')) {
+        return;
+      }
+      // If editing fails (e.g. message too old or deleted), fall through to delete & send fresh
     }
   }
 
-  const sent = await ctx.reply(text, extraOptions);
-  if (session && sent) {
-    session.lastBotMessageId = sent.message_id;
+  // 3. Delete prior menu message from database / session before sending a new one
+  try {
+    let priorMsgId = session.lastBotMessageId;
+    if (!priorMsgId) {
+      const userRow = await db('users').where({ id: userId }).select('last_bot_message_id').first();
+      priorMsgId = userRow?.last_bot_message_id;
+    }
+    if (priorMsgId && chatId) {
+      try {
+        await ctx.telegram.deleteMessage(chatId, priorMsgId);
+      } catch {}
+    }
+  } catch {}
+
+  // 4. Send fresh menu message and track its ID
+  try {
+    const sent = await ctx.reply(text, extraOptions);
+    if (sent?.message_id) {
+      session.lastBotMessageId = sent.message_id;
+      db('users').where({ id: userId }).update({ last_bot_message_id: sent.message_id }).catch(() => {});
+    }
+  } catch (replyErr: any) {
+    console.error('[BOT RENDER ERROR]: Could not reply with menu screen:', replyErr.message || replyErr);
   }
 }

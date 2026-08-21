@@ -27,7 +27,7 @@ export async function buildMainMenu(userId: string): Promise<MenuRenderResult> {
     `🪙 *COINCADE ARCADE HUB*\n` +
     `*━━━━━━━━━━━━━━━━━━━━*\n\n` +
     `👤 *Spieler:* \`${displayName}\`\n` +
-    `⚡ *Energie:* \`${energyInfo.currentEnergy}/${energyInfo.maxEnergy}\` *(+1 in ${Math.floor(energyInfo.nextRechargeInSeconds / 60)}m)*\n` +
+    `⚡ *Energie:* \`${energyInfo.currentEnergy}/${energyInfo.maxEnergy}\`${energyInfo.currentEnergy < energyInfo.maxEnergy && energyInfo.nextRechargeInSeconds > 0 ? ` *(+1 in ${Math.floor(energyInfo.nextRechargeInSeconds / 60)}m)*` : ' *(Voll)*'}\n` +
     `💵 *Game Cash:* \`${gameCash} $\`\n` +
     `🏆 *Status:* \`${passType}\`\n` +
     (unreadInbox > 0 ? `📬 *Inbox:* \`${unreadInbox} ungelesene Nachricht(en)\`\n\n` : `\n`) +
@@ -236,6 +236,7 @@ export async function buildMarketMenu(userId: string): Promise<MenuRenderResult>
  */
 export async function buildInboxMenu(userId: string): Promise<MenuRenderResult> {
   const messages = await getUserInbox(userId, 8);
+  const unreadCount = await getUnreadInboxCount(userId);
 
   let text = `📬 *COINCADE POSTFACH & INBOX*\n` +
     `*━━━━━━━━━━━━━━━━━━━━*\n\n`;
@@ -245,7 +246,7 @@ export async function buildInboxMenu(userId: string): Promise<MenuRenderResult> 
   if (messages.length === 0) {
     text += `_Dein Postfach ist derzeit leer._\n\nHier erhältst du Benachrichtigungen über Airdrops, Referral-Boni und wichtige Spiel-Updates.`;
   } else {
-    text += `Hier sind deine letzten Benachrichtigungen:\n\n`;
+    text += `📬 *${unreadCount} ungelesene Nachricht(en)* (${messages.length} Gesamt):\n\n`;
     messages.forEach((m, idx) => {
       const icon = m.is_read ? '✉️' : '✨ 🆕';
       const dateStr = new Date(m.created_at).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
@@ -258,6 +259,18 @@ export async function buildInboxMenu(userId: string): Promise<MenuRenderResult> 
         )
       ]);
     });
+
+    const actionRow: any[] = [];
+    if (unreadCount > 0) {
+      actionRow.push(Markup.button.callback('✨ Alle gelesen', 'inbox_read_all'));
+    }
+    const hasRead = messages.some((m) => m.is_read);
+    if (hasRead) {
+      actionRow.push(Markup.button.callback('🗑️ Gelesene löschen', 'inbox_clean_read'));
+    }
+    if (actionRow.length > 0) {
+      buttons.push(actionRow);
+    }
   }
 
   buttons.push([

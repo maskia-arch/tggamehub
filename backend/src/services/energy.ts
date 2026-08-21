@@ -136,7 +136,19 @@ export async function consumeEnergy(userId: string): Promise<boolean> {
     }
 
     const newEnergy = info.currentEnergy - 1;
-    const newUpdatedAt = newEnergy < info.maxEnergy ? info.lastEnergyUpdatedAt : now;
+
+    // Timer logic:
+    // If previous energy was at or above maxEnergy (e.g. was 100, or was 5):
+    // - If it drops below max (e.g. 5 -> 4), the cooldown timer starts at this exact moment (now).
+    // - If it remains at/above max (e.g. 100 -> 99), timer remains stopped (0s) and updated_at is now.
+    // If previous energy was already below maxEnergy (e.g. 4 -> 3):
+    // - Recharge progress towards the next point is preserved.
+    let newUpdatedAt: Date;
+    if (user.energy_value >= info.maxEnergy) {
+      newUpdatedAt = now;
+    } else {
+      newUpdatedAt = newEnergy < info.maxEnergy ? info.lastEnergyUpdatedAt : now;
+    }
 
     await trx('users')
       .where({ id: userId })
@@ -169,7 +181,12 @@ export async function addEnergy(userId: string, amount: number, allowExceedMax: 
       newEnergy = Math.min(info.maxEnergy, newEnergy);
     }
 
-    const newUpdatedAt = newEnergy < info.maxEnergy ? info.lastEnergyUpdatedAt : now;
+    // If newEnergy is >= maxEnergy (e.g. 100/5 or 5/5):
+    // Timer is stopped (nextRechargeInSeconds = 0) and updated_at is set to now.
+    // If newEnergy is still < maxEnergy (e.g. 3 -> 4):
+    // Partial cooldown progress is preserved.
+    const isNowFullOrSurplus = newEnergy >= info.maxEnergy;
+    const newUpdatedAt = isNowFullOrSurplus ? now : info.lastEnergyUpdatedAt;
 
     await trx('users')
       .where({ id: userId })
@@ -181,7 +198,7 @@ export async function addEnergy(userId: string, amount: number, allowExceedMax: 
     return {
       ...info,
       currentEnergy: newEnergy,
-      nextRechargeInSeconds: newEnergy < info.maxEnergy ? info.nextRechargeInSeconds : 0,
+      nextRechargeInSeconds: isNowFullOrSurplus ? 0 : info.nextRechargeInSeconds,
       lastEnergyValue: newEnergy,
       lastEnergyUpdatedAt: newUpdatedAt,
     };

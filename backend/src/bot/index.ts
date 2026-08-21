@@ -2,7 +2,7 @@ import { Telegraf, Markup } from 'telegraf';
 import { config } from '../config';
 import db from '../database/client';
 import { addEnergy } from '../services/energy';
-import { addInboxMessage, deleteInboxMessage } from '../services/inboxService';
+import { addInboxMessage, deleteInboxMessage, markAllInboxAsRead, deleteReadInboxMessages } from '../services/inboxService';
 import { executeMarketTrade } from '../services/marketEngine';
 import {
   getUserSession,
@@ -42,6 +42,9 @@ export function initTelegramBot(): Telegraf | null {
   // ══════════════════════════════════════════════════════════════════════════
   bot.start(async (ctx) => {
     try {
+      // Clean user command message immediately to keep chat clean
+      await cleanUserMessage(ctx);
+
       const telegramId = ctx.from.id.toString();
       const username = ctx.from.username || null;
       const firstName = ctx.from.first_name || '';
@@ -429,6 +432,45 @@ export function initTelegramBot(): Telegraf | null {
       await renderBotScreen(ctx, text, keyboard);
     } catch (err) {
       console.error('[BOT ERROR]: Error deleting inbox message:', err);
+    }
+  });
+
+  bot.action('inbox_read_all', async (ctx) => {
+    try {
+      await ctx.answerCbQuery('Alle Nachrichten als gelesen markiert.');
+      const userId = ctx.from.id.toString();
+      await markAllInboxAsRead(userId);
+      const { text, keyboard } = await buildInboxMenu(userId);
+      await renderBotScreen(ctx, text, keyboard);
+    } catch (err) {
+      console.error('[BOT ERROR]: Error marking all inbox as read:', err);
+    }
+  });
+
+  bot.action('inbox_clean_read', async (ctx) => {
+    try {
+      await ctx.answerCbQuery('Gelesene Nachrichten gelöscht.');
+      const userId = ctx.from.id.toString();
+      await deleteReadInboxMessages(userId);
+      const { text, keyboard } = await buildInboxMenu(userId);
+      await renderBotScreen(ctx, text, keyboard);
+    } catch (err) {
+      console.error('[BOT ERROR]: Error cleaning read inbox messages:', err);
+    }
+  });
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // 7. Command Handlers (/menu, /hub, /dashboard)
+  // ══════════════════════════════════════════════════════════════════════════
+  bot.command(['menu', 'hub', 'dashboard'], async (ctx) => {
+    try {
+      await cleanUserMessage(ctx);
+      const userId = ctx.from.id.toString();
+      clearUserWizard(userId);
+      const { text, keyboard } = await buildMainMenu(userId);
+      await renderBotScreen(ctx, text, keyboard);
+    } catch (err) {
+      console.error('[BOT ERROR]: Error rendering command menu:', err);
     }
   });
 

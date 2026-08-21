@@ -234,7 +234,7 @@ export function Profile({ profile, onRefresh, initData, backendUrl }: ProfilePro
 
   // ── Computed values ────────────────────────────────────────────────────────
   const displayName = profile.user.display_name || profile.user.first_name || `Spieler ${profile.user.id.slice(-4)}`;
-  const energyPercent = (profile.energy.current / profile.energy.max) * 100;
+  const energyPercent = Math.min(100, Math.max(0, (profile.energy.current / profile.energy.max) * 100));
   const circumference = 2 * Math.PI * 44;
   const strokeDashoffset = circumference - (energyPercent / 100) * circumference;
 

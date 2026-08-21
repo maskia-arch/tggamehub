@@ -47,7 +47,6 @@ export async function getProfile(req: AuthenticatedRequest, res: Response) {
         try {
           const { addEnergy } = require('../services/energy');
           const { config } = require('../config');
-          const axios = require('axios');
 
           await db.transaction(async (trx) => {
             // Record in referrals logs
@@ -63,18 +62,14 @@ export async function getProfile(req: AuthenticatedRequest, res: Response) {
             await addEnergy(userId, config.referralEnergyBonus, true);
           });
 
-          // Notify the referrer directly via Telegram Bot API
-          if (config.telegramBotToken) {
-            try {
-              const text = `🎉 Ein neuer Spieler (${req.telegramUser?.first_name || 'Anonymous'}) hat sich über deinen Link registriert!\nDu hast +${config.referralEnergyBonus} Bonus-Energie erhalten!`;
-              await axios.post(`https://api.telegram.org/bot${config.telegramBotToken}/sendMessage`, {
-                chat_id: finalReferrerId,
-                text: text
-              });
-            } catch (err) {
-              console.log(`[User Onboard]: Could not notify referrer ${finalReferrerId} directly.`);
-            }
-          }
+          // Record inbox notification for the referrer
+          const { addInboxMessage } = require('../services/inboxService');
+          await addInboxMessage(
+            finalReferrerId!,
+            '🎁 Neuer Referral-Bonus!',
+            `Ein neuer Spieler (${req.telegramUser?.first_name || 'Spieler'}) hat sich über deinen Einladelink registriert. Du hast +${config.referralEnergyBonus} Bonus-Energie erhalten!`,
+            'referral'
+          );
         } catch (refErr) {
           console.error('[User Onboard ERROR]: Failed to award referral bonus:', refErr);
         }

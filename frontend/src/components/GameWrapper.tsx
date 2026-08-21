@@ -433,7 +433,7 @@ export function GameWrapper({
             }}
           >
             <Zap size={11} className="energy-icon animate-pulse" />
-            <span className="energy-value">{currentEnergy} / 5</span>
+            <span className="energy-value">{currentEnergy} / {maxEnergy}</span>
             <span className="energy-plus-indicator">+</span>
           </button>
 

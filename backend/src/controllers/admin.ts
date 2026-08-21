@@ -813,3 +813,121 @@ export async function resetAdminCoinPool(req: Request, res: Response) {
     return res.status(500).json({ error: 'Fehler beim Zurücksetzen des Pools', detail: error.message });
   }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GET /api/admin/users/:id/logs — Fetch player match logs, activity & game stats
+// ─────────────────────────────────────────────────────────────────────────────
+export async function getAdminUserLogs(req: Request, res: Response) {
+  try {
+    const { id } = req.params;
+    const user = await db('users').where({ id }).first();
+    if (!user) {
+      return res.status(404).json({ error: 'Spieler nicht gefunden.' });
+    }
+
+    // 1. Fetch recent score logs (up to 150 most recent matches)
+    const scoreLogs = await db('scores')
+      .where({ user_id: id })
+      .orderBy('created_at', 'desc')
+      .limit(150);
+
+    // 2. Aggregate per-game statistics
+    const gameStatsRaw = await db('scores')
+      .where({ user_id: id })
+      .select('game_id')
+      .count('* as total_plays')
+      .max('score as high_score')
+      .sum('score as total_score')
+      .max('created_at as last_played')
+      .groupBy('game_id')
+      .orderBy('total_plays', 'desc');
+
+    const gameStats = gameStatsRaw.map((g: any) => ({
+      gameId: String(g.game_id || ''),
+      totalPlays: Number(g.total_plays || 0),
+      highScore: Number(g.high_score || 0),
+      totalScore: Number(g.total_score || 0),
+      lastPlayed: g.last_played,
+    }));
+
+    // 3. Overall player gameplay stats
+    const totalRounds = scoreLogs.length > 0
+      ? gameStats.reduce((acc, curr) => acc + curr.totalPlays, 0)
+      : 0;
+    const totalScore = scoreLogs.length > 0
+      ? gameStats.reduce((acc, curr) => acc + curr.totalScore, 0)
+      : 0;
+    const highestScore = scoreLogs.length > 0
+      ? Math.max(...gameStats.map((g) => g.highScore))
+      : 0;
+
+    // 4. Fetch recent AMM trades (up to 50)
+    let trades: any[] = [];
+    try {
+      trades = await db('user_trades')
+        .where({ user_id: id })
+        .orderBy('created_at', 'desc')
+        .limit(50);
+    } catch {}
+
+    // 5. Fetch shop orders (up to 50)
+    let orders: any[] = [];
+    try {
+      orders = await db('shop_orders')
+        .where({ user_id: id })
+        .orderBy('created_at', 'desc')
+        .limit(50);
+    } catch {}
+
+    return res.json({
+      user: {
+        id: user.id,
+        username: user.username,
+        firstName: user.first_name,
+        displayName: user.display_name,
+        energyValue: user.energy_value,
+        gameCash: user.game_cash,
+        createdAt: user.created_at,
+        walletLtc: user.wallet_ltc,
+        walletBtc: user.wallet_btc,
+      },
+      stats: {
+        totalRounds,
+        totalScore,
+        highestScore,
+        uniqueGamesPlayed: gameStats.length,
+      },
+      gameStats,
+      scores: scoreLogs.map((s: any) => ({
+        id: s.id,
+        gameId: s.game_id,
+        score: Number(s.score || 0),
+        validationPayload: s.validation_payload,
+        createdAt: s.created_at,
+      })),
+      trades: trades.map((t: any) => ({
+        id: t.id,
+        coinSymbol: t.coin_symbol,
+        tradeType: t.trade_type,
+        amountTokens: Number(t.amount_tokens || 0),
+        pricePerToken: Number(t.price_per_token || 0),
+        totalCash: Number(t.total_cash || 0),
+        gasFee: Number(t.gas_fee || 0),
+        createdAt: t.created_at,
+      })),
+      orders: orders.map((o: any) => ({
+        id: o.id,
+        productId: o.product_id,
+        amountEur: Number(o.amount_eur || 0),
+        amountCrypto: o.amount_crypto ? Number(o.amount_crypto) : null,
+        coin: o.coin,
+        status: o.status,
+        createdAt: o.created_at,
+        paidAt: o.paid_at,
+      })),
+    });
+  } catch (error: any) {
+    console.error('[ADMIN USER LOGS ERROR]:', error);
+    return res.status(500).json({ error: 'Fehler beim Laden der Spieler-Logs', detail: error.message });
+  }
+}

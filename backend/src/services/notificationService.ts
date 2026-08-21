@@ -34,27 +34,44 @@ export async function checkAndSendFullEnergyNotifications(): Promise<void> {
       .andWhere('id', 'not like', 'mock_%');
 
     for (const u of users) {
-      const lastUpdatedAt = new Date(u.energy_updated_at || now);
       const passType = u.season_pass_type || 'NONE';
+      let maxCap = config.maxEnergy;
+      if (passType === 'VIP') maxCap = 15;
+      else if (passType === 'SEASON') maxCap = 8;
+
+      // Skip users who already have full or surplus energy (> maxCap, e.g. from shop or admin)
+      if (u.energy_value >= maxCap) {
+        continue;
+      }
+
+      const lastUpdatedAt = new Date(u.energy_updated_at || now);
       const boosterUntil = u.time_booster_until ? new Date(u.time_booster_until) : null;
       
       const energyInfo = calculateEnergy(u.energy_value, lastUpdatedAt, passType, boosterUntil, now);
 
-      // Check if user reached full energy
-      if (energyInfo.currentEnergy >= energyInfo.maxEnergy) {
+      // Check if user naturally recharged to reach full energy
+      if (energyInfo.currentEnergy >= maxCap) {
         const lastNotified = u.full_energy_notified_at ? new Date(u.full_energy_notified_at).getTime() : 0;
         const lastSpent = lastUpdatedAt.getTime();
 
         // Only notify if energy was depleted earlier and hasn't been notified for this full recovery
-        if (u.energy_value < energyInfo.maxEnergy || lastNotified < lastSpent) {
-          const max = energyInfo.maxEnergy;
+        if (lastNotified < lastSpent) {
+          const max = maxCap;
           const text = `⚡ *DEINE ENERGIE IST WIEDER VOLL!* (${max}/${max})\n` +
             `*━━━━━━━━━━━━━━━━━━━━*\n\n` +
             `🎮 Deine Arcade-Energie wurde soeben vollständig regeneriert!\n\n` +
             `🏆 Starte jetzt ein Match in CoinCade, jage neue Highscores und sammle Game$ für den Season-Airdrop-Pot! 🚀`;
 
+          let newNotifId: number | null = null;
           try {
-            await bot.telegram.sendMessage(u.id, text, {
+            // Delete previous notification message to avoid spamming the chat
+            if (u.last_notification_message_id) {
+              try {
+                await bot.telegram.deleteMessage(u.id, u.last_notification_message_id);
+              } catch {}
+            }
+
+            const sent = await bot.telegram.sendMessage(u.id, text, {
               parse_mode: 'Markdown',
               reply_markup: {
                 inline_keyboard: [
@@ -66,13 +83,14 @@ export async function checkAndSendFullEnergyNotifications(): Promise<void> {
                 ]
               }
             });
-            console.log(`[NOTIFICATION]: Sent full energy push notification to user ${u.id}`);
+            newNotifId = sent.message_id;
+            console.log(`[NOTIFICATION]: Sent full energy push notification to user ${u.id} (msg_id: ${newNotifId})`);
           } catch (tgErr: any) {
             // User may not have started the bot or blocked it
             console.log(`[NOTIFICATION]: Could not send full energy push to ${u.id}:`, tgErr.message || tgErr);
           }
 
-          // Also record in internal player inbox
+          // Also record in internal player inbox (silently, without extra chat spam)
           await addInboxMessage(
             u.id,
             `⚡ Energie voll aufgeladen (${max}/${max})`,
@@ -84,9 +102,10 @@ export async function checkAndSendFullEnergyNotifications(): Promise<void> {
           await db('users')
             .where({ id: u.id })
             .update({
-              energy_value: energyInfo.maxEnergy,
+              energy_value: maxCap,
               energy_updated_at: now,
               full_energy_notified_at: now,
+              ...(newNotifId ? { last_notification_message_id: newNotifId } : {}),
             });
         }
       }

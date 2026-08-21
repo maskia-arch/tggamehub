@@ -14,6 +14,7 @@ import {
   updateAdminCoin,
   resetAdminCoinPool,
   updateAdminUser,
+  getAdminUserLogs,
   updateAdminSeason,
   startAdminSeason,
   settleAdminSeason,
@@ -109,6 +110,7 @@ router.patch('/admin/coins/:symbol', adminAuth, updateAdminCoin);
 router.put('/admin/coins/:symbol', adminAuth, updateAdminCoin);
 router.post('/admin/coins/:symbol/reset', adminAuth, resetAdminCoinPool);
 router.patch('/admin/users/:id', adminAuth, updateAdminUser);
+router.get('/admin/users/:id/logs', adminAuth, getAdminUserLogs);
 router.patch('/admin/season', adminAuth, updateAdminSeason);
 router.post('/admin/season/start', adminAuth, startAdminSeason);
 router.post('/admin/season/settle', adminAuth, settleAdminSeason);
