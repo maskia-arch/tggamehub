@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Zap, CheckCircle2, Play, X, Clock, RotateCcw } from 'lucide-react';
 import { showMonetagRewardedAd } from '../services/monetagService';
 import { sendServerLog } from '../services/telemetry';
@@ -31,128 +31,39 @@ export function AdTasksModal({
   const [isCompleted, setIsCompleted] = useState(false);
   const [claimError, setClaimError] = useState<string | null>(null);
 
+  // References to preserve state across any parent re-renders
+  const spot1StatusRef = useRef<'PENDING' | 'WATCHING' | 'DONE'>('PENDING');
+  const spot2StatusRef = useRef<'LOCKED' | 'PENDING' | 'WATCHING' | 'DONE'>('LOCKED');
   const spot1StartTimeRef = useRef<number>(0);
   const spot2StartTimeRef = useRef<number>(0);
-  const timer1Ref = useRef<any>(null);
-  const timer2Ref = useRef<any>(null);
   const hasClaimedRef = useRef<boolean>(false);
 
-  // Reset state when modal opens
+  const onRewardGrantedRef = useRef(onRewardGranted);
+  const onCloseRef = useRef(onClose);
+
   useEffect(() => {
-    if (!isOpen) {
-      if (timer1Ref.current) clearInterval(timer1Ref.current);
-      if (timer2Ref.current) clearInterval(timer2Ref.current);
-      setSpot1Status('PENDING');
-      setSpot2Status('LOCKED');
-      setSpot1Seconds(15);
-      setSpot2Seconds(15);
-      setIsCompleted(false);
-      setClaimError(null);
-      hasClaimedRef.current = false;
-      spot1StartTimeRef.current = 0;
-      spot2StartTimeRef.current = 0;
-      return;
-    }
+    onRewardGrantedRef.current = onRewardGranted;
+  }, [onRewardGranted]);
 
-    sendServerLog('info', '📋 Ad Tasks Modal geöffnet: 2 Spots Aufgabe gestartet');
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
 
-    // Visibility / focus listener to sync wall-clock timers if user leaves MiniApp
-    const handleResume = () => {
-      // Sync Spot 1
-      if (spot1StartTimeRef.current > 0 && spot1Status === 'WATCHING') {
-        const elapsed = Math.floor((Date.now() - spot1StartTimeRef.current) / 1000);
-        const remaining = Math.max(0, 15 - elapsed);
-        setSpot1Seconds(remaining);
-        if (remaining <= 0) {
-          if (timer1Ref.current) clearInterval(timer1Ref.current);
-          completeSpot1();
-        }
-      }
-      // Sync Spot 2
-      if (spot2StartTimeRef.current > 0 && spot2Status === 'WATCHING') {
-        const elapsed = Math.floor((Date.now() - spot2StartTimeRef.current) / 1000);
-        const remaining = Math.max(0, 15 - elapsed);
-        setSpot2Seconds(remaining);
-        if (remaining <= 0 && !hasClaimedRef.current) {
-          if (timer2Ref.current) clearInterval(timer2Ref.current);
-          completeSpot2();
-        }
-      }
-    };
+  useEffect(() => {
+    spot1StatusRef.current = spot1Status;
+  }, [spot1Status]);
 
-    document.addEventListener('visibilitychange', handleResume);
-    window.addEventListener('focus', handleResume);
+  useEffect(() => {
+    spot2StatusRef.current = spot2Status;
+  }, [spot2Status]);
 
-    return () => {
-      if (timer1Ref.current) clearInterval(timer1Ref.current);
-      if (timer2Ref.current) clearInterval(timer2Ref.current);
-      document.removeEventListener('visibilitychange', handleResume);
-      window.removeEventListener('focus', handleResume);
-    };
-  }, [isOpen, spot1Status, spot2Status]);
-
-  // Start Spot 1
-  const startSpot1 = () => {
-    setSpot1Status('WATCHING');
-    setSpot1Seconds(15);
-    spot1StartTimeRef.current = Date.now();
-    sendServerLog('info', '🎬 Starte Werbespot 1 (15s)');
-
-    showMonetagRewardedAd('rewarded').catch((e) => {
-      console.warn('[AD TASK] Spot 1 note:', e);
-    });
-
-    if (timer1Ref.current) clearInterval(timer1Ref.current);
-    timer1Ref.current = setInterval(() => {
-      const elapsed = Math.floor((Date.now() - spot1StartTimeRef.current) / 1000);
-      const remaining = Math.max(0, 15 - elapsed);
-      setSpot1Seconds(remaining);
-      if (remaining <= 0) {
-        if (timer1Ref.current) clearInterval(timer1Ref.current);
-        completeSpot1();
-      }
-    }, 1000);
-  };
-
-  const completeSpot1 = () => {
-    setSpot1Status('DONE');
-    setSpot2Status('PENDING');
-    sendServerLog('info', '✅ Werbespot 1 abgeschlossen (1/2 fertig)');
-  };
-
-  // Start Spot 2
-  const startSpot2 = () => {
-    setSpot2Status('WATCHING');
-    setSpot2Seconds(15);
-    spot2StartTimeRef.current = Date.now();
-    sendServerLog('info', '🎬 Starte Werbespot 2 (15s)');
-
-    showMonetagRewardedAd('pop').catch(() => {
-      showMonetagRewardedAd('rewarded').catch(() => {});
-    });
-
-    if (timer2Ref.current) clearInterval(timer2Ref.current);
-    timer2Ref.current = setInterval(() => {
-      const elapsed = Math.floor((Date.now() - spot2StartTimeRef.current) / 1000);
-      const remaining = Math.max(0, 15 - elapsed);
-      setSpot2Seconds(remaining);
-      if (remaining <= 0) {
-        if (timer2Ref.current) clearInterval(timer2Ref.current);
-        completeSpot2();
-      }
-    }, 1000);
-  };
-
-  const completeSpot2 = () => {
-    setSpot2Status('DONE');
-    sendServerLog('info', '✅ Werbespot 2 abgeschlossen (2/2 fertig). Führe Energie-Claim aus...');
-    handleClaimReward();
-  };
-
-  const handleClaimReward = async () => {
+  // Safe claim execution
+  const executeClaim = useCallback(async () => {
     if (hasClaimedRef.current) return;
     hasClaimedRef.current = true;
     setClaimError(null);
+
+    sendServerLog('info', '⚡ Ad Tasks: 2/2 Spots abgeschlossen. Sende Claim an Server...');
 
     try {
       const response = await fetch(`${backendUrl}/api/user/energy/ad`, {
@@ -175,13 +86,17 @@ export function AdTasksModal({
       }
 
       setIsCompleted(true);
-      sendServerLog('info', '🎉 +1 Energie erfolgreich verbucht!', { resData });
+      sendServerLog('info', '🎉 Ad Tasks: +1 Energie erfolgreich verbucht!', { resData });
       
       const newEnergyVal = resData?.energy?.currentEnergy;
-      onRewardGranted(newEnergyVal);
+      if (onRewardGrantedRef.current) {
+        onRewardGrantedRef.current(newEnergyVal);
+      }
 
       setTimeout(() => {
-        onClose();
+        if (onCloseRef.current) {
+          onCloseRef.current();
+        }
       }, 1600);
     } catch (err: any) {
       console.error('[AD TASK CLAIM ERROR]:', err);
@@ -189,6 +104,128 @@ export function AdTasksModal({
       sendServerLog('error', 'Claim Fehler', { error: err?.message });
       setClaimError(err?.message || 'Fehler bei der Energie-Gutschrift. Klicke auf Wiederholen.');
     }
+  }, [backendUrl, initData]);
+
+  const completeSpot1 = useCallback(() => {
+    if (spot1StatusRef.current === 'DONE') return;
+    spot1StatusRef.current = 'DONE';
+    spot2StatusRef.current = 'PENDING';
+    setSpot1Status('DONE');
+    setSpot2Status('PENDING');
+    setSpot1Seconds(0);
+    sendServerLog('info', '✅ Werbespot 1 abgeschlossen (1/2 fertig)');
+  }, []);
+
+  const completeSpot2 = useCallback(() => {
+    if (spot2StatusRef.current === 'DONE') return;
+    spot2StatusRef.current = 'DONE';
+    setSpot2Status('DONE');
+    setSpot2Seconds(0);
+    sendServerLog('info', '✅ Werbespot 2 abgeschlossen (2/2 fertig). Starte Energie-Claim...');
+    executeClaim();
+  }, [executeClaim]);
+
+  // Master Wall-Clock Timer Loop (Runs continuously while modal is open)
+  useEffect(() => {
+    if (!isOpen) {
+      setSpot1Status('PENDING');
+      setSpot2Status('LOCKED');
+      spot1StatusRef.current = 'PENDING';
+      spot2StatusRef.current = 'LOCKED';
+      setSpot1Seconds(15);
+      setSpot2Seconds(15);
+      setIsCompleted(false);
+      setClaimError(null);
+      hasClaimedRef.current = false;
+      spot1StartTimeRef.current = 0;
+      spot2StartTimeRef.current = 0;
+      return;
+    }
+
+    sendServerLog('info', '📋 Ad Tasks Modal geöffnet');
+
+    const tick = () => {
+      // Check Spot 1
+      if (spot1StatusRef.current === 'WATCHING' && spot1StartTimeRef.current > 0) {
+        const elapsed = Math.floor((Date.now() - spot1StartTimeRef.current) / 1000);
+        const remaining = Math.max(0, 15 - elapsed);
+        setSpot1Seconds(remaining);
+        if (remaining <= 0) {
+          completeSpot1();
+        }
+      }
+
+      // Check Spot 2
+      if (spot2StatusRef.current === 'WATCHING' && spot2StartTimeRef.current > 0) {
+        const elapsed = Math.floor((Date.now() - spot2StartTimeRef.current) / 1000);
+        const remaining = Math.max(0, 15 - elapsed);
+        setSpot2Seconds(remaining);
+        if (remaining <= 0 && !hasClaimedRef.current) {
+          completeSpot2();
+        }
+      }
+    };
+
+    // 500ms ticker for smooth and resilient updates
+    const interval = setInterval(tick, 500);
+
+    // Instant catch-up when returning to window or tab
+    const handleFocus = () => {
+      tick();
+    };
+
+    document.addEventListener('visibilitychange', handleFocus);
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleFocus);
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, [isOpen, completeSpot1, completeSpot2]);
+
+  // User starts Spot 1
+  const startSpot1 = () => {
+    if (spot1StatusRef.current === 'WATCHING' || spot1StatusRef.current === 'DONE') return;
+
+    spot1StartTimeRef.current = Date.now();
+    spot1StatusRef.current = 'WATCHING';
+    setSpot1Status('WATCHING');
+    setSpot1Seconds(15);
+    sendServerLog('info', '🎬 Starte Werbespot 1 (15s In-App Rewarded)');
+
+    // In-App Rewarded Interstitial ONLY (no popunders, no direct links!)
+    showMonetagRewardedAd('rewarded')
+      .then(() => {
+        if (spot1StatusRef.current === 'WATCHING') {
+          completeSpot1();
+        }
+      })
+      .catch((e) => {
+        console.warn('[AD TASK] Spot 1 note:', e);
+      });
+  };
+
+  // User starts Spot 2
+  const startSpot2 = () => {
+    if (spot2StatusRef.current === 'WATCHING' || spot2StatusRef.current === 'DONE') return;
+
+    spot2StartTimeRef.current = Date.now();
+    spot2StatusRef.current = 'WATCHING';
+    setSpot2Status('WATCHING');
+    setSpot2Seconds(15);
+    sendServerLog('info', '🎬 Starte Werbespot 2 (15s In-App Rewarded)');
+
+    // In-App Rewarded Interstitial ONLY (no popunders, no direct links!)
+    showMonetagRewardedAd('rewarded')
+      .then(() => {
+        if (spot2StatusRef.current === 'WATCHING') {
+          completeSpot2();
+        }
+      })
+      .catch((e) => {
+        console.warn('[AD TASK] Spot 2 note:', e);
+      });
   };
 
   if (!isOpen) return null;
@@ -387,7 +424,7 @@ export function AdTasksModal({
 
           {spot1Status === 'DONE' && (
             <span style={{ fontSize: '11px', fontWeight: 900, color: '#34d399' }}>
-              Fertig
+              Fertig ✅
             </span>
           )}
         </div>
@@ -489,7 +526,7 @@ export function AdTasksModal({
 
           {spot2Status === 'DONE' && (
             <span style={{ fontSize: '11px', fontWeight: 900, color: '#34d399' }}>
-              Fertig
+              Fertig ✅
             </span>
           )}
         </div>
@@ -523,7 +560,7 @@ export function AdTasksModal({
               {claimError}
             </span>
             <button
-              onClick={handleClaimReward}
+              onClick={executeClaim}
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
