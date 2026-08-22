@@ -176,14 +176,20 @@ export async function getProfile(req: AuthenticatedRequest, res: Response) {
  * VIP Pass: Unlimited ads! (Season Pass: 15/day, Standard: 10/day)
  */
 export async function addEnergyAd(req: AuthenticatedRequest, res: Response) {
+  const userId = req.telegramUser?.id;
+  const userName = req.telegramUser?.first_name || req.telegramUser?.username || 'User';
+
   try {
-    const userId = req.telegramUser?.id;
     if (!userId) {
+      console.warn('[ENERGY AD WARNING]: 🛑 Unauthorized attempt - User context not found.');
       return res.status(400).json({ error: 'User context not found' });
     }
 
+    console.log(`[ENERGY AD REQUEST]: ⚡ Claim initiated by User ID=${userId} (${userName}, Guest: ${!!req.telegramUser?.isGuest})`);
+
     // Ephemeral Web Guest Support
     if (req.telegramUser?.isGuest) {
+      console.log(`[ENERGY AD SUCCESS]: 🎉 Guest Energy charged for ID=${userId}`);
       return res.json({
         success: true,
         message: 'Gast-Energie erfolgreich aufgeladen (+1 Energie).',
@@ -206,6 +212,7 @@ export async function addEnergyAd(req: AuthenticatedRequest, res: Response) {
       let user = await trx('users').where({ id: userId }).forUpdate().first();
       if (!user) {
         // Auto-provision user if missing
+        console.log(`[ENERGY AD AUTO-PROVISION]: Provisioning new user row for ID=${userId} (${userName})`);
         await trx('users').insert({
           id: userId,
           username: req.telegramUser?.username || null,
@@ -244,22 +251,26 @@ export async function addEnergyAd(req: AuthenticatedRequest, res: Response) {
     });
 
     if (result.limitReached) {
+      console.warn(`[ENERGY AD LIMIT REACHED]: 🛑 User ID=${userId} (${userName}) reached daily ad limit (${result.count}/${result.dailyAdLimit}).`);
       return res.status(400).json({
         error: 'LIMIT_REACHED',
         message: `Du hast das tägliche Limit von ${result.dailyAdLimit} Videos erreicht. Bitte versuche es morgen wieder.`
       });
     }
 
+    console.log(`[ENERGY AD SUCCESS]: 🎉 +1 Energy granted to User ID=${userId} (${userName}). New Energy: ${result.energy?.currentEnergy}. Videos today: ${result.count}/${result.dailyAdLimit} (Remaining: ${result.dailyAdLimit - result.count!})`);
+
     return res.json({
       success: true,
       message: result.isVip
         ? 'Werbe-Belohnung verbucht. +1 Energie (∞ Unbegrenzte VIP-Ads).'
         : `Werbe-Belohnung verbucht. +1 Energie. (${result.dailyAdLimit - result.count!} verbleibend heute)`,
-      energy: result.energy
+      energy: result.energy,
+      count: result.count
     });
   } catch (error: any) {
-    console.error('Error adding energy ad:', error);
-    return res.status(500).json({ error: 'Internal server error' });
+    console.error(`[ENERGY AD ERROR]: ❌ Failed to add energy for User ID=${userId} (${userName}):`, error?.stack || error);
+    return res.status(500).json({ error: 'Internal server error', details: error?.message });
   }
 }
 

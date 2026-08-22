@@ -21,6 +21,15 @@ app.use(cors({
 
 app.use(express.json());
 
+// API Request Logger for transparency in server console
+app.use((req, _res, next) => {
+  if (req.path.startsWith('/api') && req.path !== '/health' && !req.path.endsWith('/events')) {
+    const time = new Date().toLocaleTimeString('de-DE');
+    console.log(`[HTTP ${time}]: ${req.method} ${req.path}`);
+  }
+  next();
+});
+
 // ── Admin Dashboard HTML (served at /admin-dashboard and /admin) ─────────────
 // In dev mode: no auth required. In production: adminAuth middleware applies.
 const adminHtmlPath = path.join(__dirname, '../src/admin-dashboard.html');
@@ -99,6 +108,13 @@ if (frontendDistPath) {
   // If no frontend build exists, serve Admin Dashboard at root
   app.get('/', adminAuth, serveAdminDashboard);
 }
+
+// Global Uncaught Error Handler
+app.use((err: any, req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  const time = new Date().toLocaleTimeString('de-DE');
+  console.error(`[SERVER ERROR ❌ ${time}] on ${req.method} ${req.path}:`, err?.stack || err);
+  res.status(500).json({ error: 'Internal Server Error', message: err?.message || 'Unknown server error' });
+});
 
 import { runAutoMigrations } from './database/autoMigrate';
 

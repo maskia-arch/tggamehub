@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Zap, ShieldCheck, CheckCircle2 } from 'lucide-react';
 import { showMonetagRewardedAd } from '../services/monetagService';
+import { sendServerLog } from '../services/telemetry';
 
 interface StoryRewardedAdModalProps {
   isOpen: boolean;
@@ -41,9 +42,12 @@ export function StoryRewardedAdModal({
       return;
     }
 
+    sendServerLog('info', '🎬 Story Ad Player: Spot 1/2 gestartet (15s Countdown)');
+
     // Trigger Monetag SDK for Spot 1
     showMonetagRewardedAd().catch((e) => {
       console.warn('[STORY AD]: Monetag spot note:', e);
+      sendServerLog('warn', '⚠️ Monetag Spot 1 Trigger Note', { error: e?.message });
     });
 
     // Start 15s countdown for Spot 1
@@ -52,11 +56,13 @@ export function StoryRewardedAdModal({
         if (prev <= 1) {
           // Spot 1 finished! Transition to Spot 2
           setCurrentSpot(2);
+          sendServerLog('info', '🎬 Story Ad Player: Spot 1 abgeschlossen ➔ Spot 2/2 gestartet (15s Countdown)');
           if (timerRef.current) clearInterval(timerRef.current);
           
           // Trigger Monetag SDK for Spot 2 (rotation)
           showMonetagRewardedAd().catch((e) => {
             console.warn('[STORY AD]: Monetag spot 2 note:', e);
+            sendServerLog('warn', '⚠️ Monetag Spot 2 Trigger Note', { error: e?.message });
           });
 
           // Start 15s countdown for Spot 2
@@ -65,6 +71,7 @@ export function StoryRewardedAdModal({
               if (p2 <= 1) {
                 // Spot 2 finished! Both 15s spots completed (30s total)
                 if (timerRef.current) clearInterval(timerRef.current);
+                sendServerLog('info', '⚡ Story Ad Player: Beide 15s Spots abgeschlossen (30s). Claiming +1 Energie...');
                 triggerRewardClaim();
                 return 0;
               }
@@ -107,6 +114,7 @@ export function StoryRewardedAdModal({
         throw new Error(resData?.message || 'Fehler beim Server-Abgleich.');
       }
 
+      sendServerLog('info', '🎉 Story Ad Player: +1 Energie erfolgreich verbucht!', { resData });
       setIsCompleted(true);
       onRewardGranted();
 
@@ -115,6 +123,7 @@ export function StoryRewardedAdModal({
       }, 1600);
     } catch (err: any) {
       console.error('[STORY AD CLAIM ERROR]:', err);
+      sendServerLog('error', '❌ Story Ad Player: Claim-Fehler', { error: err?.message });
       setErrorMsg('Fehler bei der Energie-Gutschrift. Bitte kurz warten...');
       setTimeout(() => {
         onRewardGranted();

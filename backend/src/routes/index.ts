@@ -40,6 +40,15 @@ import { getCurrentSeason } from '../services/seasonService';
 
 const router = Router();
 
+// Client error & event telemetry logging route (accessible from Frontend Mini App)
+router.post('/telemetry/log', (req: Request, res: Response) => {
+  const { level, message, details, userId, time } = req.body || {};
+  const prefix = level === 'error' ? '❌ [CLIENT ERROR]' : level === 'warn' ? '⚠️ [CLIENT WARN]' : 'ℹ️ [CLIENT LOG]';
+  const timeStr = time || new Date().toISOString();
+  console.log(`${prefix} [${timeStr}] [User: ${userId || 'anonymous'}]: ${message}`, details ? JSON.stringify(details) : '');
+  return res.json({ ok: true });
+});
+
 // User endpoints (secured)
 router.get('/user/profile', authMiddleware, getProfile);
 router.post('/user/energy/ad', authMiddleware, addEnergyAd);
