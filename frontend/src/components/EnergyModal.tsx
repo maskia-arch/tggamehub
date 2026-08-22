@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Zap, X, Play, ShoppingBag, Users, Clock, Lock } from 'lucide-react';
+import { Zap, X, Play, ShoppingBag, Users, Clock, Lock, RefreshCw } from 'lucide-react';
 import { useLanguage } from '../i18n/LanguageContext';
-import { StoryRewardedAdModal } from './StoryRewardedAdModal';
+import { showMonetagRewardedAd } from '../services/monetagService';
 
 interface EnergyModalProps {
   isOpen: boolean;
@@ -33,11 +33,11 @@ export function EnergyModal({
   onOpenShop,
 }: EnergyModalProps) {
   const { t } = useLanguage();
-  const [showStoryAd, setShowStoryAd] = useState(false);
   const [localEnergy, setLocalEnergy] = useState(currentEnergy);
   const [localAdCount, setLocalAdCount] = useState(dailyAdCount);
   const [secondsLeft, setSecondsLeft] = useState(nextRechargeInSeconds);
   const [copiedLink, setCopiedLink] = useState(false);
+  const [adLoading, setAdLoading] = useState(false);
   const [adError, setAdError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
@@ -82,11 +82,57 @@ export function EnergyModal({
     return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   };
 
-  const handleWatchAd = () => {
-    if (isAdLimitReached) return;
+  const handleWatchAd = async () => {
+    if (isAdLimitReached || adLoading) return;
+    setAdLoading(true);
     setAdError(null);
     setSuccessMessage(null);
-    setShowStoryAd(true);
+
+    try {
+      // 1. Run official Monetag Rewarded Interstitial
+      await showMonetagRewardedAd();
+
+      // 2. Claim +1 Energy from Backend
+      const response = await fetch(`${backendUrl}/api/user/energy/ad`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${initData}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      let resData: any = null;
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        resData = await response.json();
+      } else {
+        resData = { success: response.ok };
+      }
+
+      if (!response.ok) {
+        throw new Error(resData?.message || 'Fehler beim Server-Abgleich.');
+      }
+
+      // 3. Update local state immediately & notify parent
+      const newEnergyVal = resData?.energy?.currentEnergy ?? (localEnergy + 1);
+      const newCountVal = resData?.count ?? (localAdCount + 1);
+      const updatedRemaining = Math.max(0, dailyAdLimit - newCountVal);
+      setLocalEnergy(newEnergyVal);
+      setLocalAdCount(newCountVal);
+      setSuccessMessage(`🎉 +1 Energie gutgeschrieben! (${updatedRemaining}/${dailyAdLimit} Videos verbleibend)`);
+
+      onEnergyGranted(newEnergyVal);
+
+      setTimeout(() => {
+        onClose();
+      }, 1500);
+    } catch (err: any) {
+      console.warn('[MONETAG AD ERROR]:', err);
+      setAdError('Werbeanzeige geschlossen oder momentan nicht verfügbar.');
+      setTimeout(() => setAdError(null), 4000);
+    } finally {
+      setAdLoading(false);
+    }
   };
 
   const handleInviteFriend = () => {
@@ -185,26 +231,28 @@ export function EnergyModal({
           {/* Option 1: Watch Ad (10/day limit) */}
             <button
               onClick={handleWatchAd}
-              disabled={isAdLimitReached}
+              disabled={isAdLimitReached || adLoading}
               style={{
                 display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                 padding: '14px 16px',
                 background: isAdLimitReached ? 'rgba(255,255,255,0.02)' : 'rgba(255, 140, 0, 0.08)',
                 border: isAdLimitReached ? '1px solid rgba(255,255,255,0.06)' : '1px solid rgba(255, 140, 0, 0.3)',
-                borderRadius: '16px', cursor: isAdLimitReached ? 'not-allowed' : 'pointer',
-                textAlign: 'left', opacity: isAdLimitReached ? 0.6 : 1,
+                borderRadius: '16px', cursor: (isAdLimitReached || adLoading) ? 'not-allowed' : 'pointer',
+                textAlign: 'left', opacity: (isAdLimitReached || adLoading) ? 0.6 : 1,
                 transition: 'all 0.2s',
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                {isAdLimitReached ? (
+                {adLoading ? (
+                  <RefreshCw size={18} className="animate-spin" style={{ color: 'var(--accent-orange)' }} />
+                ) : isAdLimitReached ? (
                   <Lock size={18} style={{ color: '#f87171' }} />
                 ) : (
                   <Play size={18} style={{ color: 'var(--accent-orange)' }} />
                 )}
                 <div>
                   <span style={{ fontSize: '12px', fontWeight: 800, color: '#fff', display: 'block' }}>
-                    {t.header.watchAdBtn}
+                    {adLoading ? 'Werbespot läuft...' : t.header.watchAdBtn}
                   </span>
                   <span style={{ fontSize: '9px', color: isAdLimitReached ? '#f87171' : 'rgba(255,255,255,0.5)', display: 'block', marginTop: '2px' }}>
                     {isUnlimitedAds
@@ -326,28 +374,6 @@ export function EnergyModal({
 
           </div>
       </div>
-
-      {/* Story-Style 2x 15s Rewarded Ad Player */}
-      <StoryRewardedAdModal
-        isOpen={showStoryAd}
-        onClose={() => setShowStoryAd(false)}
-        onRewardGranted={() => {
-          const newEnergyVal = localEnergy + 1;
-          const newCountVal = (localAdCount || 0) + 1;
-          const updatedRemaining = Math.max(0, dailyAdLimit - newCountVal);
-          setLocalEnergy(newEnergyVal);
-          setLocalAdCount(newCountVal);
-          setSuccessMessage(`🎉 +1 Energie gutgeschrieben! (${updatedRemaining}/${dailyAdLimit} Videos verbleibend)`);
-          onEnergyGranted(newEnergyVal);
-          setTimeout(() => {
-            onClose();
-          }, 1000);
-        }}
-        backendUrl={backendUrl}
-        initData={initData}
-        dailyAdLimit={dailyAdLimit}
-        dailyAdCount={localAdCount}
-      />
     </div>
   );
 }
