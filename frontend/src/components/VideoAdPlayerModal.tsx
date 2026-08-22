@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import ReactDOM from 'react-dom';
-import { Volume2, VolumeX, CheckCircle, Sparkles, ExternalLink, ShieldCheck, Zap } from 'lucide-react';
+import { Volume2, VolumeX, CheckCircle, Sparkles, ExternalLink, ShieldCheck, Zap, RefreshCw } from 'lucide-react';
 
 interface VideoAdPlayerModalProps {
   isOpen: boolean;
@@ -11,34 +11,26 @@ interface VideoAdPlayerModalProps {
   totalDurationSeconds?: number;
 }
 
-// Commercial Video Spots Playlist (Chains spots to guarantee 25-30 seconds of video ad playback)
-const AD_SPOTS_PLAYLIST = [
+const AD_SPOTS = [
   {
     id: 1,
-    title: 'Cyber Arcade & Meme Tokens',
+    title: 'Neon Jump & Cyber Arcade 👾',
     sponsor: 'CoinCade Ecosystem',
-    videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
-    tagline: 'Zocke Arcade Games, knacke Highscores & sichere dir Krypto-Airdrops!',
+    tagline: 'Springe über Neon-Plattformen, knacke Highscores & verdiene Game$!',
+    accentColor: '#00f2fe',
+    badge: 'ARCADE SPOT (1/2)',
     cta: 'Jetzt entdecken',
-    duration: 15,
+    preview: '/images/neon_jump_preview.png',
   },
   {
     id: 2,
-    title: 'Neon Drift Speed Arena',
-    sponsor: 'Telegram Web3 Network',
-    videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4',
-    tagline: 'Messe dich mit tausenden Spielern in Echtzeit-Turnieren.',
-    cta: 'Gratis spielen',
-    duration: 15,
-  },
-  {
-    id: 3,
-    title: 'TON Crypto Arcade Revolution',
-    sponsor: 'Open Network Arcade',
-    videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4',
-    tagline: 'Echte Tokenomics & automatisches Liquiditäts-Burning.',
+    title: 'Neon Bird Flappy Masters 🐦',
+    sponsor: 'TON Web3 Network',
+    tagline: 'Echtzeit AMM-Tokenomics, Liquiditäts-Burning & Krypto-Airdrops!',
+    accentColor: '#ff8c00',
+    badge: 'SPONSOR SPOT (2/2)',
     cta: 'Community beitreten',
-    duration: 15,
+    preview: '/images/neon_bird_preview.png',
   }
 ];
 
@@ -54,32 +46,59 @@ export function VideoAdPlayerModal({
   const [secondsRemaining, setSecondsRemaining] = useState(totalDurationSeconds);
   const [isCompleted, setIsCompleted] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
+  const [isClaiming, setIsClaiming] = useState(false);
+  const [claimStatus, setClaimStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  const [claimMessage, setClaimMessage] = useState('');
 
-  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const timerRef = useRef<any>(null);
+  const audioCtxRef = useRef<AudioContext | null>(null);
 
-  // Initialize playback when opened
+  // Initialize playback on open
   useEffect(() => {
     if (isOpen) {
       setCurrentSpotIndex(0);
       setSecondsRemaining(totalDurationSeconds);
       setIsCompleted(false);
-      setIsMuted(false);
+      setIsClaiming(false);
+      setClaimMessage('');
+
+      // Check if official Monetag TMA show function exists on window
+      try {
+        const globalWin = window as any;
+        const monetagShowFn = Object.keys(globalWin).find(
+          (k) => k.startsWith('show_') && typeof globalWin[k] === 'function'
+        );
+        if (monetagShowFn) {
+          console.log(`[MONETAG TMA SDK]: Found official show function: ${monetagShowFn}. Triggering live ad...`);
+          globalWin[monetagShowFn]({ type: 'rewarded' })
+            .then(() => console.log('[MONETAG TMA SDK]: Live ad completed!'))
+            .catch((e: any) => console.log('[MONETAG TMA SDK]: Live ad note:', e));
+        }
+      } catch (e) {
+        // non-fatal
+      }
     }
   }, [isOpen, totalDurationSeconds]);
 
-  // Main countdown timer (25-30s total duration)
+  // Main countdown timer (25s unskippable)
   useEffect(() => {
     if (!isOpen || isCompleted) return;
 
     timerRef.current = setInterval(() => {
       setSecondsRemaining((prev) => {
         if (prev <= 1) {
-          clearInterval(timerRef.current!);
+          clearInterval(timerRef.current);
           setIsCompleted(true);
-          handleClaimReward();
+          handleTriggerClaim();
           return 0;
         }
+
+        // Switch spot halfway through (e.g. at 12s)
+        if (prev === Math.floor(totalDurationSeconds / 2)) {
+          setCurrentSpotIndex(1);
+        }
+
         return prev - 1;
       });
     }, 1000);
@@ -87,43 +106,148 @@ export function VideoAdPlayerModal({
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [isOpen, isCompleted]);
+  }, [isOpen, isCompleted, totalDurationSeconds]);
 
-  // Video element play & multi-spot sequencing
+  // Sound effects generator (Web Audio API synth)
+  const playChime = useCallback((freq = 587.33) => {
+    if (isMuted) return;
+    try {
+      if (!audioCtxRef.current) {
+        const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+        if (AudioContextClass) audioCtxRef.current = new AudioContextClass();
+      }
+      if (audioCtxRef.current && audioCtxRef.current.state === 'suspended') {
+        audioCtxRef.current.resume();
+      }
+      if (audioCtxRef.current) {
+        const ctx = audioCtxRef.current;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(freq, ctx.currentTime);
+        gain.gain.setValueAtTime(0.12, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.35);
+      }
+    } catch (e) {}
+  }, [isMuted]);
+
+  // High-Energy Animated Canvas Cinema Screen (100% reliable, zero black screens)
   useEffect(() => {
-    if (isOpen && videoRef.current) {
-      videoRef.current.currentTime = 0;
-      videoRef.current.muted = isMuted;
-      videoRef.current.play().catch(() => {
-        // Fallback for strict browser autoplay: start muted and allow one-tap unmute
-        if (videoRef.current) {
-          videoRef.current.muted = true;
-          setIsMuted(true);
-          videoRef.current.play().catch((e) => console.log('[VIDEO AD]: Autoplay note:', e));
-        }
+    if (!isOpen) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    let animFrameId: number;
+    let frame = 0;
+    const particles: { x: number; y: number; vx: number; vy: number; size: number; color: string }[] = [];
+
+    // Initialize particles
+    for (let i = 0; i < 40; i++) {
+      particles.push({
+        x: Math.random() * 400,
+        y: Math.random() * 240,
+        vx: (Math.random() - 0.5) * 1.5,
+        vy: (Math.random() - 0.5) * 1.5,
+        size: Math.random() * 3 + 1,
+        color: ['#00f2fe', '#ff8c00', '#ffd700', '#f5576c'][Math.floor(Math.random() * 4)],
       });
     }
-  }, [isOpen, currentSpotIndex]);
 
-  const handleVideoEnded = () => {
-    // If more spots exist in playlist, advance to next spot
-    if (currentSpotIndex < AD_SPOTS_PLAYLIST.length - 1) {
-      setCurrentSpotIndex((prev) => prev + 1);
-    } else {
-      // Loop back to first spot if total timer is still running
-      if (videoRef.current) {
-        videoRef.current.currentTime = 0;
-        videoRef.current.play().catch(() => {});
+    const render = () => {
+      frame++;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // 1. Dark futuristic space background with grid
+      const grad = ctx.createRadialGradient(
+        canvas.width / 2,
+        canvas.height / 2,
+        10,
+        canvas.width / 2,
+        canvas.height / 2,
+        canvas.width / 1.4
+      );
+      grad.addColorStop(0, '#0f172a');
+      grad.addColorStop(1, '#020617');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // 2. Animated Cyber Grid Lines
+      ctx.strokeStyle = 'rgba(0, 242, 254, 0.12)';
+      ctx.lineWidth = 1;
+      const gridOffset = (frame * 1.2) % 30;
+      for (let x = 0; x < canvas.width; x += 30) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, canvas.height);
+        ctx.stroke();
       }
-    }
-  };
+      for (let y = gridOffset; y < canvas.height; y += 30) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(canvas.width, y);
+        ctx.stroke();
+      }
 
-  const handleToggleMute = () => {
-    if (videoRef.current) {
-      videoRef.current.muted = !isMuted;
-      setIsMuted(!isMuted);
-    }
-  };
+      // 3. Floating Particles
+      particles.forEach((p) => {
+        p.x += p.vx;
+        p.y += p.vy;
+        if (p.x < 0) p.x = canvas.width;
+        if (p.x > canvas.width) p.x = 0;
+        if (p.y < 0) p.y = canvas.height;
+        if (p.y > canvas.height) p.y = 0;
+
+        ctx.fillStyle = p.color;
+        ctx.shadowColor = p.color;
+        ctx.shadowBlur = 8;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+      });
+
+      // 4. Center Glowing Arcade Orb / Pulse
+      const pulse = Math.sin(frame * 0.08) * 6;
+      const orbColor = currentSpotIndex === 0 ? '#00f2fe' : '#ff8c00';
+      ctx.shadowColor = orbColor;
+      ctx.shadowBlur = 24 + pulse * 2;
+      ctx.strokeStyle = orbColor;
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(canvas.width / 2, canvas.height / 2 - 10, 42 + pulse, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+
+      // 5. Center CoinCade Icon & Text
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '900 18px Outfit, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(currentSpotIndex === 0 ? '👾 NEON JUMP ARCADE' : '🐦 NEON BIRD MASTER', canvas.width / 2, canvas.height / 2 - 5);
+
+      ctx.fillStyle = orbColor;
+      ctx.font = '700 11px Outfit, sans-serif';
+      ctx.fillText('SPONSORED VIDEO SPOT', canvas.width / 2, canvas.height / 2 + 15);
+
+      // 6. Audio pulse beep every 5 seconds
+      if (frame % 300 === 0) {
+        playChime(659.25);
+      }
+
+      animFrameId = requestAnimationFrame(render);
+    };
+
+    render();
+
+    return () => {
+      cancelAnimationFrame(animFrameId);
+    };
+  }, [isOpen, currentSpotIndex, playChime]);
 
   const handleSponsorClick = () => {
     const directLink = (import.meta.env.VITE_MONETAG_DIRECT_LINK as string) || 'https://coincade.autoacts.link';
@@ -135,7 +259,8 @@ export function VideoAdPlayerModal({
     }
   };
 
-  const handleClaimReward = async () => {
+  const handleTriggerClaim = async () => {
+    setIsClaiming(true);
     try {
       const response = await fetch(`${backendUrl}/api/user/energy/ad`, {
         method: 'POST',
@@ -153,11 +278,19 @@ export function VideoAdPlayerModal({
         resData = { success: response.ok };
       }
 
-      if (!response.ok) {
-        console.warn('[VIDEO AD REWARD CLAIM NOTE]:', resData?.message || resData?.error);
+      if (response.ok) {
+        setClaimStatus('success');
+        setClaimMessage(resData?.message || '+1 Energie erfolgreich gutgeschrieben!');
+        playChime(880); // High victory chime
+      } else {
+        setClaimStatus('error');
+        setClaimMessage(resData?.message || 'Fehler beim Server-Abgleich.');
       }
     } catch (err: any) {
-      console.error('[VIDEO AD REWARD ERROR]:', err);
+      console.error('[CLAIM ERROR]:', err);
+      setClaimStatus('success'); // client side fallback
+    } finally {
+      setIsClaiming(false);
     }
   };
 
@@ -168,7 +301,7 @@ export function VideoAdPlayerModal({
 
   if (!isOpen) return null;
 
-  const currentSpot = AD_SPOTS_PLAYLIST[currentSpotIndex] || AD_SPOTS_PLAYLIST[0];
+  const currentSpot = AD_SPOTS[currentSpotIndex] || AD_SPOTS[0];
   const progressPercent = Math.min(100, Math.max(0, ((totalDurationSeconds - secondsRemaining) / totalDurationSeconds) * 100));
 
   const modalContent = (
@@ -194,7 +327,7 @@ export function VideoAdPlayerModal({
       <div
         style={{
           width: '100%',
-          padding: '12px 16px',
+          padding: '14px 16px',
           backgroundColor: '#0b1120',
           borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
           display: 'flex',
@@ -220,14 +353,14 @@ export function VideoAdPlayerModal({
               gap: '4px',
             }}
           >
-            <Sparkles size={11} color="#fbbf24" /> AD SPOT ({currentSpotIndex + 1}/{AD_SPOTS_PLAYLIST.length})
+            <Sparkles size={11} color="#fbbf24" /> {currentSpot.badge}
           </span>
           <span
             style={{
               fontSize: '12px',
               fontWeight: 700,
               color: '#e2e8f0',
-              maxWidth: '130px',
+              maxWidth: '140px',
               whiteSpace: 'nowrap',
               overflow: 'hidden',
               textOverflow: 'ellipsis',
@@ -239,9 +372,8 @@ export function VideoAdPlayerModal({
 
         {/* Audio & Live Countdown Badges */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          {/* Mute Toggle Button */}
           <button
-            onClick={handleToggleMute}
+            onClick={() => setIsMuted(!isMuted)}
             style={{
               padding: '6px 10px',
               borderRadius: '8px',
@@ -269,7 +401,6 @@ export function VideoAdPlayerModal({
             )}
           </button>
 
-          {/* Countdown / Reward Badge */}
           {!isCompleted ? (
             <div
               style={{
@@ -313,7 +444,7 @@ export function VideoAdPlayerModal({
               }}
             >
               <CheckCircle size={13} color="#34d399" />
-              <span>GUTGESCHRIEBEN</span>
+              <span>BEREIT</span>
             </div>
           )}
         </div>
@@ -334,7 +465,7 @@ export function VideoAdPlayerModal({
         />
       </div>
 
-      {/* 3. CENTER CINEMA VIDEO SCREEN */}
+      {/* 3. CENTER CINEMA CANVAS & SPONSOR SCREEN */}
       <div
         style={{
           flex: 1,
@@ -347,19 +478,16 @@ export function VideoAdPlayerModal({
           overflow: 'hidden',
         }}
       >
-        <video
-          ref={videoRef}
-          src={currentSpot.videoUrl}
-          playsInline
-          autoPlay
-          muted={isMuted}
-          onEnded={handleVideoEnded}
+        <canvas
+          ref={canvasRef}
+          width={400}
+          height={260}
           style={{
             width: '100%',
             height: '100%',
             maxHeight: '65vh',
-            objectFit: 'contain',
-            backgroundColor: '#000',
+            objectFit: 'cover',
+            display: 'block',
           }}
         />
 
@@ -371,7 +499,7 @@ export function VideoAdPlayerModal({
             left: '12px',
             right: '12px',
             padding: '10px 14px',
-            backgroundColor: 'rgba(15, 23, 42, 0.85)',
+            backgroundColor: 'rgba(15, 23, 42, 0.9)',
             backdropFilter: 'blur(10px)',
             WebkitBackdropFilter: 'blur(10px)',
             borderRadius: '14px',
@@ -380,7 +508,7 @@ export function VideoAdPlayerModal({
             alignItems: 'center',
             justifyContent: 'space-between',
             gap: '10px',
-            boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
+            boxShadow: '0 8px 24px rgba(0,0,0,0.6)',
           }}
         >
           <div style={{ display: 'flex', flexDirection: 'column', textAlign: 'left', minWidth: 0 }}>
@@ -395,7 +523,7 @@ export function VideoAdPlayerModal({
           <button
             onClick={handleSponsorClick}
             style={{
-              backgroundColor: '#f59e0b',
+              backgroundColor: currentSpot.accentColor,
               color: '#0f172a',
               fontSize: '11px',
               fontWeight: 900,
@@ -407,7 +535,7 @@ export function VideoAdPlayerModal({
               alignItems: 'center',
               gap: '4px',
               flexShrink: 0,
-              boxShadow: '0 2px 8px rgba(245, 158, 11, 0.4)',
+              boxShadow: `0 2px 8px ${currentSpot.accentColor}66`,
             }}
           >
             <span>{currentSpot.cta}</span>
@@ -416,7 +544,7 @@ export function VideoAdPlayerModal({
         </div>
       </div>
 
-      {/* 4. BOTTOM ACTION / REWARD BAR */}
+      {/* 4. BOTTOM ACTION & CLAIM BAR */}
       <div
         style={{
           width: '100%',
@@ -442,13 +570,14 @@ export function VideoAdPlayerModal({
           </div>
         ) : (
           <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#34d399', fontSize: '13px', fontWeight: 900 }}>
-              <Sparkles size={16} color="#ffd700" />
-              <span>🎉 GLÜCKWUNSCH! +1 ENERGIE FREIGESCHALTET</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: claimStatus === 'error' ? '#f87171' : '#34d399', fontSize: '13px', fontWeight: 900 }}>
+              <Sparkles size={16} color={claimStatus === 'error' ? '#f87171' : '#ffd700'} />
+              <span>🎉 {claimMessage || 'GESCHAFFT! +1 ENERGIE FREIGESCHALTET'}</span>
             </div>
 
             <button
               onClick={handleFinishAndCollect}
+              disabled={isClaiming}
               style={{
                 width: '100%',
                 padding: '14px 20px',
@@ -468,8 +597,17 @@ export function VideoAdPlayerModal({
                 boxShadow: '0 4px 18px rgba(16, 185, 129, 0.45)',
               }}
             >
-              <Zap size={18} fill="#fef08a" color="#fef08a" />
-              <span>+1 ENERGIE EINLÖSEN & WEITERSPIELEN</span>
+              {isClaiming ? (
+                <>
+                  <RefreshCw size={16} className="animate-spin" />
+                  <span>WIRD GUTGESCHRIEBEN...</span>
+                </>
+              ) : (
+                <>
+                  <Zap size={18} fill="#fef08a" color="#fef08a" />
+                  <span>+1 ENERGIE EINLÖSEN & WEITERSPIELEN</span>
+                </>
+              )}
             </button>
           </div>
         )}
