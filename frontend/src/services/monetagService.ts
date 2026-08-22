@@ -1,80 +1,113 @@
 /**
  * Official Monetag TMA (Telegram Mini App) Rewarded Ad Integration Service
- * Powered by official 'monetag-tg-sdk' (Zone 11624183)
+ * Tag: <script src="https://libtl.com/sdk.js" data-zone="11624183" data-sdk="show_11624183"></script>
  */
-import createAdHandler from 'monetag-tg-sdk';
 
 const ZONE_ID = (import.meta.env.VITE_MONETAG_ZONE_ID as string) || '11624183';
+const SDK_FN_NAME = `show_${ZONE_ID}`;
 
-let adHandlerInstance: ((options?: any) => Promise<any>) | null = null;
+let isScriptInjected = false;
 
 /**
- * Initializes, preloads and keeps the Monetag SDK ad handler warm.
+ * Ensures the official Monetag libtl.com SDK is injected into the DOM.
  */
-export function initAndPreloadMonetagSdk(zoneId: string = ZONE_ID) {
-  if (typeof window === 'undefined') return null;
-  
-  if (!adHandlerInstance) {
-    try {
-      adHandlerInstance = createAdHandler(Number(zoneId) || 11624183);
-      console.log(`[MONETAG TMA SDK]: Official createAdHandler preloaded & ready for Zone ${zoneId}.`);
-    } catch (e) {
-      console.error('[MONETAG TMA SDK]: Error initializing createAdHandler:', e);
-    }
+export function ensureMonetagSdkInjected(): Promise<boolean> {
+  if (typeof window === 'undefined') return Promise.resolve(false);
+  if (typeof (window as any)[SDK_FN_NAME] === 'function') {
+    return Promise.resolve(true);
   }
-  return adHandlerInstance;
+
+  if (isScriptInjected) {
+    return Promise.resolve(true);
+  }
+
+  return new Promise((resolve) => {
+    // Check if script already exists in document
+    const existingScript = document.querySelector(`script[data-zone="${ZONE_ID}"]`);
+    if (existingScript) {
+      isScriptInjected = true;
+      resolve(true);
+      return;
+    }
+
+    const script = document.createElement('script');
+    script.src = 'https://libtl.com/sdk.js';
+    script.dataset.zone = ZONE_ID;
+    script.dataset.sdk = SDK_FN_NAME;
+    script.async = true;
+
+    script.onload = () => {
+      console.log(`[MONETAG TMA SDK]: Official libtl.com SDK loaded for Zone ${ZONE_ID}.`);
+      isScriptInjected = true;
+      resolve(true);
+    };
+
+    script.onerror = (err) => {
+      console.error('[MONETAG TMA SDK]: Error loading libtl.com script:', err);
+      resolve(false);
+    };
+
+    document.head.appendChild(script);
+  });
 }
 
-// Background warmup runner (runs every 30s to keep SDK primed)
+// Auto-inject on app start
 if (typeof window !== 'undefined') {
-  initAndPreloadMonetagSdk(ZONE_ID);
-  setInterval(() => {
-    initAndPreloadMonetagSdk(ZONE_ID);
-  }, 30000);
+  ensureMonetagSdkInjected();
 }
 
 /**
- * Triggers the official Monetag Rewarded Interstitial for Zone 11624183.
- * Returns a Promise that resolves ONLY when the user has fully watched the paid ad.
+ * Executes Monetag Rewarded Interstitial Ad (Zone 11624183) with ONE single tap.
+ * Returns Promise<boolean> that resolves when ad is completed.
  */
-export async function showMonetagRewardedAd(ymid?: string, zoneId: string = ZONE_ID): Promise<boolean> {
-  console.log(`[MONETAG TMA]: Requesting paid Rewarded Interstitial for Zone ${zoneId}...`);
+export async function showMonetagRewardedAd(ymid?: string): Promise<boolean> {
+  console.log(`[MONETAG TMA]: Triggering 1-Tap Rewarded Ad (Zone ${ZONE_ID})...`);
 
-  const handler = initAndPreloadMonetagSdk(zoneId);
-  const options = ymid ? { ymid, type: 'rewarded' } : { type: 'rewarded' };
+  // Ensure script is ready
+  await ensureMonetagSdkInjected();
 
-  if (handler) {
-    try {
-      // Execute official Monetag ad handler
-      const adPromise = handler(options);
+  // Find show function
+  let showFn = (window as any)[SDK_FN_NAME];
 
-      if (adPromise && typeof adPromise.then === 'function') {
-        await adPromise;
+  if (typeof showFn !== 'function') {
+    // Wait briefly (up to 1500ms) for script parse if user tapped immediately on page load
+    const startTime = Date.now();
+    while (Date.now() - startTime < 1500) {
+      if (typeof (window as any)[SDK_FN_NAME] === 'function') {
+        showFn = (window as any)[SDK_FN_NAME];
+        break;
       }
-      
-      console.log('[MONETAG TMA]: Paid Rewarded Ad finished successfully! Monetag publisher revenue registered.');
-      return true;
-    } catch (error: any) {
-      console.error('[MONETAG TMA]: Monetag ad note:', error);
-      throw error;
+      await new Promise((r) => setTimeout(r, 100));
     }
   }
 
-  // Fallback direct window call if available
-  const targetFnName = `show_${zoneId}`;
-  const showFn = (window as any)[targetFnName];
-  if (typeof showFn === 'function') {
-    try {
-      const res = showFn(options);
-      if (res && typeof res.then === 'function') {
-        await res;
-      }
-      return true;
-    } catch (fallbackErr) {
-      console.error('[MONETAG TMA]: Direct window show error:', fallbackErr);
-      throw fallbackErr;
+  if (typeof showFn !== 'function') {
+    // Look for any global show_XXXX function
+    const anyShowKey = Object.keys(window).find(
+      (k) => k.startsWith('show_') && typeof (window as any)[k] === 'function'
+    );
+    if (anyShowKey) {
+      showFn = (window as any)[anyShowKey];
     }
   }
 
-  throw new Error('MONETAG_NOT_READY');
+  if (typeof showFn !== 'function') {
+    throw new Error('MONETAG_NOT_READY');
+  }
+
+  // Call official Monetag function
+  try {
+    const options = ymid ? { ymid, type: 'rewarded' } : { type: 'rewarded' };
+    const res = showFn(options) || showFn();
+
+    if (res && typeof res.then === 'function') {
+      await res;
+    }
+
+    console.log('[MONETAG TMA]: Paid Ad finished! Publisher revenue registered.');
+    return true;
+  } catch (err: any) {
+    console.error('[MONETAG TMA]: Ad display error or closed early:', err);
+    throw err;
+  }
 }
