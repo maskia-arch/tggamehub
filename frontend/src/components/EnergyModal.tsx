@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Zap, X, Play, ShoppingBag, Users, Clock, Lock } from 'lucide-react';
+import { Zap, X, Play, ShoppingBag, Users, Clock, Lock, RefreshCw } from 'lucide-react';
 import { useLanguage } from '../i18n/LanguageContext';
 import { VideoAdPlayerModal } from './VideoAdPlayerModal';
+import { showMonetagRewardedAd } from '../services/monetagService';
 
 interface EnergyModalProps {
   isOpen: boolean;
@@ -36,6 +37,8 @@ export function EnergyModal({
   const [showVideoPlayer, setShowVideoPlayer] = useState(false);
   const [secondsLeft, setSecondsLeft] = useState(nextRechargeInSeconds);
   const [copiedLink, setCopiedLink] = useState(false);
+  const [adLoading, setAdLoading] = useState(false);
+  const [adError, setAdError] = useState<string | null>(null);
 
   // Synchronize countdown when prop or visibility changes
   useEffect(() => {
@@ -70,9 +73,51 @@ export function EnergyModal({
     return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   };
 
-  const handleWatchAd = () => {
-    if (isAdLimitReached) return;
-    setShowVideoPlayer(true);
+  const handleWatchAd = async () => {
+    if (isAdLimitReached || adLoading) return;
+    setAdLoading(true);
+    setAdError(null);
+
+    try {
+      // 1. Trigger Official Monetag Rewarded Video
+      await showMonetagRewardedAd(initData);
+
+      // 2. Claim +1 Energy from Backend
+      const response = await fetch(`${backendUrl}/api/user/energy/ad`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${initData}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      let resData: any = null;
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        resData = await response.json();
+      } else {
+        resData = { success: response.ok };
+      }
+
+      if (!response.ok) {
+        throw new Error(resData?.message || 'Fehler beim Server-Abgleich.');
+      }
+
+      // 3. Grant Energy & Close
+      onEnergyGranted(currentEnergy + 1);
+      onClose();
+    } catch (err: any) {
+      console.warn('[MONETAG AD NOTE]:', err);
+      if (err?.message === 'MONETAG_NOT_READY') {
+        // If Monetag script is still downloading, open the backup player
+        setShowVideoPlayer(true);
+      } else {
+        setAdError('Werbespot wurde vorzeitig beendet oder ist momentan nicht verfügbar.');
+        setTimeout(() => setAdError(null), 4000);
+      }
+    } finally {
+      setAdLoading(false);
+    }
   };
 
   const handleInviteFriend = () => {
@@ -171,22 +216,28 @@ export function EnergyModal({
           {/* Option 1: Watch Ad (10/day limit) */}
             <button
               onClick={handleWatchAd}
-              disabled={isAdLimitReached}
+              disabled={isAdLimitReached || adLoading}
               style={{
                 display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                 padding: '14px 16px',
                 background: isAdLimitReached ? 'rgba(255,255,255,0.02)' : 'rgba(255, 140, 0, 0.08)',
                 border: isAdLimitReached ? '1px solid rgba(255,255,255,0.06)' : '1px solid rgba(255, 140, 0, 0.3)',
-                borderRadius: '16px', cursor: isAdLimitReached ? 'not-allowed' : 'pointer',
-                textAlign: 'left', opacity: isAdLimitReached ? 0.5 : 1,
+                borderRadius: '16px', cursor: (isAdLimitReached || adLoading) ? 'not-allowed' : 'pointer',
+                textAlign: 'left', opacity: (isAdLimitReached || adLoading) ? 0.6 : 1,
                 transition: 'all 0.2s',
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                {isAdLimitReached ? <Lock size={18} style={{ color: '#f87171' }} /> : <Play size={18} style={{ color: 'var(--accent-orange)' }} />}
+                {adLoading ? (
+                  <RefreshCw size={18} className="animate-spin" style={{ color: 'var(--accent-orange)' }} />
+                ) : isAdLimitReached ? (
+                  <Lock size={18} style={{ color: '#f87171' }} />
+                ) : (
+                  <Play size={18} style={{ color: 'var(--accent-orange)' }} />
+                )}
                 <div>
                   <span style={{ fontSize: '12px', fontWeight: 800, color: '#fff', display: 'block' }}>
-                    {t.header.watchAdBtn}
+                    {adLoading ? 'Werbespot lädt...' : t.header.watchAdBtn}
                   </span>
                   <span style={{ fontSize: '9px', color: isAdLimitReached ? '#f87171' : 'rgba(255,255,255,0.5)', display: 'block', marginTop: '2px' }}>
                     {isUnlimitedAds
@@ -206,6 +257,21 @@ export function EnergyModal({
                 +1 ⚡
               </span>
             </button>
+
+            {adError && (
+              <div style={{
+                padding: '8px 12px',
+                borderRadius: '10px',
+                backgroundColor: 'rgba(239, 68, 68, 0.15)',
+                border: '1px solid rgba(239, 68, 68, 0.3)',
+                color: '#f87171',
+                fontSize: '10px',
+                fontWeight: 600,
+                textAlign: 'center',
+              }}>
+                {adError}
+              </div>
+            )}
 
             {/* Option 2: Buy in Shop */}
             {onOpenShop && (
