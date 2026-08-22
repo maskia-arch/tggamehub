@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Zap, X, Play, ShoppingBag, Users, Clock, Lock, RefreshCw } from 'lucide-react';
 import { useLanguage } from '../i18n/LanguageContext';
-import { VideoAdPlayerModal } from './VideoAdPlayerModal';
 import { showMonetagRewardedAd } from '../services/monetagService';
 
 interface EnergyModalProps {
@@ -34,7 +33,6 @@ export function EnergyModal({
   onOpenShop,
 }: EnergyModalProps) {
   const { t } = useLanguage();
-  const [showVideoPlayer, setShowVideoPlayer] = useState(false);
   const [secondsLeft, setSecondsLeft] = useState(nextRechargeInSeconds);
   const [copiedLink, setCopiedLink] = useState(false);
   const [adLoading, setAdLoading] = useState(false);
@@ -107,14 +105,9 @@ export function EnergyModal({
       onEnergyGranted(currentEnergy + 1);
       onClose();
     } catch (err: any) {
-      console.warn('[MONETAG AD NOTE]:', err);
-      if (err?.message === 'MONETAG_NOT_READY') {
-        // If Monetag script is still downloading, open the backup player
-        setShowVideoPlayer(true);
-      } else {
-        setAdError('Werbespot wurde vorzeitig beendet oder ist momentan nicht verfügbar.');
-        setTimeout(() => setAdError(null), 4000);
-      }
+      console.warn('[MONETAG AD ERROR]:', err);
+      setAdError('Werbespot wurde nicht vollständig abgespielt oder ist aktuell nicht verfügbar.');
+      setTimeout(() => setAdError(null), 4000);
     } finally {
       setAdLoading(false);
     }
@@ -344,20 +337,6 @@ export function EnergyModal({
 
           </div>
       </div>
-
-      {/* Real Fullscreen Video Ad Player (25-30s unskippable) */}
-      <VideoAdPlayerModal
-        isOpen={showVideoPlayer}
-        onClose={() => setShowVideoPlayer(false)}
-        onRewardGranted={() => {
-          setShowVideoPlayer(false);
-          onEnergyGranted(currentEnergy + 1);
-          onClose();
-        }}
-        backendUrl={backendUrl}
-        initData={initData}
-        totalDurationSeconds={25}
-      />
     </div>
   );
 }
