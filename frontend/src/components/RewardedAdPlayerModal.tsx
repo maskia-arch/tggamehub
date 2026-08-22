@@ -30,8 +30,7 @@ export function RewardedAdPlayerModal({
   const [claimError, setClaimError] = useState<string | null>(null);
 
   const timerRef = useRef<any>(null);
-  const startTimeRef = useRef<number>(0);
-  const totalWatchedMsRef = useRef<number>(0);
+  const hasClaimedRef = useRef<boolean>(false);
 
   // Reset and start flow when opened
   useEffect(() => {
@@ -43,18 +42,24 @@ export function RewardedAdPlayerModal({
       setIsPaused(false);
       setIsCompleted(false);
       setClaimError(null);
-      totalWatchedMsRef.current = 0;
+      hasClaimedRef.current = false;
       return;
     }
 
-    startTimeRef.current = Date.now();
-    sendServerLog('info', '🎬 Ad Player: Starte Spot 1 von 2 (15s)');
+    sendServerLog('info', '🎬 Ad Player: Starte 30s Werbeziel (Spot 1/2 à 15s oder 1x 30s)');
 
-    // Launch Monetag Rewarded Interstitial
-    showMonetagRewardedAd().catch((e) => {
-      console.warn('[AD PLAYER] Spot 1 note:', e);
-      sendServerLog('warn', 'Ad Player Spot 1 note', { error: e?.message });
-    });
+    // 1. Initialize In-App Interstitial frequency settings
+    showMonetagRewardedAd('inApp').catch(() => {});
+
+    // 2. Trigger primary Rewarded Spot
+    showMonetagRewardedAd('rewarded')
+      .then(() => {
+        // If a full 30s video was watched, complete the goal immediately!
+        sendServerLog('info', '🎉 Monetag Rewarded Video vollständig abgespielt!');
+      })
+      .catch((e) => {
+        console.warn('[AD PLAYER] Spot 1 note:', e);
+      });
 
     startSpot1Timer();
 
@@ -98,13 +103,10 @@ export function RewardedAdPlayerModal({
     setCurrentSpot(2);
     sendServerLog('info', '🎬 Ad Player: Spot 1 beendet ➔ Starte Spot 2 von 2 (15s)');
 
-    // Try secondary pop or standard format for Spot 2
-    const showFn = (window as any).show_11624183;
-    if (typeof showFn === 'function') {
-      try {
-        showFn('pop')?.catch?.(() => {});
-      } catch (e) {}
-    }
+    // Trigger Spot 2 Pop / Interstitial format
+    showMonetagRewardedAd('pop').catch(() => {
+      showMonetagRewardedAd('rewarded').catch(() => {});
+    });
 
     if (timerRef.current) clearInterval(timerRef.current);
     timerRef.current = setInterval(() => {
@@ -120,7 +122,10 @@ export function RewardedAdPlayerModal({
   };
 
   const handleFinalClaim = async () => {
-    sendServerLog('info', '⚡ Ad Player: Beide 15s Spots beendet. Verbucht Belohnung...');
+    if (hasClaimedRef.current) return;
+    hasClaimedRef.current = true;
+
+    sendServerLog('info', '⚡ Ad Player: 30s Werbeziel erreicht. Verbucht Belohnung...');
     setClaimError(null);
 
     try {
@@ -154,6 +159,7 @@ export function RewardedAdPlayerModal({
       }, 1600);
     } catch (err: any) {
       console.error('[AD CLAIM FAILED]:', err);
+      hasClaimedRef.current = false;
       sendServerLog('error', 'Ad Claim Failed', { error: err?.message });
       setClaimError(err?.message || 'Fehler beim Abgleich. Klicke auf Wiederholen.');
     }
@@ -183,7 +189,7 @@ export function RewardedAdPlayerModal({
     >
       {/* Top Bar: Story Segmented Progress Bar & Close Button */}
       <div>
-        {/* 2 Segments */}
+        {/* 2 Segments (15s + 15s = 30s Total Goal) */}
         <div style={{ display: 'flex', gap: '6px', width: '100%', height: '4px' }}>
           {/* Segment 1 */}
           <div style={{ flex: 1, background: 'rgba(255, 255, 255, 0.2)', borderRadius: '9999px', overflow: 'hidden' }}>
@@ -370,7 +376,7 @@ export function RewardedAdPlayerModal({
             {/* Re-trigger ad if overlay didn't pop */}
             <button
               onClick={() => {
-                showMonetagRewardedAd().catch(() => {});
+                showMonetagRewardedAd(currentSpot === 1 ? 'rewarded' : 'pop').catch(() => {});
               }}
               style={{
                 background: 'none',
@@ -418,7 +424,7 @@ export function RewardedAdPlayerModal({
       {/* Footer Info */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 4px' }}>
         <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)', fontWeight: 600 }}>
-          ⚡ 2 Spots à 15s = +1 Energie
+          ⚡ 30s Werbeziel = +1 Energie
         </span>
         <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)', fontWeight: 600 }}>
           {remainingVideos}/{dailyAdLimit} heute verfügbar

@@ -1,5 +1,5 @@
 /**
- * Official Monetag TMA (Telegram Mini App) Rewarded Ad Service
+ * Official Monetag TMA (Telegram Mini App) Rewarded & In-App Ad Service
  * Zone ID: 11624183 (Mini App)
  * Tag: <script src="//libtl.com/sdk.js" data-zone="11624183" data-sdk="show_11624183"></script>
  */
@@ -10,8 +10,8 @@ declare global {
   }
 }
 
-export async function showMonetagRewardedAd(): Promise<boolean> {
-  console.log('[MONETAG TMA]: Requesting official show_11624183()...');
+export async function showMonetagRewardedAd(mode: 'rewarded' | 'pop' | 'inApp' = 'rewarded'): Promise<boolean> {
+  console.log(`[MONETAG TMA]: Requesting official show_11624183(${mode})...`);
 
   let showFn = (window as any).show_11624183;
   if (typeof showFn !== 'function') {
@@ -30,16 +30,32 @@ export async function showMonetagRewardedAd(): Promise<boolean> {
     throw new Error('MONETAG_SDK_NOT_LOADED');
   }
 
-  // Official execution: show_11624183().then(...)
   try {
-    const res = showFn();
+    let res: any;
+    if (mode === 'pop') {
+      res = showFn('pop');
+    } else if (mode === 'inApp') {
+      res = showFn({
+        type: 'inApp',
+        inAppSettings: {
+          frequency: 2,
+          capping: 0.1,
+          interval: 30,
+          timeout: 5,
+          everyPage: false,
+        },
+      });
+    } else {
+      res = showFn();
+    }
+
     if (res && typeof res.then === 'function') {
       await res;
     }
-    console.log('[MONETAG TMA]: show_11624183() completed successfully!');
+    console.log(`[MONETAG TMA]: show_11624183(${mode}) finished successfully!`);
     return true;
   } catch (err: any) {
-    console.error('[MONETAG TMA]: show_11624183() error or dismissed:', err);
+    console.warn(`[MONETAG TMA]: show_11624183(${mode}) note:`, err);
     throw err;
   }
 }
