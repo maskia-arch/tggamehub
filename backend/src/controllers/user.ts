@@ -144,12 +144,40 @@ export async function addEnergyAd(req: AuthenticatedRequest, res: Response) {
       return res.status(400).json({ error: 'User context not found' });
     }
 
+    // Ephemeral Web Guest Support
+    if (req.telegramUser?.isGuest) {
+      return res.json({
+        success: true,
+        message: 'Gast-Energie erfolgreich aufgeladen (+1 Energie).',
+        energy: {
+          currentEnergy: 5,
+          maxEnergy: 5,
+          nextRechargeInSeconds: 0,
+          lastEnergyValue: 5,
+          lastEnergyUpdatedAt: new Date(),
+          isTimeBoosterActive: false,
+          timeBoosterSecondsLeft: 0,
+          seasonPassType: 'NONE'
+        }
+      });
+    }
+
     const { addEnergy } = require('../services/energy');
 
     const result = await db.transaction(async (trx) => {
-      const user = await trx('users').where({ id: userId }).forUpdate().first();
+      let user = await trx('users').where({ id: userId }).forUpdate().first();
       if (!user) {
-        throw new Error('User not found');
+        // Auto-provision user if missing
+        await trx('users').insert({
+          id: userId,
+          username: req.telegramUser?.username || null,
+          first_name: req.telegramUser?.first_name || null,
+          last_name: req.telegramUser?.last_name || null,
+          display_name: req.telegramUser?.first_name || 'Spieler',
+          energy_value: 5,
+          energy_updated_at: new Date(),
+        });
+        user = await trx('users').where({ id: userId }).forUpdate().first();
       }
 
       const passType = user.season_pass_type || 'NONE';

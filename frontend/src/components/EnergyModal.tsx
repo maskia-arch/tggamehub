@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Zap, X, Play, ShoppingBag, Users, Clock, Lock } from 'lucide-react';
 import { useLanguage } from '../i18n/LanguageContext';
-import { showRewardedAd } from '../services/adsgram';
+import { VideoAdPlayerModal } from './VideoAdPlayerModal';
 
 interface EnergyModalProps {
   isOpen: boolean;
@@ -33,7 +33,7 @@ export function EnergyModal({
   onOpenShop,
 }: EnergyModalProps) {
   const { t } = useLanguage();
-  const [adLoading, setAdLoading] = useState(false);
+  const [showVideoPlayer, setShowVideoPlayer] = useState(false);
   const [secondsLeft, setSecondsLeft] = useState(nextRechargeInSeconds);
   const [copiedLink, setCopiedLink] = useState(false);
 
@@ -70,42 +70,9 @@ export function EnergyModal({
     return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   };
 
-  const handleWatchAd = async () => {
-    if (isAdLimitReached || adLoading) return;
-    setAdLoading(true);
-
-    try {
-      // 1. Trigger Adsgram Rewarded Video Ad
-      const adResult = await showRewardedAd();
-
-      if (!adResult.success || !adResult.rewardEarned) {
-        if (adResult.error) {
-          alert(adResult.error);
-        }
-        return;
-      }
-
-      // 2. Claim energy reward from backend after video completion
-      const response = await fetch(`${backendUrl}/api/user/energy/ad`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${initData}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      const resData = await response.json();
-      if (!response.ok) {
-        throw new Error(resData.message || 'Werbe-Belohnung konnte nicht verbucht werden.');
-      }
-
-      onEnergyGranted(currentEnergy + 1);
-      onClose();
-    } catch (err: any) {
-      alert(err.message || 'Fehler beim Abspielen des Werbespots.');
-    } finally {
-      setAdLoading(false);
-    }
+  const handleWatchAd = () => {
+    if (isAdLimitReached) return;
+    setShowVideoPlayer(true);
   };
 
   const handleInviteFriend = () => {
@@ -198,23 +165,10 @@ export function EnergyModal({
           </div>
         </div>
 
-        {adLoading ? (
-          /* Ad simulation player */
-          <div style={{
-            background: 'rgba(0,0,0,0.5)', border: '1px solid rgba(255,140,0,0.3)',
-            borderRadius: '16px', padding: '24px 16px', textAlign: 'center',
-            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px',
-          }}>
-            <div className="animate-spin rounded-full h-10 w-10 border-4 border-solid border-orange-400 border-t-transparent"></div>
-            <div>
-              <strong style={{ color: '#fff', fontSize: '13px', display: 'block' }}>{t.common.loading}</strong>
-            </div>
-          </div>
-        ) : (
-          /* Options List */
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            
-            {/* Option 1: Watch Ad (10/day limit) */}
+        {/* Options List */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          
+          {/* Option 1: Watch Ad (10/day limit) */}
             <button
               onClick={handleWatchAd}
               disabled={isAdLimitReached}
@@ -323,9 +277,21 @@ export function EnergyModal({
             </button>
 
           </div>
-        )}
-
       </div>
+
+      {/* Real Fullscreen Video Ad Player (25-30s unskippable) */}
+      <VideoAdPlayerModal
+        isOpen={showVideoPlayer}
+        onClose={() => setShowVideoPlayer(false)}
+        onRewardGranted={() => {
+          setShowVideoPlayer(false);
+          onEnergyGranted(currentEnergy + 1);
+          onClose();
+        }}
+        backendUrl={backendUrl}
+        initData={initData}
+        durationSeconds={25}
+      />
     </div>
   );
 }
