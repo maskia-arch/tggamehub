@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Zap, ShieldCheck, CheckCircle2, X, Play, AlertCircle, RotateCcw } from 'lucide-react';
+import { Zap, ShieldCheck, CheckCircle2, X, RotateCcw } from 'lucide-react';
 import { showMonetagRewardedAd } from '../services/monetagService';
 import { sendServerLog } from '../services/telemetry';
 
@@ -13,6 +13,8 @@ interface RewardedAdPlayerModalProps {
   dailyAdCount?: number;
 }
 
+const TOTAL_AD_DURATION_SECONDS = 30;
+
 export function RewardedAdPlayerModal({
   isOpen,
   onClose,
@@ -22,110 +24,74 @@ export function RewardedAdPlayerModal({
   dailyAdLimit = 10,
   dailyAdCount = 0,
 }: RewardedAdPlayerModalProps) {
-  const [currentSpot, setCurrentSpot] = useState<1 | 2>(1);
-  const [spot1Seconds, setSpot1Seconds] = useState(15);
-  const [spot2Seconds, setSpot2Seconds] = useState(15);
-  const [isPaused, setIsPaused] = useState(false);
+  const [secondsLeft, setSecondsLeft] = useState(TOTAL_AD_DURATION_SECONDS);
   const [isCompleted, setIsCompleted] = useState(false);
   const [claimError, setClaimError] = useState<string | null>(null);
 
   const timerRef = useRef<any>(null);
+  const startTimeRef = useRef<number>(0);
   const hasClaimedRef = useRef<boolean>(false);
 
-  // Reset and start flow when opened
+  // Sync remaining seconds based on real wall-clock time
+  const syncTimer = () => {
+    if (!startTimeRef.current || hasClaimedRef.current) return;
+    const elapsedSeconds = Math.floor((Date.now() - startTimeRef.current) / 1000);
+    const remaining = Math.max(0, TOTAL_AD_DURATION_SECONDS - elapsedSeconds);
+    setSecondsLeft(remaining);
+
+    if (remaining <= 0 && !hasClaimedRef.current) {
+      if (timerRef.current) clearInterval(timerRef.current);
+      handleFinalClaim();
+    }
+  };
+
+  // Start 30s wall-clock timer when modal opens
   useEffect(() => {
     if (!isOpen) {
       if (timerRef.current) clearInterval(timerRef.current);
-      setCurrentSpot(1);
-      setSpot1Seconds(15);
-      setSpot2Seconds(15);
-      setIsPaused(false);
+      setSecondsLeft(TOTAL_AD_DURATION_SECONDS);
       setIsCompleted(false);
       setClaimError(null);
       hasClaimedRef.current = false;
+      startTimeRef.current = 0;
       return;
     }
 
-    sendServerLog('info', '🎬 Ad Player: Starte 30s Werbeziel (Spot 1/2 à 15s oder 1x 30s)');
+    startTimeRef.current = Date.now();
+    hasClaimedRef.current = false;
+    sendServerLog('info', '🎬 Ad Player: Starte 30s Werbespot (Hintergrund-Timer aktiv)');
 
-    // 1. Initialize In-App Interstitial frequency settings
-    showMonetagRewardedAd('inApp').catch(() => {});
+    // Trigger Monetag Rewarded Interstitial
+    showMonetagRewardedAd('rewarded').catch((e) => {
+      console.warn('[AD PLAYER] Spot note:', e);
+    });
 
-    // 2. Trigger primary Rewarded Spot
-    showMonetagRewardedAd('rewarded')
-      .then(() => {
-        // If a full 30s video was watched, complete the goal immediately!
-        sendServerLog('info', '🎉 Monetag Rewarded Video vollständig abgespielt!');
-      })
-      .catch((e) => {
-        console.warn('[AD PLAYER] Spot 1 note:', e);
-      });
+    // 1-second interval checking actual elapsed wall-clock time
+    timerRef.current = setInterval(() => {
+      syncTimer();
+    }, 1000);
 
-    startSpot1Timer();
-
-    // Visibility listener: pause countdown if user switches apps, resume when returning
-    const handleVisibility = () => {
-      if (document.hidden) {
-        setIsPaused(true);
-        if (timerRef.current) clearInterval(timerRef.current);
-        sendServerLog('info', '⏸️ Ad Player: Nutzer hat App minimiert (Pausiert)');
-      } else {
-        setIsPaused(false);
-        sendServerLog('info', '▶️ Ad Player: Nutzer zurück in App (Fortgesetzt)');
-      }
+    // Wall-clock catch-up on visibility change / window focus when user returns
+    const handleResume = () => {
+      syncTimer();
+      sendServerLog('info', '🔄 Ad Player: Fenster re-fokussiert, Timer synchronisiert');
     };
 
-    document.addEventListener('visibilitychange', handleVisibility);
-    window.addEventListener('focus', handleVisibility);
+    document.addEventListener('visibilitychange', handleResume);
+    window.addEventListener('focus', handleResume);
 
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
-      document.removeEventListener('visibilitychange', handleVisibility);
-      window.removeEventListener('focus', handleVisibility);
+      document.removeEventListener('visibilitychange', handleResume);
+      window.removeEventListener('focus', handleResume);
     };
   }, [isOpen]);
-
-  const startSpot1Timer = () => {
-    if (timerRef.current) clearInterval(timerRef.current);
-    timerRef.current = setInterval(() => {
-      setSpot1Seconds((prev) => {
-        if (prev <= 1) {
-          if (timerRef.current) clearInterval(timerRef.current);
-          transitionToSpot2();
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-  };
-
-  const transitionToSpot2 = () => {
-    setCurrentSpot(2);
-    sendServerLog('info', '🎬 Ad Player: Spot 1 beendet ➔ Starte Spot 2 von 2 (15s)');
-
-    // Trigger Spot 2 Pop / Interstitial format
-    showMonetagRewardedAd('pop').catch(() => {
-      showMonetagRewardedAd('rewarded').catch(() => {});
-    });
-
-    if (timerRef.current) clearInterval(timerRef.current);
-    timerRef.current = setInterval(() => {
-      setSpot2Seconds((p2) => {
-        if (p2 <= 1) {
-          if (timerRef.current) clearInterval(timerRef.current);
-          handleFinalClaim();
-          return 0;
-        }
-        return p2 - 1;
-      });
-    }, 1000);
-  };
 
   const handleFinalClaim = async () => {
     if (hasClaimedRef.current) return;
     hasClaimedRef.current = true;
 
-    sendServerLog('info', '⚡ Ad Player: 30s Werbeziel erreicht. Verbucht Belohnung...');
+    sendServerLog('info', '⚡ Ad Player: 30s vollendet. Sende Energie-Claim an Server...');
     setClaimError(null);
 
     try {
@@ -145,18 +111,18 @@ export function RewardedAdPlayerModal({
       }
 
       if (!response.ok) {
-        throw new Error(resData?.message || 'Serverfehler beim Claim.');
+        throw new Error(resData?.message || 'Serverfehler beim Energie-Claim.');
       }
 
       setIsCompleted(true);
-      sendServerLog('info', '🎉 Ad Player: Belohnung erfolgreich gutgeschrieben!', { resData });
+      sendServerLog('info', '🎉 Ad Player: +1 Energie erfolgreich verbucht!', { resData });
       
       const newEnergyVal = resData?.energy?.currentEnergy;
       onRewardGranted(newEnergyVal);
 
       setTimeout(() => {
         onClose();
-      }, 1600);
+      }, 1500);
     } catch (err: any) {
       console.error('[AD CLAIM FAILED]:', err);
       hasClaimedRef.current = false;
@@ -167,9 +133,7 @@ export function RewardedAdPlayerModal({
 
   if (!isOpen) return null;
 
-  const currentSeconds = currentSpot === 1 ? spot1Seconds : spot2Seconds;
-  const spot1Progress = Math.min(100, Math.max(0, ((15 - spot1Seconds) / 15) * 100));
-  const spot2Progress = currentSpot === 1 ? 0 : Math.min(100, Math.max(0, ((15 - spot2Seconds) / 15) * 100));
+  const progressPercent = Math.min(100, Math.max(0, ((TOTAL_AD_DURATION_SECONDS - secondsLeft) / TOTAL_AD_DURATION_SECONDS) * 100));
   const remainingVideos = Math.max(0, dailyAdLimit - dailyAdCount);
 
   return (
@@ -187,34 +151,19 @@ export function RewardedAdPlayerModal({
         userSelect: 'none',
       }}
     >
-      {/* Top Bar: Story Segmented Progress Bar & Close Button */}
+      {/* Top Bar: Story Progress Bar & Cancel Button */}
       <div>
-        {/* 2 Segments (15s + 15s = 30s Total Goal) */}
-        <div style={{ display: 'flex', gap: '6px', width: '100%', height: '4px' }}>
-          {/* Segment 1 */}
-          <div style={{ flex: 1, background: 'rgba(255, 255, 255, 0.2)', borderRadius: '9999px', overflow: 'hidden' }}>
-            <div
-              style={{
-                height: '100%',
-                width: `${spot1Progress}%`,
-                background: '#ff8c00',
-                boxShadow: '0 0 8px #ff8c00',
-                transition: 'width 0.95s linear',
-              }}
-            />
-          </div>
-          {/* Segment 2 */}
-          <div style={{ flex: 1, background: 'rgba(255, 255, 255, 0.2)', borderRadius: '9999px', overflow: 'hidden' }}>
-            <div
-              style={{
-                height: '100%',
-                width: `${spot2Progress}%`,
-                background: '#ff8c00',
-                boxShadow: '0 0 8px #ff8c00',
-                transition: 'width 0.95s linear',
-              }}
-            />
-          </div>
+        {/* Continuous 30s Story Segment */}
+        <div style={{ width: '100%', height: '5px', background: 'rgba(255, 255, 255, 0.15)', borderRadius: '9999px', overflow: 'hidden' }}>
+          <div
+            style={{
+              height: '100%',
+              width: `${progressPercent}%`,
+              background: 'linear-gradient(90deg, #ff8c00 0%, #00f2fe 100%)',
+              boxShadow: '0 0 10px rgba(0, 242, 254, 0.5)',
+              transition: 'width 0.95s linear',
+            }}
+          />
         </div>
 
         {/* Top Controls */}
@@ -233,15 +182,15 @@ export function RewardedAdPlayerModal({
             >
               <Zap size={14} style={{ color: '#ff8c00' }} className="animate-pulse" />
               <span style={{ fontSize: '11px', fontWeight: 900, color: '#ff8c00', letterSpacing: '0.04em' }}>
-                SPOT {currentSpot} VON 2
+                30S SPOT
               </span>
             </div>
             <span style={{ fontSize: '12px', fontWeight: 700, color: 'rgba(255,255,255,0.85)' }}>
-              {isCompleted ? 'Belohnung bereit!' : `Noch ${currentSeconds}s für +1 Energie`}
+              {isCompleted ? 'Belohnung bereit!' : `Noch ${secondsLeft}s für +1 Energie`}
             </span>
           </div>
 
-          {/* Bulletproof Cancel / Exit Button */}
+          {/* Cancel / Exit Button */}
           <button
             onClick={onClose}
             style={{
@@ -291,39 +240,6 @@ export function RewardedAdPlayerModal({
               Dein Energiespeicher wurde erfolgreich aufgeladen.
             </p>
           </div>
-        ) : isPaused ? (
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '14px' }}>
-            <AlertCircle size={44} style={{ color: '#fbbf24' }} />
-            <h3 style={{ fontSize: '17px', fontWeight: 800, color: '#fff', margin: 0 }}>
-              Spot pausiert
-            </h3>
-            <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.7)', maxWidth: '260px', margin: 0 }}>
-              Bitte schaue die restlichen {currentSeconds} Sekunden an, um deine Belohnung zu erhalten.
-            </p>
-            <button
-              onClick={() => {
-                setIsPaused(false);
-                if (currentSpot === 1) startSpot1Timer();
-                else transitionToSpot2();
-              }}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                background: '#ff8c00',
-                border: 'none',
-                borderRadius: '12px',
-                padding: '10px 20px',
-                color: '#fff',
-                fontWeight: 900,
-                fontSize: '13px',
-                cursor: 'pointer',
-                marginTop: '8px',
-              }}
-            >
-              <Play size={16} /> Weiter ansehen
-            </button>
-          </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px' }}>
             <div
@@ -343,15 +259,13 @@ export function RewardedAdPlayerModal({
 
             <div>
               <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 800 }}>
-                Werbespot {currentSpot} von 2
+                Gesponserter Werbespot
               </span>
               <h2 style={{ fontSize: '20px', fontWeight: 900, color: '#fff', marginTop: '4px', marginBottom: '8px' }}>
                 Monetag Partner Netzwerk
               </h2>
               <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.6)', maxWidth: '270px', margin: '0 auto', lineHeight: 1.5 }}>
-                {currentSpot === 1
-                  ? 'Spot 1 läuft (15s). Bleibe in der App für den automatischen Übergang zu Spot 2.'
-                  : 'Spot 2 läuft (15s). Gleich hast du deine Gratis-Energie verdient!'}
+                Werbespot läuft. Der Timer zählt auch im Hintergrund zuverlässig weiter.
               </p>
             </div>
 
@@ -369,14 +283,14 @@ export function RewardedAdPlayerModal({
             >
               <ShieldCheck size={16} style={{ color: '#00f2fe' }} />
               <span style={{ fontSize: '14px', fontWeight: 900, color: '#00f2fe', fontFamily: 'monospace' }}>
-                00:{currentSeconds.toString().padStart(2, '0')}
+                00:{secondsLeft.toString().padStart(2, '0')}
               </span>
             </div>
 
             {/* Re-trigger ad if overlay didn't pop */}
             <button
               onClick={() => {
-                showMonetagRewardedAd(currentSpot === 1 ? 'rewarded' : 'pop').catch(() => {});
+                showMonetagRewardedAd('rewarded').catch(() => {});
               }}
               style={{
                 background: 'none',
@@ -424,7 +338,7 @@ export function RewardedAdPlayerModal({
       {/* Footer Info */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 4px' }}>
         <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)', fontWeight: 600 }}>
-          ⚡ 30s Werbeziel = +1 Energie
+          ⚡ 30s Werbespot = +1 Energie
         </span>
         <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)', fontWeight: 600 }}>
           {remainingVideos}/{dailyAdLimit} heute verfügbar
