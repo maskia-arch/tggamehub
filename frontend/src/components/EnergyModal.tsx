@@ -33,19 +33,30 @@ export function EnergyModal({
   onOpenShop,
 }: EnergyModalProps) {
   const { t } = useLanguage();
+  const [localEnergy, setLocalEnergy] = useState(currentEnergy);
+  const [localAdCount, setLocalAdCount] = useState(dailyAdCount);
   const [secondsLeft, setSecondsLeft] = useState(nextRechargeInSeconds);
   const [copiedLink, setCopiedLink] = useState(false);
   const [adLoading, setAdLoading] = useState(false);
   const [adError, setAdError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  // Synchronize countdown when prop or visibility changes
+  // Synchronize local states when props change
+  useEffect(() => {
+    setLocalEnergy(currentEnergy);
+  }, [currentEnergy]);
+
+  useEffect(() => {
+    setLocalAdCount(dailyAdCount);
+  }, [dailyAdCount]);
+
   useEffect(() => {
     setSecondsLeft(nextRechargeInSeconds);
   }, [nextRechargeInSeconds, isOpen]);
 
   // Live countdown timer ticking down every second
   useEffect(() => {
-    if (!isOpen || currentEnergy >= maxEnergy || secondsLeft <= 0) return;
+    if (!isOpen || localEnergy >= maxEnergy || secondsLeft <= 0) return;
     const timer = setInterval(() => {
       setSecondsLeft((prev) => {
         if (prev <= 1) {
@@ -56,12 +67,12 @@ export function EnergyModal({
       });
     }, 1000);
     return () => clearInterval(timer);
-  }, [isOpen, secondsLeft, currentEnergy, maxEnergy, onEnergyGranted]);
+  }, [isOpen, secondsLeft, localEnergy, maxEnergy, onEnergyGranted]);
 
   if (!isOpen) return null;
 
   const isUnlimitedAds = dailyAdLimit >= 999;
-  const remainingAds = Math.max(0, dailyAdLimit - (dailyAdCount || 0));
+  const remainingAds = Math.max(0, dailyAdLimit - (localAdCount || 0));
   const isAdLimitReached = !isUnlimitedAds && remainingAds <= 0;
 
   const formatCountdown = (totalSec: number): string => {
@@ -75,6 +86,7 @@ export function EnergyModal({
     if (isAdLimitReached || adLoading) return;
     setAdLoading(true);
     setAdError(null);
+    setSuccessMessage(null);
 
     try {
       // 1. Trigger Official Monetag Rewarded Video
@@ -101,13 +113,22 @@ export function EnergyModal({
         throw new Error(resData?.message || 'Fehler beim Server-Abgleich.');
       }
 
-      // 3. Grant Energy & Close
-      onEnergyGranted(currentEnergy + 1);
-      onClose();
+      // 3. Update local state immediately & notify parent
+      const newEnergyVal = resData?.energy?.currentEnergy ?? (localEnergy + 1);
+      const newCountVal = resData?.count ?? (localAdCount + 1);
+      setLocalEnergy(newEnergyVal);
+      setLocalAdCount(newCountVal);
+      setSuccessMessage(`🎉 +1 Energie erfolgreich verbucht! (${newCountVal}/${dailyAdLimit} heute)`);
+
+      onEnergyGranted(newEnergyVal);
+
+      setTimeout(() => {
+        onClose();
+      }, 1500);
     } catch (err: any) {
       console.warn('[MONETAG AD ERROR]:', err);
-      setAdError('Werbespot wurde nicht vollständig abgespielt oder ist aktuell nicht verfügbar.');
-      setTimeout(() => setAdError(null), 4000);
+      setAdError('⏳ Nächster Werbespot lädt... Bitte kurz warten und erneut tippen.');
+      setTimeout(() => setAdError(null), 4500);
     } finally {
       setAdLoading(false);
     }
@@ -187,12 +208,12 @@ export function EnergyModal({
             {t.header.energy}
           </span>
           <div style={{ fontSize: '24px', fontWeight: 900, color: 'var(--accent-orange)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-            <Zap size={22} className="fill-orange-400 stroke-none animate-pulse" /> {currentEnergy} / {maxEnergy}
+            <Zap size={22} className="fill-orange-400 stroke-none animate-pulse" /> {localEnergy} / {maxEnergy}
           </div>
 
           {/* Next Energy Countdown Timer */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', marginTop: '8px', fontSize: '11px', color: 'rgba(255,255,255,0.7)', fontWeight: 700 }}>
-            {currentEnergy < maxEnergy && secondsLeft > 0 ? (
+            {localEnergy < maxEnergy && secondsLeft > 0 ? (
               <>
                 <Clock size={12} style={{ color: 'var(--accent-cyan)' }} />
                 <span>{t.header.rechargeIn} <strong style={{ color: 'var(--accent-cyan)', fontFamily: 'monospace' }}>{formatCountdown(secondsLeft)}</strong></span>
@@ -250,6 +271,21 @@ export function EnergyModal({
                 +1 ⚡
               </span>
             </button>
+
+            {successMessage && (
+              <div style={{
+                padding: '8px 12px',
+                borderRadius: '10px',
+                backgroundColor: 'rgba(16, 185, 129, 0.15)',
+                border: '1px solid rgba(16, 185, 129, 0.35)',
+                color: '#34d399',
+                fontSize: '11px',
+                fontWeight: 700,
+                textAlign: 'center',
+              }}>
+                {successMessage}
+              </div>
+            )}
 
             {adError && (
               <div style={{

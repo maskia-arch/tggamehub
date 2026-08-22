@@ -406,7 +406,7 @@ export default function App() {
           initData={initData}
           backendUrl={BACKEND_URL}
           referralLink={profile.user.referral_link}
-          onEnergyGranted={fetchProfile}
+          onEnergyGranted={() => fetchProfile()}
           onOpenShop={() => {
             setShowEnergyPopup(false);
             setActiveTab('shop');
