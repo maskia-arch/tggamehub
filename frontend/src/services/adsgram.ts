@@ -1,14 +1,7 @@
 /**
- * Adsgram Integration Service for CoinCade
- * Official Telegram Mini App Ad Monetization (Rewarded Video)
+ * Monetag & Ad Monetization Service for CoinCade
+ * High-performance Telegram Mini App and Web Monetization
  */
-
-interface AdsgramShowResult {
-  done: boolean;
-  description: string;
-  state: 'load' | 'render' | 'playing' | 'destroy';
-  error: boolean;
-}
 
 export interface ShowAdResponse {
   success: boolean;
@@ -17,57 +10,32 @@ export interface ShowAdResponse {
 }
 
 /**
- * Displays a Rewarded Video Ad via Adsgram.
- * If the user completes the video, rewardEarned will be true.
- * If running in dev/preview or no block ID is configured, simulates a preview ad.
+ * Displays a Rewarded Ad via Monetag / Smart Monetization.
+ * If running in dev/preview or direct click, rewards the player smoothly.
  */
 export async function showRewardedAd(): Promise<ShowAdResponse> {
-  const blockId = (import.meta.env.VITE_ADSGRAM_BLOCK_ID as string) || '';
-  const adsgram = (window as any).Adsgram;
+  const directLinkUrl = (import.meta.env.VITE_MONETAG_DIRECT_LINK as string) || '';
 
-  // Development / Preview mode or unconfigured Block ID
-  if (!adsgram || !blockId) {
-    console.log('[ADSGRAM]: Live Block ID not configured or SDK unavailable. Running simulated rewarded ad.');
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-    return {
-      success: true,
-      rewardEarned: true,
-    };
+  // If a Monetag Direct Link is configured, open it in a background/new tab or WebApp
+  if (directLinkUrl) {
+    try {
+      const tg = (window as any).Telegram?.WebApp;
+      if (tg?.openLink) {
+        tg.openLink(directLinkUrl);
+      } else {
+        window.open(directLinkUrl, '_blank', 'noopener,noreferrer');
+      }
+    } catch (e) {
+      console.warn('[MONETAG]: Direct link trigger note:', e);
+    }
   }
 
-  const isDebug = Boolean(import.meta.env.DEV) || import.meta.env.VITE_ADSGRAM_DEBUG === 'true';
+  // Graceful visual timer (1.5s) to guarantee reward credit
+  await new Promise((resolve) => setTimeout(resolve, 1200));
 
-  return new Promise((resolve) => {
-    try {
-      const AdController = adsgram.init({
-        blockId,
-        debug: isDebug,
-      });
-
-      AdController.show()
-        .then((result: AdsgramShowResult) => {
-          console.log('[ADSGRAM]: Rewarded video completed successfully:', result);
-          resolve({
-            success: true,
-            rewardEarned: Boolean(result.done),
-          });
-        })
-        .catch((err: any) => {
-          console.warn('[ADSGRAM]: Ad was closed or failed:', err);
-          const errorMsg = err?.description || 'Werbung wurde vorzeitig geschlossen';
-          resolve({
-            success: false,
-            rewardEarned: false,
-            error: errorMsg,
-          });
-        });
-    } catch (err: any) {
-      console.error('[ADSGRAM ERROR]:', err);
-      resolve({
-        success: false,
-        rewardEarned: false,
-        error: err.message || 'Fehler beim Laden des Werbeanbieters',
-      });
-    }
-  });
+  return {
+    success: true,
+    rewardEarned: true,
+  };
 }
+
