@@ -8,6 +8,6 @@
     "build:frontend": "npm --prefix frontend run build",
     "build:backend": "npm --prefix backend run build",
     "build": "npm --prefix frontend install && npm --prefix frontend run build && npm --prefix backend install && npm --prefix backend run build",
-    "start": "node backend/dist/index.js"
+    "start": "node --no-deprecation backend/dist/index.js"
   }
 }

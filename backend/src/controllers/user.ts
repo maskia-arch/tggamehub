@@ -13,6 +13,44 @@ export async function getProfile(req: AuthenticatedRequest, res: Response) {
       return res.status(400).json({ error: 'User context not found' });
     }
 
+    // Ephemeral Web Guest Profile
+    if (req.telegramUser?.isGuest) {
+      const guestId = req.telegramUser.id;
+      return res.json({
+        user: {
+          id: guestId,
+          username: req.telegramUser.username,
+          first_name: req.telegramUser.first_name,
+          last_name: req.telegramUser.last_name,
+          display_name: 'Gast-Spieler',
+          display_name_changed: false,
+          created_at: new Date(),
+          referral_link: 'https://t.me/coincadebot/webapp',
+          referrals_count: 0,
+          game_cash: 0.0,
+          season_pass_type: 'NONE',
+          daily_ad_count: 0,
+          daily_ad_limit: 10,
+          can_claim_free_refill: false,
+          daily_refill_remaining: 0,
+          max_daily_refills: 0,
+          wallet_ltc: null,
+          wallet_btc: null,
+          wallet_sol: null,
+          wallet_eth: null,
+          is_guest: true,
+        },
+        energy: {
+          current: 5,
+          max: 5,
+          nextRechargeInSeconds: 0,
+          isTimeBoosterActive: false,
+          timeBoosterSecondsLeft: 0,
+          seasonPassType: 'NONE'
+        }
+      });
+    }
+
     // Attempt to fetch user
     let user = await db('users').where({ id: userId }).first();
 

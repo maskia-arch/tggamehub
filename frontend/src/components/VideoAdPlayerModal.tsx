@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import ReactDOM from 'react-dom';
 import { Volume2, VolumeX, CheckCircle, Sparkles, ExternalLink, ShieldCheck, Zap } from 'lucide-react';
 
 interface VideoAdPlayerModalProps {
@@ -7,34 +8,37 @@ interface VideoAdPlayerModalProps {
   onRewardGranted: () => void;
   backendUrl: string;
   initData: string;
-  durationSeconds?: number;
+  totalDurationSeconds?: number;
 }
 
-// Engaging HD Video Spot sources (Arcade, Cyberpunk, Gaming trailers)
-const AD_SPOTS = [
+// Commercial Video Spots Playlist (Chains spots to guarantee 25-30 seconds of video ad playback)
+const AD_SPOTS_PLAYLIST = [
   {
-    title: 'Cyber Arcade & Meme Markets',
+    id: 1,
+    title: 'Cyber Arcade & Meme Tokens',
     sponsor: 'CoinCade Ecosystem',
     videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
-    poster: '/images/neon_jump_preview.png',
-    tagline: 'Trade Coins, Beat Highscores & Earn Real Airdrops!',
-    cta: 'Jetzt Mini App entdecken',
+    tagline: 'Zocke Arcade Games, knacke Highscores & sichere dir Krypto-Airdrops!',
+    cta: 'Jetzt entdecken',
+    duration: 15,
   },
   {
-    title: 'Neon Drift & Speed Challenge',
-    sponsor: 'Telegram Gaming Network',
+    id: 2,
+    title: 'Neon Drift Speed Arena',
+    sponsor: 'Telegram Web3 Network',
     videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4',
-    poster: '/images/crossy_neon_road_preview.png',
-    tagline: 'Compete against thousands of players worldwide.',
-    cta: 'Play & Win',
+    tagline: 'Messe dich mit tausenden Spielern in Echtzeit-Turnieren.',
+    cta: 'Gratis spielen',
+    duration: 15,
   },
   {
-    title: 'Web3 Flappy Masters',
-    sponsor: 'The Open Network (TON)',
+    id: 3,
+    title: 'TON Crypto Arcade Revolution',
+    sponsor: 'Open Network Arcade',
     videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4',
-    poster: '/images/neon_bird_preview.png',
-    tagline: 'Dynamic AMM Liquidity & Real-Time Player Tokenomics.',
-    cta: 'Join Community',
+    tagline: 'Echte Tokenomics & automatisches Liquiditäts-Burning.',
+    cta: 'Community beitreten',
+    duration: 15,
   }
 ];
 
@@ -44,28 +48,27 @@ export function VideoAdPlayerModal({
   onRewardGranted,
   backendUrl,
   initData,
-  durationSeconds = 25,
+  totalDurationSeconds = 25,
 }: VideoAdPlayerModalProps) {
   const [currentSpotIndex, setCurrentSpotIndex] = useState(0);
-  const [secondsRemaining, setSecondsRemaining] = useState(durationSeconds);
+  const [secondsRemaining, setSecondsRemaining] = useState(totalDurationSeconds);
   const [isCompleted, setIsCompleted] = useState(false);
-  const [isMuted, setIsMuted] = useState(true);
+  const [isMuted, setIsMuted] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const timerRef = useRef<any>(null);
 
-  // Pick random video spot when opened
+  // Initialize playback when opened
   useEffect(() => {
     if (isOpen) {
-      const randomIdx = Math.floor(Math.random() * AD_SPOTS.length);
-      setCurrentSpotIndex(randomIdx);
-      setSecondsRemaining(durationSeconds);
+      setCurrentSpotIndex(0);
+      setSecondsRemaining(totalDurationSeconds);
       setIsCompleted(false);
       setIsMuted(false);
     }
-  }, [isOpen, durationSeconds]);
+  }, [isOpen, totalDurationSeconds]);
 
-  // Main countdown timer (25-30 seconds unskippable)
+  // Main countdown timer (25-30s total duration)
   useEffect(() => {
     if (!isOpen || isCompleted) return;
 
@@ -74,7 +77,7 @@ export function VideoAdPlayerModal({
         if (prev <= 1) {
           clearInterval(timerRef.current!);
           setIsCompleted(true);
-          handleAutoClaim();
+          handleClaimReward();
           return 0;
         }
         return prev - 1;
@@ -86,20 +89,34 @@ export function VideoAdPlayerModal({
     };
   }, [isOpen, isCompleted]);
 
-  // Ensure video element plays smoothly
+  // Video element play & multi-spot sequencing
   useEffect(() => {
     if (isOpen && videoRef.current) {
       videoRef.current.currentTime = 0;
+      videoRef.current.muted = isMuted;
       videoRef.current.play().catch(() => {
-        // Autoplay policy fallback: mute and play
+        // Fallback for strict browser autoplay: start muted and allow one-tap unmute
         if (videoRef.current) {
           videoRef.current.muted = true;
           setIsMuted(true);
-          videoRef.current.play().catch((e) => console.log('[VIDEO AD]: Autoplay note', e));
+          videoRef.current.play().catch((e) => console.log('[VIDEO AD]: Autoplay note:', e));
         }
       });
     }
   }, [isOpen, currentSpotIndex]);
+
+  const handleVideoEnded = () => {
+    // If more spots exist in playlist, advance to next spot
+    if (currentSpotIndex < AD_SPOTS_PLAYLIST.length - 1) {
+      setCurrentSpotIndex((prev) => prev + 1);
+    } else {
+      // Loop back to first spot if total timer is still running
+      if (videoRef.current) {
+        videoRef.current.currentTime = 0;
+        videoRef.current.play().catch(() => {});
+      }
+    }
+  };
 
   const handleToggleMute = () => {
     if (videoRef.current) {
@@ -109,7 +126,6 @@ export function VideoAdPlayerModal({
   };
 
   const handleSponsorClick = () => {
-    // Trigger Monetag direct link or sponsor URL
     const directLink = (import.meta.env.VITE_MONETAG_DIRECT_LINK as string) || 'https://coincade.autoacts.link';
     const tg = (window as any).Telegram?.WebApp;
     if (tg?.openLink) {
@@ -119,7 +135,7 @@ export function VideoAdPlayerModal({
     }
   };
 
-  const handleAutoClaim = async () => {
+  const handleClaimReward = async () => {
     try {
       const response = await fetch(`${backendUrl}/api/user/energy/ad`, {
         method: 'POST',
@@ -134,136 +150,332 @@ export function VideoAdPlayerModal({
       if (contentType && contentType.includes('application/json')) {
         resData = await response.json();
       } else {
-        const rawText = await response.text();
-        console.log('[ENERGY AD CLAIM RAW]:', rawText);
         resData = { success: response.ok };
       }
 
       if (!response.ok) {
-        throw new Error(resData?.message || resData?.error || 'Werbe-Belohnung konnte nicht verbucht werden.');
+        console.warn('[VIDEO AD REWARD CLAIM NOTE]:', resData?.message || resData?.error);
       }
-
-      onRewardGranted();
     } catch (err: any) {
-      console.error('[VIDEO AD CLAIM ERROR]:', err);
-      // Fallback: If network glitch, still reward client-side if video was fully watched
-      onRewardGranted();
+      console.error('[VIDEO AD REWARD ERROR]:', err);
     }
+  };
+
+  const handleFinishAndCollect = () => {
+    onRewardGranted();
+    onClose();
   };
 
   if (!isOpen) return null;
 
-  const currentSpot = AD_SPOTS[currentSpotIndex];
-  const progressPercent = Math.min(100, Math.max(0, ((durationSeconds - secondsRemaining) / durationSeconds) * 100));
+  const currentSpot = AD_SPOTS_PLAYLIST[currentSpotIndex] || AD_SPOTS_PLAYLIST[0];
+  const progressPercent = Math.min(100, Math.max(0, ((totalDurationSeconds - secondsRemaining) / totalDurationSeconds) * 100));
 
-  return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95 backdrop-blur-xl p-3 sm:p-6 animate-fade-in">
-      <div className="relative w-full max-w-lg bg-slate-900 border border-amber-500/40 rounded-3xl overflow-hidden shadow-2xl flex flex-col">
-        
-        {/* Top Header Bar */}
-        <div className="flex items-center justify-between px-4 py-3 bg-slate-950/80 border-b border-white/10">
-          <div className="flex items-center gap-2">
-            <span className="bg-amber-500/20 text-amber-400 text-xs font-black px-2 py-0.5 rounded-md border border-amber-500/30 uppercase tracking-wider flex items-center gap-1">
-              <Sparkles className="w-3 h-3 text-amber-400" /> SPONSORED AD
-            </span>
-            <span className="text-xs font-semibold text-slate-300 truncate max-w-[150px]">
-              {currentSpot.sponsor}
-            </span>
-          </div>
+  const modalContent = (
+    <div
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        width: '100vw',
+        height: '100vh',
+        backgroundColor: '#030712',
+        zIndex: 9999999,
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'space-between',
+        overflow: 'hidden',
+        fontFamily: "'Outfit', -apple-system, BlinkMacSystemFont, sans-serif",
+      }}
+    >
+      {/* 1. TOP HEADER BAR */}
+      <div
+        style={{
+          width: '100%',
+          padding: '12px 16px',
+          backgroundColor: '#0b1120',
+          borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          zIndex: 10,
+        }}
+      >
+        {/* Sponsor Badge */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span
+            style={{
+              background: 'rgba(245, 158, 11, 0.15)',
+              color: '#fbbf24',
+              fontSize: '10px',
+              fontWeight: 900,
+              padding: '4px 8px',
+              borderRadius: '6px',
+              border: '1px solid rgba(245, 158, 11, 0.4)',
+              letterSpacing: '0.5px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+            }}
+          >
+            <Sparkles size={11} color="#fbbf24" /> AD SPOT ({currentSpotIndex + 1}/{AD_SPOTS_PLAYLIST.length})
+          </span>
+          <span
+            style={{
+              fontSize: '12px',
+              fontWeight: 700,
+              color: '#e2e8f0',
+              maxWidth: '130px',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+            }}
+          >
+            {currentSpot.sponsor}
+          </span>
+        </div>
 
-          <div className="flex items-center gap-2">
-            {/* Audio Toggle */}
-            <button
-              onClick={handleToggleMute}
-              className="p-1.5 rounded-full bg-white/10 hover:bg-white/20 text-slate-300 transition-colors"
-              title={isMuted ? 'Ton einschalten' : 'Stummschalten'}
-            >
-              {isMuted ? <VolumeX className="w-4 h-4 text-slate-400" /> : <Volume2 className="w-4 h-4 text-amber-400" />}
-            </button>
-
-            {/* Countdown / Reward Badge */}
-            {!isCompleted ? (
-              <div className="bg-slate-800 text-amber-400 text-xs font-mono font-bold px-2.5 py-1 rounded-full border border-amber-500/30 flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping" />
-                <span>Belohnung in {secondsRemaining}s</span>
-              </div>
+        {/* Audio & Live Countdown Badges */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          {/* Mute Toggle Button */}
+          <button
+            onClick={handleToggleMute}
+            style={{
+              padding: '6px 10px',
+              borderRadius: '8px',
+              backgroundColor: 'rgba(255, 255, 255, 0.08)',
+              border: '1px solid rgba(255, 255, 255, 0.15)',
+              color: '#fff',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '5px',
+              fontSize: '11px',
+              fontWeight: 700,
+              cursor: 'pointer',
+            }}
+          >
+            {isMuted ? (
+              <>
+                <VolumeX size={14} color="#94a3b8" />
+                <span style={{ color: '#94a3b8' }}>Stumm</span>
+              </>
             ) : (
-              <div className="bg-emerald-500/20 text-emerald-400 text-xs font-bold px-2.5 py-1 rounded-full border border-emerald-500/40 flex items-center gap-1">
-                <CheckCircle className="w-3.5 h-3.5" />
-                <span>Freigeschaltet</span>
-              </div>
+              <>
+                <Volume2 size={14} color="#fbbf24" />
+                <span style={{ color: '#fbbf24' }}>Ton an</span>
+              </>
             )}
-          </div>
-        </div>
+          </button>
 
-        {/* Progress Bar */}
-        <div className="w-full bg-slate-800 h-1.5">
-          <div
-            className={`h-full transition-all duration-300 ease-linear ${isCompleted ? 'bg-emerald-500' : 'bg-gradient-to-r from-amber-500 to-yellow-400'}`}
-            style={{ width: `${progressPercent}%` }}
-          />
-        </div>
-
-        {/* Video Screen Area */}
-        <div className="relative w-full aspect-video bg-black flex items-center justify-center overflow-hidden">
-          <video
-            ref={videoRef}
-            src={currentSpot.videoUrl}
-            poster={currentSpot.poster}
-            playsInline
-            muted={isMuted}
-            autoPlay
-            loop
-            className="w-full h-full object-cover"
-          />
-
-          {/* Overlay Tagline on Video */}
-          <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between bg-black/60 backdrop-blur-md p-2.5 rounded-xl border border-white/10">
-            <div className="flex flex-col text-left">
-              <span className="text-white text-xs font-bold leading-tight drop-shadow">{currentSpot.title}</span>
-              <span className="text-slate-300 text-[10px] leading-tight drop-shadow line-clamp-1">{currentSpot.tagline}</span>
-            </div>
-            <button
-              onClick={handleSponsorClick}
-              className="bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-extrabold px-3 py-1.5 rounded-lg flex items-center gap-1 shadow-md transition-transform active:scale-95 whitespace-nowrap"
-            >
-              <span>{currentSpot.cta}</span>
-              <ExternalLink className="w-3 h-3" />
-            </button>
-          </div>
-        </div>
-
-        {/* Bottom Reward Action Container */}
-        <div className="p-4 bg-slate-950/90 flex flex-col items-center justify-center text-center gap-3">
+          {/* Countdown / Reward Badge */}
           {!isCompleted ? (
-            <div className="flex flex-col items-center gap-1">
-              <div className="flex items-center gap-2 text-slate-400 text-xs">
-                <ShieldCheck className="w-4 h-4 text-amber-400" />
-                <span>Schaue den Werbespot bis zum Ende, um <b>+1 Energie</b> zu erhalten.</span>
-              </div>
-              <p className="text-[11px] text-slate-500">
-                (Unskipbar &bull; {secondsRemaining} Sekunden verbleibend)
-              </p>
+            <div
+              style={{
+                backgroundColor: 'rgba(245, 158, 11, 0.15)',
+                color: '#fbbf24',
+                fontSize: '12px',
+                fontFamily: 'monospace',
+                fontWeight: 900,
+                padding: '5px 10px',
+                borderRadius: '8px',
+                border: '1px solid rgba(245, 158, 11, 0.4)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+              }}
+            >
+              <span
+                style={{
+                  width: '6px',
+                  height: '6px',
+                  borderRadius: '50%',
+                  backgroundColor: '#fbbf24',
+                  boxShadow: '0 0 6px #fbbf24',
+                }}
+              />
+              <span>{secondsRemaining}s</span>
             </div>
           ) : (
-            <div className="w-full flex flex-col items-center gap-3 animate-fade-in">
-              <div className="flex items-center gap-2 text-emerald-400 font-black text-sm">
-                <Sparkles className="w-5 h-5 text-yellow-400 animate-spin" />
-                <span>🎉 GESCHAFFT! +1 ENERGIE FREIGESCHALTET</span>
-              </div>
-
-              <button
-                onClick={onClose}
-                className="w-full py-3.5 px-6 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white font-black text-sm uppercase tracking-wider shadow-lg shadow-emerald-500/25 flex items-center justify-center gap-2 transition-transform active:scale-95 cursor-pointer"
-              >
-                <Zap className="w-5 h-5 fill-current text-yellow-300" />
-                <span>+1 Energie einlösen & Zocken</span>
-              </button>
+            <div
+              style={{
+                backgroundColor: 'rgba(16, 185, 129, 0.2)',
+                color: '#34d399',
+                fontSize: '12px',
+                fontWeight: 900,
+                padding: '5px 10px',
+                borderRadius: '8px',
+                border: '1px solid rgba(16, 185, 129, 0.4)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '5px',
+              }}
+            >
+              <CheckCircle size={13} color="#34d399" />
+              <span>GUTGESCHRIEBEN</span>
             </div>
           )}
         </div>
+      </div>
 
+      {/* 2. TOP PROGRESS BAR */}
+      <div style={{ width: '100%', height: '4px', backgroundColor: 'rgba(255, 255, 255, 0.1)' }}>
+        <div
+          style={{
+            height: '100%',
+            width: `${progressPercent}%`,
+            background: isCompleted
+              ? '#10b981'
+              : 'linear-gradient(90deg, #ff8c00, #ffd700, #38ef7d)',
+            transition: 'width 1s linear',
+            boxShadow: '0 0 8px rgba(255, 140, 0, 0.6)',
+          }}
+        />
+      </div>
+
+      {/* 3. CENTER CINEMA VIDEO SCREEN */}
+      <div
+        style={{
+          flex: 1,
+          width: '100%',
+          backgroundColor: '#000',
+          position: 'relative',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          overflow: 'hidden',
+        }}
+      >
+        <video
+          ref={videoRef}
+          src={currentSpot.videoUrl}
+          playsInline
+          autoPlay
+          muted={isMuted}
+          onEnded={handleVideoEnded}
+          style={{
+            width: '100%',
+            height: '100%',
+            maxHeight: '65vh',
+            objectFit: 'contain',
+            backgroundColor: '#000',
+          }}
+        />
+
+        {/* Sponsor Banner Card over Video */}
+        <div
+          style={{
+            position: 'absolute',
+            bottom: '12px',
+            left: '12px',
+            right: '12px',
+            padding: '10px 14px',
+            backgroundColor: 'rgba(15, 23, 42, 0.85)',
+            backdropFilter: 'blur(10px)',
+            WebkitBackdropFilter: 'blur(10px)',
+            borderRadius: '14px',
+            border: '1px solid rgba(255, 255, 255, 0.15)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '10px',
+            boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
+          }}
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', textAlign: 'left', minWidth: 0 }}>
+            <span style={{ color: '#fff', fontSize: '12px', fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {currentSpot.title}
+            </span>
+            <span style={{ color: '#94a3b8', fontSize: '10px', fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {currentSpot.tagline}
+            </span>
+          </div>
+
+          <button
+            onClick={handleSponsorClick}
+            style={{
+              backgroundColor: '#f59e0b',
+              color: '#0f172a',
+              fontSize: '11px',
+              fontWeight: 900,
+              padding: '8px 12px',
+              borderRadius: '10px',
+              border: 'none',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+              flexShrink: 0,
+              boxShadow: '0 2px 8px rgba(245, 158, 11, 0.4)',
+            }}
+          >
+            <span>{currentSpot.cta}</span>
+            <ExternalLink size={12} />
+          </button>
+        </div>
+      </div>
+
+      {/* 4. BOTTOM ACTION / REWARD BAR */}
+      <div
+        style={{
+          width: '100%',
+          padding: '16px 20px',
+          backgroundColor: '#0b1120',
+          borderTop: '1px solid rgba(255, 255, 255, 0.1)',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '10px',
+        }}
+      >
+        {!isCompleted ? (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', textAlign: 'center' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#fbbf24', fontSize: '12px', fontWeight: 800 }}>
+              <ShieldCheck size={16} color="#fbbf24" />
+              <span>Werbespot läuft &bull; Bitte nicht schließen</span>
+            </div>
+            <span style={{ color: '#64748b', fontSize: '11px', fontWeight: 600 }}>
+              Noch <strong>{secondsRemaining} Sekunden</strong> bis zur garantierten +1 Energie-Belohnung
+            </span>
+          </div>
+        ) : (
+          <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#34d399', fontSize: '13px', fontWeight: 900 }}>
+              <Sparkles size={16} color="#ffd700" />
+              <span>🎉 GLÜCKWUNSCH! +1 ENERGIE FREIGESCHALTET</span>
+            </div>
+
+            <button
+              onClick={handleFinishAndCollect}
+              style={{
+                width: '100%',
+                padding: '14px 20px',
+                borderRadius: '16px',
+                background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                color: '#fff',
+                fontSize: '14px',
+                fontWeight: 900,
+                letterSpacing: '0.5px',
+                textTransform: 'uppercase',
+                border: 'none',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                boxShadow: '0 4px 18px rgba(16, 185, 129, 0.45)',
+              }}
+            >
+              <Zap size={18} fill="#fef08a" color="#fef08a" />
+              <span>+1 ENERGIE EINLÖSEN & WEITERSPIELEN</span>
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
+
+  return ReactDOM.createPortal(modalContent, document.body);
 }

@@ -290,7 +290,7 @@ export function EnergyModal({
         }}
         backendUrl={backendUrl}
         initData={initData}
-        durationSeconds={25}
+        totalDurationSeconds={25}
       />
     </div>
   );

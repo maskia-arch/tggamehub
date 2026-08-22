@@ -85,20 +85,38 @@ export function calculateEnergy(
  * Gets user energy details, updating the database if calculations show energy has recharged.
  */
 export async function getAndUpdateUserEnergy(userId: string): Promise<UserEnergyInfo> {
-  const user = await db('users').where({ id: userId }).first();
+  if (userId.startsWith('guest_')) {
+    return {
+      currentEnergy: 5,
+      maxEnergy: 5,
+      nextRechargeInSeconds: 0,
+      lastEnergyValue: 5,
+      lastEnergyUpdatedAt: new Date(),
+      isTimeBoosterActive: false,
+      timeBoosterSecondsLeft: 0,
+      seasonPassType: 'NONE',
+    };
+  }
+
+  let user = await db('users').where({ id: userId }).first();
   if (!user) {
-    throw new Error('User not found');
+    await db('users').insert({
+      id: userId,
+      energy_value: 5,
+      energy_updated_at: new Date(),
+    });
+    user = await db('users').where({ id: userId }).first();
   }
 
   const now = new Date();
-  const lastUpdatedAt = new Date(user.energy_updated_at || now);
-  const passType: 'NONE' | 'SEASON' | 'VIP' = user.season_pass_type || 'NONE';
-  const boosterUntil = user.time_booster_until ? new Date(user.time_booster_until) : null;
+  const lastUpdatedAt = new Date(user?.energy_updated_at || now);
+  const passType: 'NONE' | 'SEASON' | 'VIP' = user?.season_pass_type || 'NONE';
+  const boosterUntil = user?.time_booster_until ? new Date(user.time_booster_until) : null;
 
-  const info = calculateEnergy(user.energy_value, lastUpdatedAt, passType, boosterUntil, now);
+  const info = calculateEnergy(user?.energy_value ?? 5, lastUpdatedAt, passType, boosterUntil, now);
 
   // Write back to DB if energy was gained
-  if (info.currentEnergy !== user.energy_value || info.lastEnergyUpdatedAt.getTime() !== lastUpdatedAt.getTime()) {
+  if (info.currentEnergy !== user?.energy_value || info.lastEnergyUpdatedAt.getTime() !== lastUpdatedAt.getTime()) {
     await db('users')
       .where({ id: userId })
       .update({
@@ -115,8 +133,20 @@ export async function getAndUpdateUserEnergy(userId: string): Promise<UserEnergy
  * Returns true if successful, false if insufficient energy.
  */
 export async function consumeEnergy(userId: string): Promise<boolean> {
+  if (userId.startsWith('guest_')) {
+    return true;
+  }
+
   return await db.transaction(async (trx) => {
-    const user = await trx('users').where({ id: userId }).forUpdate().first();
+    let user = await trx('users').where({ id: userId }).forUpdate().first();
+    if (!user) {
+      await trx('users').insert({
+        id: userId,
+        energy_value: 5,
+        energy_updated_at: new Date(),
+      });
+      user = await trx('users').where({ id: userId }).forUpdate().first();
+    }
     if (!user) return false;
 
     const now = new Date();

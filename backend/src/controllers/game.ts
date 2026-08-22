@@ -31,7 +31,22 @@ export async function startGame(req: AuthenticatedRequest, res: Response) {
       return res.status(400).json({ error: 'gameId parameter is required' });
     }
 
-    // Deduct energy
+    // Guest users start immediately with a signed session token
+    if (req.telegramUser?.isGuest) {
+      const payload: GameSessionPayload = {
+        userId,
+        gameId,
+        startedAt: Date.now(),
+      };
+      const gameSessionToken = jwt.sign(payload, config.jwtSecret, { expiresIn: '15m' });
+      return res.json({
+        success: true,
+        gameSessionToken,
+        message: 'Guest session started.',
+      });
+    }
+
+    // Deduct energy for real users
     const success = await consumeEnergy(userId);
     if (!success) {
       return res.status(403).json({ 
