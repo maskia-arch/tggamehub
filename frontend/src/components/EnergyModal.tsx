@@ -219,6 +219,8 @@ export function EnergyModal({
                 <Clock size={12} style={{ color: 'var(--accent-cyan)' }} />
                 <span>{t.header.rechargeIn} <strong style={{ color: 'var(--accent-cyan)', fontFamily: 'monospace' }}>{formatCountdown(secondsLeft)}</strong></span>
               </>
+            ) : localEnergy > maxEnergy ? (
+              <span style={{ color: '#ff8c00', fontWeight: 800 }}>⚡ Bonus-Energie aktiv (+{localEnergy - maxEnergy})</span>
             ) : (
               <span style={{ color: '#4ade80', fontWeight: 800 }}>{t.header.energyFull}</span>
             )}
