@@ -129,12 +129,14 @@ export function EnergyModal({
     } catch (err: any) {
       console.warn('[MONETAG AD ERROR]:', err);
       const errMsg = err?.message || '';
-      if (errMsg.includes('SDK_NOT_LOADED')) {
+      if (errMsg === 'AD_CLOSED_TOO_EARLY') {
+        setAdError('Werbeanzeige vorzeitig verlassen. Bitte schaue die vollen 15 Sekunden an, um Energie zu erhalten.');
+      } else if (errMsg.includes('SDK_NOT_LOADED')) {
         setAdError('Monetag-SDK wird geladen... Bitte kurz warten.');
       } else {
-        setAdError('Werbespot wurde geschlossen oder ist momentan nicht verfügbar.');
+        setAdError('Werbeanzeige beendet oder nicht verfügbar.');
       }
-      setTimeout(() => setAdError(null), 4000);
+      setTimeout(() => setAdError(null), 4500);
     } finally {
       setAdLoading(false);
     }
