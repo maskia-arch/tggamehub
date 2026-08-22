@@ -90,7 +90,7 @@ export function EnergyModal({
 
     try {
       // 1. Trigger Official Monetag Rewarded Video
-      await showMonetagRewardedAd(initData);
+      await showMonetagRewardedAd();
 
       // 2. Claim +1 Energy from Backend
       const response = await fetch(`${backendUrl}/api/user/energy/ad`, {
@@ -116,9 +116,10 @@ export function EnergyModal({
       // 3. Update local state immediately & notify parent
       const newEnergyVal = resData?.energy?.currentEnergy ?? (localEnergy + 1);
       const newCountVal = resData?.count ?? (localAdCount + 1);
+      const updatedRemaining = Math.max(0, dailyAdLimit - newCountVal);
       setLocalEnergy(newEnergyVal);
       setLocalAdCount(newCountVal);
-      setSuccessMessage(`🎉 +1 Energie erfolgreich verbucht! (${newCountVal}/${dailyAdLimit} heute)`);
+      setSuccessMessage(`🎉 +1 Energie gutgeschrieben! (${updatedRemaining}/${dailyAdLimit} Videos verbleibend)`);
 
       onEnergyGranted(newEnergyVal);
 
@@ -127,8 +128,13 @@ export function EnergyModal({
       }, 1500);
     } catch (err: any) {
       console.warn('[MONETAG AD ERROR]:', err);
-      setAdError('⏳ Nächster Werbespot lädt... Bitte kurz warten und erneut tippen.');
-      setTimeout(() => setAdError(null), 4500);
+      const errMsg = err?.message || '';
+      if (errMsg.includes('SDK_NOT_LOADED')) {
+        setAdError('Monetag-SDK wird geladen... Bitte kurz warten.');
+      } else {
+        setAdError('Werbespot wurde geschlossen oder ist momentan nicht verfügbar.');
+      }
+      setTimeout(() => setAdError(null), 4000);
     } finally {
       setAdLoading(false);
     }
