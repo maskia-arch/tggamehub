@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Zap, X, Play, ShoppingBag, Users, Clock, Lock } from 'lucide-react';
 import { useLanguage } from '../i18n/LanguageContext';
-import { RewardedAdPlayerModal } from './RewardedAdPlayerModal';
+import { AdTasksModal } from './AdTasksModal';
 
 interface EnergyModalProps {
   isOpen: boolean;
@@ -210,7 +210,7 @@ export function EnergyModal({
                   </span>
                   <span style={{ fontSize: '9px', color: isAdLimitReached ? '#f87171' : 'rgba(255,255,255,0.5)', display: 'block', marginTop: '2px' }}>
                     {isUnlimitedAds
-                      ? '∞ Unbegrenzte Videos (VIP)'
+                      ? '∞ Unbegrenzt (VIP)'
                       : isAdLimitReached
                         ? t.header.adLimitReached
                         : `${remainingAds}/${dailyAdLimit} ${t.header.videosRemaining}`}
@@ -328,8 +328,8 @@ export function EnergyModal({
           </div>
       </div>
 
-      {/* 2x 15s Rewarded Ad Player Modal */}
-      <RewardedAdPlayerModal
+      {/* Ad Tasks Checklist Modal (2x 15s Spots Task) */}
+      <AdTasksModal
         isOpen={showAdPlayer}
         onClose={() => setShowAdPlayer(false)}
         onRewardGranted={(newEnergyVal) => {
