@@ -95,9 +95,9 @@ export async function getProfile(req: AuthenticatedRequest, res: Response) {
             });
 
             // Award +5 energy to referrer
-            await addEnergy(finalReferrerId!, config.referralEnergyBonus, true);
+            await addEnergy(finalReferrerId!, config.referralEnergyBonus, true, trx);
             // Award +5 energy to new user
-            await addEnergy(userId, config.referralEnergyBonus, true);
+            await addEnergy(userId, config.referralEnergyBonus, true, trx);
           });
 
           // Record inbox notification for the referrer
@@ -246,7 +246,7 @@ export async function addEnergyAd(req: AuthenticatedRequest, res: Response) {
         });
 
       // Award +1 energy
-      const energyInfo = await addEnergy(userId, 1, true);
+      const energyInfo = await addEnergy(userId, 1, true, trx);
       return { limitReached: false, energy: energyInfo, count: newAdCount, dailyAdLimit, isVip: passType === 'VIP' };
     });
 
@@ -317,7 +317,7 @@ export async function claimDailyFreeRefill(req: AuthenticatedRequest, res: Respo
           last_daily_free_refill_date: berlinDateStr
         });
 
-      const energyInfo = await addEnergy(userId, 5, true);
+      const energyInfo = await addEnergy(userId, 5, true, trx);
       const remaining = Math.max(0, maxDailyRefills - newRefillCount);
       return { allowed: true, energyInfo, remaining, maxDailyRefills };
     });

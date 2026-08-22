@@ -63,7 +63,13 @@ const config: { [key: string]: Knex.Config } = {
       directory: migrationDir,
       extension: migrationExt,
     },
-    pool: isPostgres ? { min: 2, max: 50, idleTimeoutMillis: 30000, acquireTimeoutMillis: 30000 } : undefined,
+    pool: isPostgres ? {
+      min: 2,
+      max: 30,
+      idleTimeoutMillis: 15000,
+      acquireTimeoutMillis: 15000,
+      propagateCreateError: false,
+    } : undefined,
   }
 };
 

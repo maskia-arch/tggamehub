@@ -129,11 +129,6 @@ export function GameWrapper({
 
   const handleStartGame = useCallback(
     async (game: Game) => {
-      if (currentEnergy < 1) {
-        setShowEnergyPopup(true);
-        return;
-      }
-
       setActiveGame(game);
       setSubmitting(true);
       try {
@@ -160,12 +155,13 @@ export function GameWrapper({
         setSubmitting(false);
         onGameFinished(); // Deducts -1 energy in top header immediately
       } catch (err: any) {
+        console.error('Failed to start game:', err);
         setActiveGame(null);
         setSubmitting(false);
         setShowEnergyPopup(true);
       }
     },
-    [currentEnergy, initData, backendUrl, onGameFinished]
+    [initData, backendUrl, onGameFinished]
   );
 
   const submittedTokens = useRef<Set<string>>(new Set());
@@ -504,12 +500,9 @@ export function GameWrapper({
         initData={initData}
         backendUrl={backendUrl}
         referralLink={referralLink}
-        onEnergyGranted={async () => {
+        onEnergyGranted={() => {
           onGameFinished();
           setShowEnergyPopup(false);
-          if (activeGame) {
-            handleStartGame(activeGame);
-          }
         }}
         onOpenShop={() => {
           setShowEnergyPopup(false);

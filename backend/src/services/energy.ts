@@ -132,12 +132,12 @@ export async function getAndUpdateUserEnergy(userId: string): Promise<UserEnergy
  * Consumes exactly 1 energy point to start a game (or 0 energy if Time Booster is active).
  * Returns true if successful, false if insufficient energy.
  */
-export async function consumeEnergy(userId: string): Promise<boolean> {
+export async function consumeEnergy(userId: string, existingTrx?: any): Promise<boolean> {
   if (userId.startsWith('guest_')) {
     return true;
   }
 
-  return await db.transaction(async (trx) => {
+  const runner = async (trx: any) => {
     let user = await trx('users').where({ id: userId }).forUpdate().first();
     if (!user) {
       await trx('users').insert({
@@ -167,12 +167,6 @@ export async function consumeEnergy(userId: string): Promise<boolean> {
 
     const newEnergy = info.currentEnergy - 1;
 
-    // Timer logic:
-    // If previous energy was at or above maxEnergy (e.g. was 100, or was 5):
-    // - If it drops below max (e.g. 5 -> 4), the cooldown timer starts at this exact moment (now).
-    // - If it remains at/above max (e.g. 100 -> 99), timer remains stopped (0s) and updated_at is now.
-    // If previous energy was already below maxEnergy (e.g. 4 -> 3):
-    // - Recharge progress towards the next point is preserved.
     let newUpdatedAt: Date;
     if (user.energy_value >= info.maxEnergy) {
       newUpdatedAt = now;
@@ -188,14 +182,24 @@ export async function consumeEnergy(userId: string): Promise<boolean> {
       });
 
     return true;
-  });
+  };
+
+  if (existingTrx) {
+    return await runner(existingTrx);
+  }
+  return await db.transaction(runner);
 }
 
 /**
  * Adds energy to a user (e.g. from an ad reward or purchase).
  */
-export async function addEnergy(userId: string, amount: number, allowExceedMax: boolean = true): Promise<UserEnergyInfo> {
-  return await db.transaction(async (trx) => {
+export async function addEnergy(
+  userId: string,
+  amount: number,
+  allowExceedMax: boolean = true,
+  existingTrx?: any
+): Promise<UserEnergyInfo> {
+  const runner = async (trx: any) => {
     const user = await trx('users').where({ id: userId }).forUpdate().first();
     if (!user) throw new Error('User not found');
 
@@ -211,10 +215,6 @@ export async function addEnergy(userId: string, amount: number, allowExceedMax: 
       newEnergy = Math.min(info.maxEnergy, newEnergy);
     }
 
-    // If newEnergy is >= maxEnergy (e.g. 100/5 or 5/5):
-    // Timer is stopped (nextRechargeInSeconds = 0) and updated_at is set to now.
-    // If newEnergy is still < maxEnergy (e.g. 3 -> 4):
-    // Partial cooldown progress is preserved.
     const isNowFullOrSurplus = newEnergy >= info.maxEnergy;
     const newUpdatedAt = isNowFullOrSurplus ? now : info.lastEnergyUpdatedAt;
 
@@ -232,5 +232,10 @@ export async function addEnergy(userId: string, amount: number, allowExceedMax: 
       lastEnergyValue: newEnergy,
       lastEnergyUpdatedAt: newUpdatedAt,
     };
-  });
+  };
+
+  if (existingTrx) {
+    return await runner(existingTrx);
+  }
+  return await db.transaction(runner);
 }
