@@ -865,16 +865,6 @@
 
     const soundManager = new SoundSynth();
 
-    sfxBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      soundManager.toggleSfx();
-    });
-
-    musicBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      soundManager.toggleMusic();
-    });
-
     // Cyber Jumper Character with Jet Thrusters, Tilt Physics & Neon Glow
     class CyberJumper {
       constructor() {
@@ -1820,7 +1810,6 @@
         if (!p.passed && (player.y + player.height) < p.y && p.y <= canvas.height + 20) {
           p.passed = true;
           score += 1;
-          floatingTexts.push(new FloatingText(p.x + p.width / 2, p.y - 8, '+1', '#00f2fe', 12));
         }
       });
 
@@ -2111,12 +2100,12 @@
       if (e.code === 'ArrowRight' || e.code === 'KeyD') keys.right = false;
     });
 
-    // Touch & Mouse click boundaries (Left/Right half inputs)
+    // Touch & Mouse click boundaries (Left/Right half inputs on canvas)
     function handleStartInput(e) {
+      if (gameState !== 'playing') return;
       if (e && e.cancelable) {
         e.preventDefault();
       }
-      if (gameState !== 'playing') return;
       const clientX = (e && e.touches && e.touches.length > 0) ? e.touches[0].clientX : (e ? e.clientX : null);
       if (clientX === null || clientX === undefined) return;
       const rect = canvas.getBoundingClientRect();
@@ -2124,14 +2113,11 @@
       touchX = (relativeX / rect.width) * canvas.width;
     }
 
-    function handleEndInput(e) {
-      if (e && e.cancelable) {
-        e.preventDefault();
-      }
+    function handleEndInput() {
       touchX = null;
     }
 
-    // Mouse events
+    // Canvas Mouse events
     canvas.addEventListener('mousedown', handleStartInput);
     canvas.addEventListener('mousemove', e => {
       if (touchX !== null) {
@@ -2140,11 +2126,13 @@
     });
     window.addEventListener('mouseup', handleEndInput);
 
-    // Touch events (passive: false ensures preventDefault works to block native context/copy menus)
+    // Canvas Touch events (passive: false ensures preventDefault works to block native context/copy menus on canvas)
     canvas.addEventListener('touchstart', handleStartInput, { passive: false });
     canvas.addEventListener('touchmove', handleStartInput, { passive: false });
-    window.addEventListener('touchend', handleEndInput, { passive: false });
-    window.addEventListener('touchcancel', handleEndInput, { passive: false });
+    canvas.addEventListener('touchend', handleEndInput, { passive: false });
+    canvas.addEventListener('touchcancel', handleEndInput, { passive: false });
+    window.addEventListener('touchend', handleEndInput);
+    window.addEventListener('touchcancel', handleEndInput);
 
     // Prevent native context menu & text selection popups on long press
     window.addEventListener('contextmenu', e => e.preventDefault());
@@ -2153,8 +2141,26 @@
     window.addEventListener('selectstart', e => e.preventDefault());
     document.addEventListener('selectstart', e => e.preventDefault());
 
+    // Robust button click / touch binding (supports touch, mouse, webview with debounce)
+    function bindButton(btn, callback) {
+      if (!btn) return;
+      let lastTrigger = 0;
+      const trigger = (e) => {
+        if (e && e.cancelable) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+        const now = Date.now();
+        if (now - lastTrigger < 250) return;
+        lastTrigger = now;
+        callback();
+      };
+      btn.addEventListener('click', trigger);
+      btn.addEventListener('touchend', trigger, { passive: false });
+    }
+
     // Button interactions
-    startBtn.addEventListener('click', () => {
+    bindButton(startBtn, () => {
       startScreen.style.display = 'none';
       gameState = 'playing';
       soundManager.init();
@@ -2165,7 +2171,7 @@
       animationFrameId = requestAnimationFrame(gameLoop);
     });
 
-    retryBtn.addEventListener('click', () => {
+    bindButton(retryBtn, () => {
       gameOverScreen.style.display = 'none';
       window.parent.postMessage(
         {
@@ -2177,13 +2183,21 @@
       );
     });
 
-    backMenuBtn.addEventListener('click', () => {
+    bindButton(backMenuBtn, () => {
       window.parent.postMessage(
         {
           type: 'CLOSE_GAME'
         },
         '*'
       );
+    });
+
+    bindButton(sfxBtn, () => {
+      soundManager.toggleSfx();
+    });
+
+    bindButton(musicBtn, () => {
+      soundManager.toggleMusic();
     });
 
     // Draw initial cover
