@@ -234,17 +234,17 @@
     <!-- Start Screen Overlay -->
     <div id="startScreen" class="overlay">
       <div style="font-size: 40px; margin-bottom: 5px;">👾⚡</div>
-      <h1>Neon Jump</h1>
-      <p>Springe von Plattform zu Plattform, meistere alle 5 Cyber-Sektoren und nutze Turbo-Sprungfedern!</p>
+      <h1 id="gameTitle">Neon Jump</h1>
+      <p id="gameDesc">Springe von Plattform zu Plattform, meistere alle 5 Cyber-Sektoren und nutze Turbo-Sprungfedern!</p>
       
       <div class="controls-guide">
         <div class="guide-item">
           <span class="key-cap">◀ A / D ▶</span>
-          <span>Steuerung (Tastatur)</span>
+          <span id="ctrlKbText">Steuerung (Tastatur)</span>
         </div>
         <div class="guide-item">
           <span class="key-cap">Tippen L / R</span>
-          <span>Steuerung (Touch/Maus)</span>
+          <span id="ctrlTouchText">Steuerung (Touch/Maus)</span>
         </div>
       </div>
 
@@ -253,10 +253,13 @@
 
     <!-- Game Over Screen Overlay -->
     <div id="gameOverScreen" class="overlay" style="display: none;">
-      <h1 style="color: #ff007f; text-shadow: 0 0 20px rgba(255, 0, 127, 0.4);">Abgestürzt</h1>
-      <div class="score-label">Erreichte Plattformen:</div>
+      <h1 id="gameOverTitle" style="color: #ff007f; text-shadow: 0 0 20px rgba(255, 0, 127, 0.4);">Abgestürzt</h1>
+      <div class="score-label" id="finalScoreLabel">Erreichte Plattformen:</div>
       <div class="score-value" id="finalScore">0</div>
       
+      <button class="btn" id="reviveBtn" style="display: none; background: linear-gradient(135deg, #10b981, #059669); border-color: rgba(52, 211, 153, 0.8); box-shadow: 0 0 22px rgba(16, 185, 129, 0.55); margin-bottom: 6px;">
+        <span id="reviveBtnText">💚 Wiederbeleben (1x Ad)</span>
+      </button>
       <button class="btn" id="retryBtn">Nochmal spielen</button>
       <button class="btn btn-secondary" id="backMenuBtn">Spiel verlassen</button>
     </div>
@@ -441,6 +444,71 @@
   <script>
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
+
+    // Multilingual Dictionary (Supports DE, EN, etc.)
+    const urlParams = new URLSearchParams(window.location.search);
+    const currentLang = (urlParams.get('lang') || localStorage.getItem('tggamehub_lang') || 'de').toLowerCase();
+
+    const I18N = {
+      de: {
+        title: 'Neon Jump',
+        desc: 'Springe von Plattform zu Plattform, meistere alle 5 Cyber-Sektoren und nutze Turbo-Sprungfedern!',
+        ctrlKb: 'Steuerung (Tastatur)',
+        ctrlTouch: 'Steuerung (Touch/Maus)',
+        startBtn: 'Sprung starten',
+        crashed: 'Abgestürzt',
+        scoreLabel: 'Erreichte Plattformen:',
+        reviveBtn: '💚 Wiederbeleben (1x Ad)',
+        retryBtn: 'Nochmal spielen',
+        exitBtn: 'Spiel verlassen',
+        highscorePrefix: '🏆 Highscore: ',
+        newRecordPrefix: '🔥 Rekord: ',
+        countdownReady: 'BEREIT MACHEN',
+        countdownGo: 'LOS!',
+        stages: {
+          1: { name: 'STAGE 1', sector: 'CYBER GROUND' },
+          2: { name: 'STAGE 2', sector: 'NEON ASCENT' },
+          3: { name: 'STAGE 3', sector: 'CYBER MATRIX' },
+          4: { name: 'STAGE 4', sector: 'PLASMA HEIGHTS' },
+          5: { name: 'CYBER GOD (MAX)', sector: 'HYPER VOID' },
+        }
+      },
+      en: {
+        title: 'Neon Jump',
+        desc: 'Jump from platform to platform, master all 5 Cyber Sectors and use Turbo Neon Springs!',
+        ctrlKb: 'Controls (Keyboard)',
+        ctrlTouch: 'Controls (Touch/Mouse)',
+        startBtn: 'Start Jump',
+        crashed: 'Crashed',
+        scoreLabel: 'Platforms Reached:',
+        reviveBtn: '💚 Revive (1x Ad)',
+        retryBtn: 'Play Again',
+        exitBtn: 'Exit Game',
+        highscorePrefix: '🏆 Highscore: ',
+        newRecordPrefix: '🔥 Record: ',
+        countdownReady: 'GET READY',
+        countdownGo: 'GO!',
+        stages: {
+          1: { name: 'STAGE 1', sector: 'CYBER GROUND' },
+          2: { name: 'STAGE 2', sector: 'NEON ASCENT' },
+          3: { name: 'STAGE 3', sector: 'CYBER MATRIX' },
+          4: { name: 'STAGE 4', sector: 'PLASMA HEIGHTS' },
+          5: { name: 'CYBER GOD (MAX)', sector: 'HYPER VOID' },
+        }
+      }
+    };
+    const t = I18N[currentLang] || I18N.de;
+
+    // Apply translations to DOM elements
+    if (document.getElementById('gameDesc')) document.getElementById('gameDesc').innerText = t.desc;
+    if (document.getElementById('ctrlKbText')) document.getElementById('ctrlKbText').innerText = t.ctrlKb;
+    if (document.getElementById('ctrlTouchText')) document.getElementById('ctrlTouchText').innerText = t.ctrlTouch;
+    if (document.getElementById('startBtn')) document.getElementById('startBtn').innerText = t.startBtn;
+    if (document.getElementById('gameOverTitle')) document.getElementById('gameOverTitle').innerText = t.crashed;
+    if (document.getElementById('finalScoreLabel')) document.getElementById('finalScoreLabel').innerText = t.scoreLabel;
+    if (document.getElementById('reviveBtnText')) document.getElementById('reviveBtnText').innerText = t.reviveBtn;
+    if (document.getElementById('retryBtn')) document.getElementById('retryBtn').innerText = t.retryBtn;
+    if (document.getElementById('backMenuBtn')) document.getElementById('backMenuBtn').innerText = t.exitBtn;
     
     // Screens
     const startScreen = document.getElementById('startScreen');
@@ -449,6 +517,7 @@
     
     // Buttons
     const startBtn = document.getElementById('startBtn');
+    const reviveBtn = document.getElementById('reviveBtn');
     const backMenuBtn = document.getElementById('backMenuBtn');
     const retryBtn = document.getElementById('retryBtn');
     const sfxBtn = document.getElementById('sfxBtn');
@@ -464,16 +533,22 @@
     let monsters = [];
     let score = 0; // Number of platforms successfully passed
     let currentLevel = 1;
-    let levelBanner = null; // { title, subtitle, color, timer }
+    let levelGlowTimer = 0;
     let platformIdCounter = 0;
     let savedHighscore = parseInt(localStorage.getItem('tggamehub_doodlejump_highscore') || '0', 10);
     let cameraY = 0;
-    let gameState = 'start'; // 'start', 'playing', 'gameover'
+    let gameState = 'start'; // 'start', 'playing', 'revive_countdown', 'gameover'
     let keys = { left: false, right: false };
     let touchX = null;
     let animationFrameId;
     let roundStartTime = 0;
     let totalJumps = 0;
+
+    // Revive System variables
+    let hasRevived = false; // Strictly 1x revive per round!
+    let reviveCountdown = 0;
+    let reviveCountdownTimer = null;
+    let reviveShieldTimer = 0;
 
     // Tuning constants
     const GRAVITY = 0.36;
@@ -1508,8 +1583,6 @@
       // Level 5: 500+     (Cyber God MAX - Full frenzy)
 
       let level = 1;
-      let levelName = 'STAGE 1';
-      let sectorName = 'CYBER GROUND';
       let badgeColor = '#4ade80';
       let gapMin = 40;
       let gapMax = 52;
@@ -1520,8 +1593,6 @@
 
       if (currentScore >= 500) {
         level = 5;
-        levelName = 'CYBER GOD (MAX)';
-        sectorName = 'HYPER VOID';
         badgeColor = '#ffd358';
         gapMin = 78;
         gapMax = 96;
@@ -1531,8 +1602,6 @@
         monsterChance = 0.16;
       } else if (currentScore >= 300) {
         level = 4;
-        levelName = 'STAGE 4';
-        sectorName = 'PLASMA HEIGHTS';
         badgeColor = '#ff007f';
         gapMin = 68;
         gapMax = 86;
@@ -1542,8 +1611,6 @@
         monsterChance = 0.13;
       } else if (currentScore >= 200) {
         level = 3;
-        levelName = 'STAGE 3';
-        sectorName = 'CYBER MATRIX';
         badgeColor = '#a78bfa';
         gapMin = 58;
         gapMax = 74;
@@ -1553,8 +1620,6 @@
         monsterChance = 0.10;
       } else if (currentScore >= 100) {
         level = 2;
-        levelName = 'STAGE 2';
-        sectorName = 'NEON ASCENT';
         badgeColor = '#00f2fe';
         gapMin = 48;
         gapMax = 64;
@@ -1563,6 +1628,10 @@
         springChance = 0.10;
         monsterChance = 0.07;
       }
+
+      const stageInfo = (t.stages && t.stages[level]) ? t.stages[level] : { name: `STAGE ${level}`, sector: '' };
+      const levelName = stageInfo.name;
+      const sectorName = stageInfo.sector;
 
       return {
         level,
@@ -1680,13 +1749,21 @@
       monsters = [];
       score = 0;
       currentLevel = 1;
-      levelBanner = null;
+      levelGlowTimer = 0;
       cameraY = 0;
       touchX = null;
       keys = { left: false, right: false };
       roundStartTime = Date.now();
       totalJumps = 0;
       platformIdCounter = 0;
+      hasRevived = false;
+      reviveCountdown = 0;
+      reviveShieldTimer = 0;
+      if (reviveCountdownTimer) {
+        clearInterval(reviveCountdownTimer);
+        reviveCountdownTimer = null;
+      }
+      if (reviveBtn) reviveBtn.style.display = 'none';
 
       // Initialize background stars
       backgroundStars = [];
@@ -1766,18 +1843,23 @@
     }
 
     function update() {
+      if (gameState === 'revive_countdown') {
+        player.vx = 0;
+        player.vy = 0;
+        player.y = canvas.height - 150;
+        player.x = canvas.width / 2 - player.width / 2;
+        particles.forEach(p => p.update());
+        particles = particles.filter(p => p.alpha > 0);
+        return;
+      }
+
       player.update();
 
       // Check Level / Stage Progression
       const diff = getDifficulty(score);
       if (diff.level > currentLevel) {
         currentLevel = diff.level;
-        levelBanner = {
-          title: diff.levelName,
-          subtitle: diff.sectorName,
-          color: diff.badgeColor,
-          timer: 120
-        };
+        levelGlowTimer = 60;
         soundManager.playLevelUp();
       }
 
@@ -1842,8 +1924,8 @@
       floatingTexts.forEach(ft => ft.update());
       floatingTexts = floatingTexts.filter(ft => ft.alpha > 0);
 
-      if (levelBanner && levelBanner.timer > 0) {
-        levelBanner.timer--;
+      if (levelGlowTimer > 0) {
+        levelGlowTimer--;
       }
 
       // Collision checks (Only when player is descending)
@@ -1902,10 +1984,12 @@
           return;
         }
 
-        // Lethal body contact
+        // Lethal body contact (ignored if shield active)
         if (dist < m.radius + player.width / 2 - 4) {
-          soundManager.playMonsterHit();
-          triggerGameOver();
+          if (reviveShieldTimer <= 0) {
+            soundManager.playMonsterHit();
+            triggerGameOver();
+          }
         }
       });
 
@@ -1952,39 +2036,49 @@
       particles.forEach(p => p.draw());
       shardParticles.forEach(sp => sp.draw());
       floatingTexts.forEach(ft => ft.draw());
-      player.draw();
-
-      // Draw Level-Up Banner if active
-      if (levelBanner && levelBanner.timer > 0) {
+      // Invulnerability Energy Shield Bubble (during/after revive)
+      if (reviveShieldTimer > 0) {
+        reviveShieldTimer--;
         ctx.save();
-        const bannerAlpha = Math.min(1.0, levelBanner.timer / 25);
-        ctx.globalAlpha = bannerAlpha;
-        ctx.textAlign = 'center';
-        
-        // Dark translucent banner backdrop
-        ctx.fillStyle = 'rgba(5, 7, 15, 0.85)';
-        ctx.fillRect(0, canvas.height / 2 - 38, canvas.width, 76);
-        ctx.strokeStyle = levelBanner.color;
-        ctx.lineWidth = 1.5;
-        ctx.strokeRect(0, canvas.height / 2 - 38, canvas.width, 76);
-
-        // Title & Sector
-        ctx.shadowBlur = 16;
-        ctx.shadowColor = levelBanner.color;
-        ctx.fillStyle = levelBanner.color;
-        ctx.font = '900 20px "Outfit", monospace';
-        ctx.letterSpacing = '2px';
-        ctx.fillText(levelBanner.title, canvas.width / 2, canvas.height / 2 - 4);
-
-        ctx.shadowBlur = 8;
-        ctx.fillStyle = '#fff';
-        ctx.font = '700 11px "Outfit", monospace';
-        ctx.letterSpacing = '3px';
-        ctx.fillText(levelBanner.subtitle, canvas.width / 2, canvas.height / 2 + 20);
+        ctx.shadowBlur = 18;
+        ctx.shadowColor = '#10b981';
+        ctx.strokeStyle = '#34d399';
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.arc(player.x + player.width / 2, player.y + player.height / 2, 28, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.fillStyle = 'rgba(16, 185, 129, 0.14)';
+        ctx.fill();
         ctx.restore();
       }
 
-      // Top Centered Glowing Score HUD
+      // 3-Second Safe Countdown Overlay
+      if (gameState === 'revive_countdown') {
+        ctx.save();
+        ctx.textAlign = 'center';
+
+        // Dark translucent backdrop
+        ctx.fillStyle = 'rgba(5, 7, 15, 0.55)';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Pulsing countdown number
+        ctx.shadowBlur = 24;
+        ctx.shadowColor = '#10b981';
+        ctx.fillStyle = '#34d399';
+        ctx.font = '900 68px "Outfit", monospace';
+        const displayDigit = reviveCountdown > 0 ? reviveCountdown.toString() : t.countdownGo;
+        ctx.fillText(displayDigit, canvas.width / 2, canvas.height / 2 - 10);
+
+        // Subtitle
+        ctx.shadowBlur = 10;
+        ctx.fillStyle = '#fff';
+        ctx.font = '700 12px "Outfit", monospace';
+        ctx.letterSpacing = '3px';
+        ctx.fillText(`🛡️ ${t.countdownReady}`, canvas.width / 2, canvas.height / 2 + 35);
+        ctx.restore();
+      }
+
+      // Top Centered Glowing Score HUD (Clean, matching Neon Bird)
       const diff = getDifficulty(score);
       const displayHighscore = Math.max(savedHighscore, score);
       const isNewRecord = score > savedHighscore && savedHighscore > 0;
@@ -2011,9 +2105,14 @@
       ctx.fillText(score.toLocaleString(), canvas.width / 2, 48);
 
       // 3. Stage Level Badge (matching Neon Bird design language)
-      ctx.shadowBlur = 0;
+      if (levelGlowTimer > 0) {
+        ctx.shadowBlur = 14;
+        ctx.shadowColor = diff.badgeColor;
+      } else {
+        ctx.shadowBlur = 0;
+      }
       ctx.fillStyle = diff.badgeColor;
-      ctx.font = '700 9px "Outfit", monospace';
+      ctx.font = '700 9.5px "Outfit", monospace';
       ctx.letterSpacing = '1px';
       ctx.fillText(`${diff.levelName} • ${diff.sectorName}`, canvas.width / 2, 63);
       ctx.restore();
@@ -2024,7 +2123,7 @@
     const TIME_STEP = 1000 / 60; // Exact 60 FPS standard (16.667 ms)
 
     function gameLoop(timestamp) {
-      if (gameState !== 'playing') return;
+      if (gameState !== 'playing' && gameState !== 'revive_countdown') return;
 
       if (!lastFrameTime) {
         lastFrameTime = timestamp || performance.now();
@@ -2055,7 +2154,8 @@
         maxHeight: Math.round(cameraY),
         gameCode: 'doodlejump_neon_v2',
         jumpCount: totalJumps,
-        durationSeconds: roundDuration
+        durationSeconds: roundDuration,
+        revived: hasRevived
       };
     }
 
@@ -2074,17 +2174,25 @@
       }
 
       finalScoreEl.innerText = score.toLocaleString();
-      gameOverScreen.style.display = 'flex';
 
-      // Submit score to parent GameWrapper
-      window.parent.postMessage(
-        {
-          type: 'SUBMIT_SCORE',
-          score: score,
-          validationPayload: getSecurityPayload()
-        },
-        '*'
-      );
+      // Strictly 1x free revive per round:
+      // If NOT yet revived, show the green Revive Button!
+      // If ALREADY revived, hide the Revive Button completely and submit the final score!
+      if (!hasRevived) {
+        reviveBtn.style.display = 'flex';
+      } else {
+        reviveBtn.style.display = 'none';
+        window.parent.postMessage(
+          {
+            type: 'SUBMIT_SCORE',
+            score: score,
+            validationPayload: getSecurityPayload()
+          },
+          '*'
+        );
+      }
+
+      gameOverScreen.style.display = 'flex';
     }
 
     // Input listeners (Desktop keys)
@@ -2171,6 +2279,11 @@
       animationFrameId = requestAnimationFrame(gameLoop);
     });
 
+    bindButton(reviveBtn, () => {
+      // Send Revive Ad Request to parent Hub
+      window.parent.postMessage({ type: 'REQUEST_AD_REVIVE' }, '*');
+    });
+
     bindButton(retryBtn, () => {
       gameOverScreen.style.display = 'none';
       window.parent.postMessage(
@@ -2186,6 +2299,14 @@
     bindButton(backMenuBtn, () => {
       window.parent.postMessage(
         {
+          type: 'SUBMIT_SCORE',
+          score: score,
+          validationPayload: getSecurityPayload()
+        },
+        '*'
+      );
+      window.parent.postMessage(
+        {
           type: 'CLOSE_GAME'
         },
         '*'
@@ -2198,6 +2319,56 @@
 
     bindButton(musicBtn, () => {
       soundManager.toggleMusic();
+    });
+
+    // ── Listen for Rewarded Ad Completion from Parent Window ─────────────────
+    window.addEventListener('message', event => {
+      if (event.data?.type === 'AD_REVIVE_GRANTED' && !hasRevived) {
+        hasRevived = true;
+        gameOverScreen.style.display = 'none';
+        reviveBtn.style.display = 'none';
+
+        // 1. Safe positioning of the character
+        player.vx = 0;
+        player.vy = 0;
+        player.angle = 0;
+        player.x = canvas.width / 2 - player.width / 2;
+        player.y = canvas.height - 180;
+
+        // 2. Clear hazards & spawn safe, wide solid platform directly below player
+        monsters = monsters.filter(m => m.y < canvas.height - 250);
+        platforms = platforms.filter(p => p.y < canvas.height - 140);
+        
+        const safePlatform = new NeonPlatform(++platformIdCounter, canvas.width / 2 - 45, canvas.height - 120, 'normal', false);
+        safePlatform.width = 90;
+        safePlatform.passed = true;
+        platforms.push(safePlatform);
+
+        // 3. Initiate 3-second safe countdown & invulnerability shield
+        reviveShieldTimer = 240; // 4 seconds of protective shield
+        reviveCountdown = 3;
+        gameState = 'revive_countdown';
+        soundManager.init();
+        soundManager.startMusic();
+        soundManager.playBounce();
+
+        if (reviveCountdownTimer) clearInterval(reviveCountdownTimer);
+        reviveCountdownTimer = setInterval(() => {
+          reviveCountdown--;
+          if (reviveCountdown === 2 || reviveCountdown === 1) {
+            soundManager.playBounce();
+          } else if (reviveCountdown <= 0) {
+            clearInterval(reviveCountdownTimer);
+            reviveCountdownTimer = null;
+            soundManager.playLevelUp();
+            gameState = 'playing';
+          }
+        }, 1000);
+
+        lastFrameTime = 0;
+        frameAccumulator = 0;
+        animationFrameId = requestAnimationFrame(gameLoop);
+      }
     });
 
     // Draw initial cover

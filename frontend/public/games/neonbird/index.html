@@ -233,17 +233,17 @@
     <!-- Start Screen Overlay -->
     <div id="startScreen" class="overlay">
       <div style="font-size: 40px; margin-bottom: 5px;">🐦⚡</div>
-      <h1>Neon Bird</h1>
-      <p>Fliege sicher durch die leuchtenden Neon-Rohre. Weiche Hindernissen aus und jage den Highscore!</p>
+      <h1 id="gameTitle">Neon Bird</h1>
+      <p id="gameDesc">Fliege sicher durch die leuchtenden Neon-Rohre. Weiche Hindernissen aus und jage den Highscore!</p>
       
       <div class="controls-guide">
         <div class="guide-item">
           <span class="key-cap">LEERTASTE / ◀</span>
-          <span>Steuerung (Tastatur)</span>
+          <span id="ctrlKbText">Steuerung (Tastatur)</span>
         </div>
         <div class="guide-item">
           <span class="key-cap">Tippen</span>
-          <span>Steuerung (Touch/Maus)</span>
+          <span id="ctrlTouchText">Steuerung (Touch/Maus)</span>
         </div>
       </div>
 
@@ -252,10 +252,13 @@
 
     <!-- Game Over Screen Overlay -->
     <div id="gameOverScreen" class="overlay" style="display: none;">
-      <h1 style="color: #ff007f; text-shadow: 0 0 20px rgba(255, 0, 127, 0.4);">Abgestürzt</h1>
-      <div class="score-label">Überstandene Rohre:</div>
+      <h1 id="gameOverTitle" style="color: #ff007f; text-shadow: 0 0 20px rgba(255, 0, 127, 0.4);">Abgestürzt</h1>
+      <div class="score-label" id="finalScoreLabel">Überstandene Rohre:</div>
       <div class="score-value" id="finalScore">0</div>
       
+      <button class="btn" id="reviveBtn" style="display: none; background: linear-gradient(135deg, #10b981, #059669); border-color: rgba(52, 211, 153, 0.8); box-shadow: 0 0 22px rgba(16, 185, 129, 0.55); margin-bottom: 6px;">
+        <span id="reviveBtnText">💚 Wiederbeleben (1x Ad)</span>
+      </button>
       <button class="btn" id="retryBtn">Nochmal spielen</button>
       <button class="btn btn-secondary" id="backMenuBtn">Spiel verlassen</button>
     </div>
@@ -278,6 +281,71 @@
   <script>
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
+
+    // Multilingual Dictionary (Supports DE, EN, etc.)
+    const urlParams = new URLSearchParams(window.location.search);
+    const currentLang = (urlParams.get('lang') || localStorage.getItem('tggamehub_lang') || 'de').toLowerCase();
+
+    const I18N = {
+      de: {
+        title: 'Neon Bird',
+        desc: 'Fliege sicher durch die leuchtenden Neon-Rohre. Weiche Hindernissen aus und jage den Highscore!',
+        ctrlKb: 'Steuerung (Tastatur)',
+        ctrlTouch: 'Steuerung (Touch/Maus)',
+        startBtn: 'Flug starten',
+        crashed: 'Abgestürzt',
+        scoreLabel: 'Überstandene Rohre:',
+        reviveBtn: '💚 Wiederbeleben (1x Ad)',
+        retryBtn: 'Nochmal spielen',
+        exitBtn: 'Spiel verlassen',
+        highscorePrefix: '🏆 Highscore: ',
+        newRecordPrefix: '🔥 Rekord: ',
+        countdownReady: 'BEREIT MACHEN',
+        countdownGo: 'LOS!',
+        stages: {
+          1: { name: 'STAGE 1' },
+          2: { name: 'STAGE 2' },
+          3: { name: 'STAGE 3' },
+          4: { name: 'STAGE 4' },
+          5: { name: 'CYBER GOD (MAX)' },
+        }
+      },
+      en: {
+        title: 'Neon Bird',
+        desc: 'Fly safely through neon pipes. Dodge obstacles and chase the highscore!',
+        ctrlKb: 'Controls (Keyboard)',
+        ctrlTouch: 'Controls (Touch/Mouse)',
+        startBtn: 'Start Flight',
+        crashed: 'Crashed',
+        scoreLabel: 'Pipes Passed:',
+        reviveBtn: '💚 Revive (1x Ad)',
+        retryBtn: 'Play Again',
+        exitBtn: 'Exit Game',
+        highscorePrefix: '🏆 Highscore: ',
+        newRecordPrefix: '🔥 Record: ',
+        countdownReady: 'GET READY',
+        countdownGo: 'GO!',
+        stages: {
+          1: { name: 'STAGE 1' },
+          2: { name: 'STAGE 2' },
+          3: { name: 'STAGE 3' },
+          4: { name: 'STAGE 4' },
+          5: { name: 'CYBER GOD (MAX)' },
+        }
+      }
+    };
+    const t = I18N[currentLang] || I18N.de;
+
+    // Apply translations to DOM elements
+    if (document.getElementById('gameDesc')) document.getElementById('gameDesc').innerText = t.desc;
+    if (document.getElementById('ctrlKbText')) document.getElementById('ctrlKbText').innerText = t.ctrlKb;
+    if (document.getElementById('ctrlTouchText')) document.getElementById('ctrlTouchText').innerText = t.ctrlTouch;
+    if (document.getElementById('startBtn')) document.getElementById('startBtn').innerText = t.startBtn;
+    if (document.getElementById('gameOverTitle')) document.getElementById('gameOverTitle').innerText = t.crashed;
+    if (document.getElementById('finalScoreLabel')) document.getElementById('finalScoreLabel').innerText = t.scoreLabel;
+    if (document.getElementById('reviveBtnText')) document.getElementById('reviveBtnText').innerText = t.reviveBtn;
+    if (document.getElementById('retryBtn')) document.getElementById('retryBtn').innerText = t.retryBtn;
+    if (document.getElementById('backMenuBtn')) document.getElementById('backMenuBtn').innerText = t.exitBtn;
     
     // Screens
     const startScreen = document.getElementById('startScreen');
@@ -286,6 +354,7 @@
     
     // Buttons
     const startBtn = document.getElementById('startBtn');
+    const reviveBtn = document.getElementById('reviveBtn');
     const backMenuBtn = document.getElementById('backMenuBtn');
     const retryBtn = document.getElementById('retryBtn');
     const sfxBtn = document.getElementById('sfxBtn');
@@ -297,12 +366,18 @@
     let particles = [];
     let score = 0;
     let savedHighscore = parseInt(localStorage.getItem('tggamehub_neonbird_highscore') || '0', 10);
-    let gameState = 'start'; // 'start', 'playing', 'gameover'
+    let gameState = 'start'; // 'start', 'playing', 'revive_countdown', 'gameover'
     let animationFrameId;
     let totalJumps = 0;
     let roundStartTime = 0;
     let roundDuration = 0;
     let lastPipeScoreId = -1;
+
+    // Revive variables
+    let hasRevived = false; // Strictly 1x revive per round!
+    let reviveCountdown = 0;
+    let reviveCountdownTimer = null;
+    let reviveShieldTimer = 0;
 
     // Physics constants
     const GRAVITY = 0.35;
@@ -633,12 +708,14 @@
 
       // Progressive Stage Name & Badge Color
       let level = 1;
-      let levelName = 'STAGE 1';
       let badgeColor = '#4ade80';
-      if (currentScore >= 100) { level = 5; levelName = 'CYBER GOD (MAX)'; badgeColor = '#ffd358'; }
-      else if (currentScore >= 75) { level = 4; levelName = 'STAGE 4'; badgeColor = '#ff007f'; }
-      else if (currentScore >= 45) { level = 3; levelName = 'STAGE 3'; badgeColor = '#a78bfa'; }
-      else if (currentScore >= 20) { level = 2; levelName = 'STAGE 2'; badgeColor = '#00f2fe'; }
+      if (currentScore >= 100) { level = 5; badgeColor = '#ffd358'; }
+      else if (currentScore >= 75) { level = 4; badgeColor = '#ff007f'; }
+      else if (currentScore >= 45) { level = 3; badgeColor = '#a78bfa'; }
+      else if (currentScore >= 20) { level = 2; badgeColor = '#00f2fe'; }
+
+      const stageInfo = (t.stages && t.stages[level]) ? t.stages[level] : { name: `STAGE ${level}` };
+      const levelName = stageInfo.name;
 
       return { t, gap, spacing, speed, level, levelName, badgeColor };
     }
@@ -869,12 +946,29 @@
       totalJumps = 0;
       roundStartTime = Date.now();
       lastPipeScoreId = -1;
+      hasRevived = false;
+      reviveCountdown = 0;
+      reviveShieldTimer = 0;
+      if (reviveCountdownTimer) {
+        clearInterval(reviveCountdownTimer);
+        reviveCountdownTimer = null;
+      }
+      if (reviveBtn) reviveBtn.style.display = 'none';
 
       // Spawn first pipe with Score 0 parameters (Gap = 190px, Spacing = 245px)
       pipes.push(new NeonPipe(canvas.width + 80, 0, 0));
     }
 
     function update(dt = 1) {
+      if (gameState === 'revive_countdown') {
+        bird.y = canvas.height / 2;
+        bird.vy = 0;
+        bird.angle = 0;
+        particles.forEach(p => p.update(dt));
+        particles = particles.filter(p => p.alpha > 0);
+        return;
+      }
+
       bird.update(dt);
 
       const diff = getDifficultyParams(score);
@@ -902,23 +996,25 @@
       // Filter offscreen pipes
       pipes = pipes.filter(p => p.x > -PIPE_WIDTH - 20);
 
-      // Collisions check (refined hitboxes)
-      pipes.forEach(p => {
-        if (bird.x + bird.width - 4 > p.x && bird.x + 4 < p.x + p.width) {
-          // Check collision with top pipe
-          if (bird.y + 3 < p.topHeight) {
-            triggerGameOver();
+      // Collisions check (refined hitboxes, ignored if invulnerability shield active)
+      if (reviveShieldTimer <= 0) {
+        pipes.forEach(p => {
+          if (bird.x + bird.width - 4 > p.x && bird.x + 4 < p.x + p.width) {
+            // Check collision with top pipe
+            if (bird.y + 3 < p.topHeight) {
+              triggerGameOver();
+            }
+            // Check collision with bottom pipe
+            if (bird.y + bird.height - 3 > p.bottomY) {
+              triggerGameOver();
+            }
           }
-          // Check collision with bottom pipe
-          if (bird.y + bird.height - 3 > p.bottomY) {
-            triggerGameOver();
-          }
-        }
-      });
+        });
 
-      // Ceiling and floor bounds death check
-      if (bird.y > canvas.height + 30 || bird.y < -50) {
-        triggerGameOver();
+        // Ceiling and floor bounds death check
+        if (bird.y > canvas.height + 30 || bird.y < -50) {
+          triggerGameOver();
+        }
       }
 
       // Update trail/burst particles
@@ -934,6 +1030,48 @@
       pipes.forEach(p => p.draw());
       bird.draw();
       particles.forEach(p => p.draw());
+
+      // Invulnerability Energy Shield Bubble
+      if (reviveShieldTimer > 0) {
+        reviveShieldTimer--;
+        ctx.save();
+        ctx.shadowBlur = 18;
+        ctx.shadowColor = '#10b981';
+        ctx.strokeStyle = '#34d399';
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.arc(bird.x + bird.width / 2, bird.y + bird.height / 2, 26, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.fillStyle = 'rgba(16, 185, 129, 0.14)';
+        ctx.fill();
+        ctx.restore();
+      }
+
+      // 3-Second Safe Countdown Overlay
+      if (gameState === 'revive_countdown') {
+        ctx.save();
+        ctx.textAlign = 'center';
+
+        // Dark translucent backdrop
+        ctx.fillStyle = 'rgba(5, 7, 15, 0.55)';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Pulsing countdown number
+        ctx.shadowBlur = 24;
+        ctx.shadowColor = '#10b981';
+        ctx.fillStyle = '#34d399';
+        ctx.font = '900 68px "Outfit", monospace';
+        const displayDigit = reviveCountdown > 0 ? reviveCountdown.toString() : t.countdownGo;
+        ctx.fillText(displayDigit, canvas.width / 2, canvas.height / 2 - 10);
+
+        // Subtitle
+        ctx.shadowBlur = 10;
+        ctx.fillStyle = '#fff';
+        ctx.font = '700 12px "Outfit", monospace';
+        ctx.letterSpacing = '3px';
+        ctx.fillText(`🛡️ ${t.countdownReady}`, canvas.width / 2, canvas.height / 2 + 35);
+        ctx.restore();
+      }
 
       // Draw score counter & difficulty HUD
       const diff = getDifficultyParams(score);
@@ -973,7 +1111,7 @@
     let lastFrameTime = 0;
 
     function gameLoop(timestamp) {
-      if (gameState !== 'playing') return;
+      if (gameState !== 'playing' && gameState !== 'revive_countdown') return;
 
       if (!lastFrameTime) {
         lastFrameTime = timestamp || performance.now();
@@ -1008,7 +1146,8 @@
         flapCount: totalJumps,
         durationSeconds: roundDuration,
         clientIntegritySig: signature,
-        pipesPassed: score
+        pipesPassed: score,
+        revived: hasRevived
       };
     }
 
@@ -1028,14 +1167,20 @@
       }
 
       finalScoreEl.innerText = score.toLocaleString();
+
+      // Strictly 1x free revive per round:
+      if (!hasRevived) {
+        reviveBtn.style.display = 'flex';
+      } else {
+        reviveBtn.style.display = 'none';
+        window.parent.postMessage({
+          type: 'SUBMIT_SCORE',
+          score: score,
+          validationPayload: getSecurityPayload()
+        }, '*');
+      }
+
       gameOverScreen.style.display = 'flex';
-      
-      // Automatically post score to parent frame wrapper silently in background
-      window.parent.postMessage({
-        type: 'SUBMIT_SCORE',
-        score: score,
-        validationPayload: getSecurityPayload()
-      }, '*');
     }
 
     // Jump Trigger Event
@@ -1076,8 +1221,26 @@
     window.addEventListener('selectstart', e => e.preventDefault());
     document.addEventListener('selectstart', e => e.preventDefault());
 
+    // Robust button click / touch binding (supports touch, mouse, webview with debounce)
+    function bindButton(btn, callback) {
+      if (!btn) return;
+      let lastTrigger = 0;
+      const trigger = (e) => {
+        if (e && e.cancelable) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+        const now = Date.now();
+        if (now - lastTrigger < 250) return;
+        lastTrigger = now;
+        callback();
+      };
+      btn.addEventListener('click', trigger);
+      btn.addEventListener('touchend', trigger, { passive: false });
+    }
+
     // Button integrations
-    startBtn.addEventListener('click', () => {
+    bindButton(startBtn, () => {
       startScreen.style.display = 'none';
       gameState = 'playing';
       soundManager.init();
@@ -1088,9 +1251,12 @@
       animationFrameId = requestAnimationFrame(gameLoop);
     });
 
-    retryBtn.addEventListener('click', () => {
+    bindButton(reviveBtn, () => {
+      window.parent.postMessage({ type: 'REQUEST_AD_REVIVE' }, '*');
+    });
+
+    bindButton(retryBtn, () => {
       gameOverScreen.style.display = 'none';
-      // Trigger instant restart with energy validation request
       window.parent.postMessage({
         type: 'SUBMIT_SCORE_AND_RETRY',
         score: score,
@@ -1098,10 +1264,57 @@
       }, '*');
     });
 
-    backMenuBtn.addEventListener('click', () => {
+    bindButton(backMenuBtn, () => {
+      window.parent.postMessage({
+        type: 'SUBMIT_SCORE',
+        score: score,
+        validationPayload: getSecurityPayload()
+      }, '*');
       window.parent.postMessage({
         type: 'CLOSE_GAME'
       }, '*');
+    });
+
+    // ── Listen for Rewarded Ad Completion from Parent Window ─────────────────
+    window.addEventListener('message', event => {
+      if (event.data?.type === 'AD_REVIVE_GRANTED' && !hasRevived) {
+        hasRevived = true;
+        gameOverScreen.style.display = 'none';
+        reviveBtn.style.display = 'none';
+
+        // 1. Safe positioning of bird
+        bird.x = 85;
+        bird.y = canvas.height / 2;
+        bird.vy = 0;
+        bird.angle = 0;
+
+        // 2. Clear nearby pipes so the takeoff corridor is 100% open
+        pipes = pipes.filter(p => p.x > 220);
+
+        // 3. Initiate 3-second safe countdown & invulnerability shield
+        reviveShieldTimer = 240; // 4 seconds of protective shield
+        reviveCountdown = 3;
+        gameState = 'revive_countdown';
+        soundManager.init();
+        soundManager.startMusic();
+        soundManager.playPoint();
+
+        if (reviveCountdownTimer) clearInterval(reviveCountdownTimer);
+        reviveCountdownTimer = setInterval(() => {
+          reviveCountdown--;
+          if (reviveCountdown === 2 || reviveCountdown === 1) {
+            soundManager.playPoint();
+          } else if (reviveCountdown <= 0) {
+            clearInterval(reviveCountdownTimer);
+            reviveCountdownTimer = null;
+            soundManager.playPoint();
+            gameState = 'playing';
+          }
+        }, 1000);
+
+        lastFrameTime = 0;
+        animationFrameId = requestAnimationFrame(gameLoop);
+      }
     });
 
     // Draw initial cover

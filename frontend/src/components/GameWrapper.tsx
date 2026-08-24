@@ -3,6 +3,8 @@ import { createPortal } from 'react-dom';
 import { X, Zap, Target } from 'lucide-react';
 import { EnergyModal } from './EnergyModal';
 import { useLanguage } from '../i18n/LanguageContext';
+import { showRewardedAd } from '../services/adsgram';
+import { showMonetagRewardedAd } from '../services/monetagService';
 
 interface Game {
   id: string;
@@ -44,12 +46,14 @@ export function GameWrapper({
   dailyAdCount,
   onOpenShop,
 }: GameWrapperProps) {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const [activeGame, setActiveGame] = useState<Game | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [gameSessionToken, setGameSessionToken] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [showEnergyPopup, setShowEnergyPopup] = useState(false);
+  const [adReviveTimer, setAdReviveTimer] = useState<number | null>(null);
+  const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const [benchmarks, setBenchmarks] = useState<Record<string, { targetScore: number; totalRoundsPlayed: number }>>({});
 
   const fetchBenchmarks = useCallback(async () => {
@@ -238,6 +242,24 @@ export function GameWrapper({
     [activeGame, gameSessionToken, initData, backendUrl, onGameFinished, fetchBenchmarks]
   );
 
+  // Rewarded Ad Timer Effect for In-Game Revival (15 seconds standard rewarded video duration)
+  useEffect(() => {
+    if (adReviveTimer === null) return;
+    if (adReviveTimer > 0) {
+      const timer = setTimeout(() => {
+        setAdReviveTimer(adReviveTimer - 1);
+      }, 1000);
+      return () => clearTimeout(timer);
+    } else if (adReviveTimer === 0) {
+      // 15-second mandatory ad completed! Send verified revive permission to active game iframe
+      iframeRef.current?.contentWindow?.postMessage({ type: 'AD_REVIVE_GRANTED' }, '*');
+      const timer = setTimeout(() => {
+        setAdReviveTimer(null);
+      }, 600);
+      return () => clearTimeout(timer);
+    }
+  }, [adReviveTimer]);
+
   // Message receiver for the Iframe postMessage API
   useEffect(() => {
     const handleIframeMessage = async (event: MessageEvent) => {
@@ -248,6 +270,11 @@ export function GameWrapper({
           handleSubmitScore(score, payload, false);
         } else if (event.data.type === 'CLOSE_GAME') {
           handleCloseGame();
+        } else if (event.data.type === 'REQUEST_AD_REVIVE') {
+          // Trigger official Monetag Rewarded Video (15s) with fallback
+          setAdReviveTimer(15);
+          showMonetagRewardedAd('rewarded')
+            .catch(() => showRewardedAd().catch(() => {}));
         } else if (event.data.type === 'SUBMIT_SCORE_AND_RETRY') {
           const score = event.data.score;
           const payload = event.data.validationPayload;
@@ -620,11 +647,75 @@ export function GameWrapper({
           {/* Game Iframe */}
           <div style={{ width: '100%', height: '100%', backgroundColor: '#000', position: 'relative' }}>
             <iframe
-              src={`${activeGame.path}?token=${gameSessionToken || ''}`}
+              ref={iframeRef}
+              src={`${activeGame.path}?token=${gameSessionToken || ''}&lang=${language}`}
               style={{ width: '100%', height: '100%', border: 'none', display: 'block' }}
               title={t.games.items[activeGame.id as keyof typeof t.games.items]?.title || activeGame.title}
               sandbox="allow-scripts allow-same-origin"
             />
+
+            {/* Rewarded Ad Viewer Overlay for 1x Free Revival */}
+            {adReviveTimer !== null && (
+              <div style={{
+                position: 'absolute', inset: 0, zIndex: 100002,
+                backgroundColor: 'rgba(5, 7, 15, 0.94)', backdropFilter: 'blur(16px)',
+                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                padding: '24px', textAlign: 'center',
+              }}>
+                <div style={{
+                  maxWidth: '340px', width: '100%',
+                  background: 'rgba(255, 255, 255, 0.03)',
+                  border: '1px solid rgba(0, 242, 254, 0.3)',
+                  borderRadius: '24px', padding: '24px',
+                  boxShadow: '0 0 35px rgba(0, 242, 254, 0.2)',
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px',
+                }}>
+                  <div style={{
+                    width: '64px', height: '64px', borderRadius: '50%',
+                    background: 'rgba(0, 242, 254, 0.12)', border: '2px solid #00f2fe',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: '28px', boxShadow: '0 0 20px rgba(0, 242, 254, 0.4)',
+                  }}>
+                    📺
+                  </div>
+
+                  <div>
+                    <h3 style={{ fontSize: '18px', fontWeight: 900, color: '#fff', margin: '0 0 6px 0' }}>
+                      {t.games.reviveAdTitle}
+                    </h3>
+                    <p style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.6)', margin: 0, lineHeight: 1.4 }}>
+                      {t.games.reviveAdSubtitle}
+                    </p>
+                  </div>
+
+                  {/* Progress bar */}
+                  <div style={{
+                    width: '100%', height: '8px', borderRadius: '9999px',
+                    backgroundColor: 'rgba(255, 255, 255, 0.1)', overflow: 'hidden',
+                  }}>
+                    <div style={{
+                      height: '100%',
+                      width: `${((15 - (adReviveTimer || 0)) / 15) * 100}%`,
+                      background: 'linear-gradient(90deg, #00f2fe, #4ade80)',
+                      transition: 'width 1s linear',
+                      boxShadow: '0 0 10px rgba(74, 222, 128, 0.6)',
+                    }} />
+                  </div>
+
+                  {/* Countdown Badge */}
+                  <div style={{
+                    fontSize: '13px', fontWeight: 900,
+                    color: adReviveTimer === 0 ? '#4ade80' : '#00f2fe',
+                    background: 'rgba(0, 242, 254, 0.08)', border: '1px solid rgba(0, 242, 254, 0.25)',
+                    padding: '6px 14px', borderRadius: '9999px',
+                  }}>
+                    {adReviveTimer > 0
+                      ? t.games.reviveSecRemaining.replace('{sec}', adReviveTimer.toString())
+                      : t.games.reviveUnlocked}
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Submitting loader */}
             {submitting && (

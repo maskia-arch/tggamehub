@@ -346,6 +346,13 @@ export const translations = {
       arcadeLobby: 'Arcade Lobby',
       newGameStarting: 'Neues Spiel startet...',
       pleaseWait: 'Bitte kurz warten...',
+      reviveBtn: '💚 Wiederbeleben (1x Ad)',
+      reviveAdTitle: 'Werbung wird abgespielt...',
+      reviveAdSubtitle: 'Wiederbelebung wird nach Ablauf freigeschaltet',
+      reviveSecRemaining: 'Noch {sec}s',
+      reviveUnlocked: 'Wiederbelebung freigeschaltet! 🛡️',
+      reviveReady: 'Bereit machen!',
+      reviveCountdownGo: 'LOS!',
       items: {
         doodlejump: {
           title: 'Neon Jump',
@@ -715,6 +722,13 @@ export const translations = {
       arcadeLobby: 'Arcade Lobby',
       newGameStarting: 'New game starting...',
       pleaseWait: 'Please wait...',
+      reviveBtn: '💚 Revive (1x Ad)',
+      reviveAdTitle: 'Playing Sponsored Ad...',
+      reviveAdSubtitle: 'Revival will be unlocked after the ad finishes',
+      reviveSecRemaining: '{sec}s remaining',
+      reviveUnlocked: 'Revival Unlocked! 🛡️',
+      reviveReady: 'Get Ready!',
+      reviveCountdownGo: 'GO!',
       items: {
         doodlejump: {
           title: 'Neon Jump',

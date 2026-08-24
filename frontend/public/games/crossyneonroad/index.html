@@ -283,17 +283,17 @@
     <!-- Start Screen Overlay -->
     <div id="startScreen" class="overlay">
       <div style="font-size: 40px; margin-bottom: 5px;">🐔⚡</div>
-      <h1>Crossy Neon Road</h1>
-      <p>Hilf dem Neon-Huhn, verkehrsreiche Straßen, reißende Flüsse und Schienen zu überqueren!</p>
+      <h1 id="gameTitle">Crossy Neon Road</h1>
+      <p id="gameDesc">Hilf dem Neon-Huhn, verkehrsreiche Straßen, reißende Flüsse und Schienen zu überqueren!</p>
       
       <div class="controls-guide">
         <div class="guide-item">
           <span class="key-cap">▲ ▼ ◀ ▶ / WASD</span>
-          <span>Steuerung (Tastatur)</span>
+          <span id="ctrlKbText">Steuerung (Tastatur)</span>
         </div>
         <div class="guide-item">
           <span class="key-cap">Wischen / D-Pad</span>
-          <span>Steuerung (Touch/Mobile)</span>
+          <span id="ctrlTouchText">Steuerung (Touch/Mobile)</span>
         </div>
       </div>
 
@@ -302,10 +302,13 @@
 
     <!-- Game Over Screen Overlay -->
     <div id="gameOverScreen" class="overlay" style="display: none;">
-      <h1 style="color: #ff007f; text-shadow: 0 0 20px rgba(255, 0, 127, 0.4);">Überfahren</h1>
-      <div class="score-label">Zurückgelegte Meter:</div>
+      <h1 id="gameOverTitle" style="color: #ff007f; text-shadow: 0 0 20px rgba(255, 0, 127, 0.4);">Überfahren</h1>
+      <div class="score-label" id="finalScoreLabel">Zurückgelegte Meter:</div>
       <div class="score-value" id="finalScore">0</div>
       
+      <button class="btn" id="reviveBtn" style="display: none; background: linear-gradient(135deg, #10b981, #059669); border-color: rgba(52, 211, 153, 0.8); box-shadow: 0 0 22px rgba(16, 185, 129, 0.55); margin-bottom: 6px;">
+        <span id="reviveBtnText">💚 Wiederbeleben (1x Ad)</span>
+      </button>
       <button class="btn" id="retryBtn">Nochmal spielen</button>
       <button class="btn btn-secondary" id="backMenuBtn">Spiel verlassen</button>
     </div>
@@ -511,6 +514,57 @@
   <script>
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
+
+    // Multilingual Dictionary (Supports DE, EN, etc.)
+    const urlParams = new URLSearchParams(window.location.search);
+    const currentLang = (urlParams.get('lang') || localStorage.getItem('tggamehub_lang') || 'de').toLowerCase();
+
+    const I18N = {
+      de: {
+        title: 'Crossy Neon Road',
+        desc: 'Hilf dem Neon-Huhn, verkehrsreiche Straßen, reißende Flüsse und Schienen zu überqueren!',
+        ctrlKb: 'Steuerung (Tastatur)',
+        ctrlTouch: 'Steuerung (Touch/Mobile)',
+        startBtn: 'Hopfen starten',
+        crashed: 'Überfahren',
+        scoreLabel: 'Zurückgelegte Meter:',
+        reviveBtn: '💚 Wiederbeleben (1x Ad)',
+        retryBtn: 'Nochmal spielen',
+        exitBtn: 'Spiel verlassen',
+        highscorePrefix: '🏆 Highscore: ',
+        newRecordPrefix: '🔥 Rekord: ',
+        countdownReady: 'BEREIT MACHEN',
+        countdownGo: 'LOS!',
+      },
+      en: {
+        title: 'Crossy Neon Road',
+        desc: 'Help the neon chicken cross busy cyber roads, rivers, and train tracks!',
+        ctrlKb: 'Controls (Keyboard)',
+        ctrlTouch: 'Controls (Touch/Mobile)',
+        startBtn: 'Start Hopping',
+        crashed: 'Run Over',
+        scoreLabel: 'Meters Crossed:',
+        reviveBtn: '💚 Revive (1x Ad)',
+        retryBtn: 'Play Again',
+        exitBtn: 'Exit Game',
+        highscorePrefix: '🏆 Highscore: ',
+        newRecordPrefix: '🔥 Record: ',
+        countdownReady: 'GET READY',
+        countdownGo: 'GO!',
+      }
+    };
+    const t = I18N[currentLang] || I18N.de;
+
+    // Apply translations to DOM elements
+    if (document.getElementById('gameDesc')) document.getElementById('gameDesc').innerText = t.desc;
+    if (document.getElementById('ctrlKbText')) document.getElementById('ctrlKbText').innerText = t.ctrlKb;
+    if (document.getElementById('ctrlTouchText')) document.getElementById('ctrlTouchText').innerText = t.ctrlTouch;
+    if (document.getElementById('startBtn')) document.getElementById('startBtn').innerText = t.startBtn;
+    if (document.getElementById('gameOverTitle')) document.getElementById('gameOverTitle').innerText = t.crashed;
+    if (document.getElementById('finalScoreLabel')) document.getElementById('finalScoreLabel').innerText = t.scoreLabel;
+    if (document.getElementById('reviveBtnText')) document.getElementById('reviveBtnText').innerText = t.reviveBtn;
+    if (document.getElementById('retryBtn')) document.getElementById('retryBtn').innerText = t.retryBtn;
+    if (document.getElementById('backMenuBtn')) document.getElementById('backMenuBtn').innerText = t.exitBtn;
     
     // Screens & UI
     const startScreen = document.getElementById('startScreen');
@@ -520,9 +574,11 @@
     
     // Buttons
     const startBtn = document.getElementById('startBtn');
+    const reviveBtn = document.getElementById('reviveBtn');
     const backMenuBtn = document.getElementById('backMenuBtn');
     const retryBtn = document.getElementById('retryBtn');
-    const muteBtn = document.getElementById('muteBtn');
+    const sfxBtn = document.getElementById('sfxBtn');
+    const musicBtn = document.getElementById('musicBtn');
     
     // Virtual Dpad Buttons
     const btnUp = document.getElementById('btnUp');
@@ -542,13 +598,19 @@
     let particles = [];
     let score = 0;
     let lives = 3;
-    let gameState = 'start'; // 'start', 'playing', 'gameover'
+    let gameState = 'start'; // 'start', 'playing', 'revive_countdown', 'gameover'
     let animationFrameId;
     let totalHops = 0;
     let roundStartTime = 0;
     let roundDuration = 0;
     let cameraY = 0;
     let maxRowReached = 0;
+
+    // Revive Variables
+    let hasRevived = false; // Strictly 1x revive per round!
+    let reviveCountdown = 0;
+    let reviveCountdownTimer = null;
+    let reviveShieldTimer = 0;
 
     // Sound Synthesizer using Web Audio API
     class SoundSynth {
@@ -1738,6 +1800,14 @@
       maxRowReached = 0;
       totalHops = 0;
       roundStartTime = Date.now();
+      hasRevived = false;
+      reviveCountdown = 0;
+      reviveShieldTimer = 0;
+      if (reviveCountdownTimer) {
+        clearInterval(reviveCountdownTimer);
+        reviveCountdownTimer = null;
+      }
+      if (reviveBtn) reviveBtn.style.display = 'none';
       
       // Show virtual dpad for touch users
       if ('ontouchstart' in window) {
@@ -1746,6 +1816,12 @@
     }
 
     function update() {
+      if (gameState === 'revive_countdown') {
+        particles.forEach(p => p.update());
+        particles = particles.filter(p => p.alpha > 0);
+        return;
+      }
+
       player.update();
 
       // Dynamically generate rows ahead and delete rows far behind camera
@@ -1915,6 +1991,49 @@
         const width = (player.shieldTime / 300) * 80;
         ctx.fillRect(16, 40, width, 4);
       }
+
+      // Invulnerability Energy Shield Bubble (during/after revive)
+      if (reviveShieldTimer > 0) {
+        reviveShieldTimer--;
+        ctx.save();
+        ctx.shadowBlur = 18;
+        ctx.shadowColor = '#10b981';
+        ctx.strokeStyle = '#34d399';
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.arc(player.x, player.y - cameraY, 26, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.fillStyle = 'rgba(16, 185, 129, 0.14)';
+        ctx.fill();
+        ctx.restore();
+      }
+
+      // 3-Second Safe Countdown Overlay
+      if (gameState === 'revive_countdown') {
+        ctx.save();
+        ctx.textAlign = 'center';
+
+        // Dark translucent backdrop
+        ctx.fillStyle = 'rgba(5, 7, 15, 0.55)';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Pulsing countdown number
+        ctx.shadowBlur = 24;
+        ctx.shadowColor = '#10b981';
+        ctx.fillStyle = '#34d399';
+        ctx.font = '900 68px "Outfit", monospace';
+        const displayDigit = reviveCountdown > 0 ? reviveCountdown.toString() : t.countdownGo;
+        ctx.fillText(displayDigit, canvas.width / 2, canvas.height / 2 - 10);
+
+        // Subtitle
+        ctx.shadowBlur = 10;
+        ctx.fillStyle = '#fff';
+        ctx.font = '700 12px "Outfit", monospace';
+        ctx.letterSpacing = '3px';
+        ctx.fillText(`🛡️ ${t.countdownReady}`, canvas.width / 2, canvas.height / 2 + 35);
+        ctx.restore();
+      }
+
       ctx.restore();
     }
 
@@ -1923,7 +2042,7 @@
     const TIME_STEP = 1000 / TARGET_FPS; // Exact 60 FPS standard (16.667 ms)
 
     function gameLoop(timestamp) {
-      if (gameState !== 'playing') return;
+      if (gameState !== 'playing' && gameState !== 'revive_countdown') return;
 
       if (!lastFrameTime) {
         lastFrameTime = timestamp || performance.now();
@@ -1958,7 +2077,8 @@
         hopCount: totalHops,
         durationSeconds: roundDuration,
         clientIntegritySig: signature,
-        distanceReached: score
+        distanceReached: score,
+        revived: hasRevived
       };
     }
 
@@ -1973,14 +2093,20 @@
       dpad.style.display = 'none';
 
       finalScoreEl.innerText = score.toLocaleString();
+
+      // Strictly 1x free revive per round:
+      if (!hasRevived) {
+        reviveBtn.style.display = 'flex';
+      } else {
+        reviveBtn.style.display = 'none';
+        window.parent.postMessage({
+          type: 'SUBMIT_SCORE',
+          score: score,
+          validationPayload: getSecurityPayload()
+        }, '*');
+      }
+
       gameOverScreen.style.display = 'flex';
-      
-      // Post score back to parent GameWrapper
-      window.parent.postMessage({
-        type: 'SUBMIT_SCORE',
-        score: score,
-        validationPayload: getSecurityPayload()
-      }, '*');
     }
 
     function movePlayer(dir) {
@@ -2059,21 +2185,41 @@
     window.addEventListener('selectstart', e => e.preventDefault());
     document.addEventListener('selectstart', e => e.preventDefault());
 
+    // Robust button click / touch binding (supports touch, mouse, webview with debounce)
+    function bindButton(btn, callback) {
+      if (!btn) return;
+      let lastTrigger = 0;
+      const trigger = (e) => {
+        if (e && e.cancelable) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+        const now = Date.now();
+        if (now - lastTrigger < 250) return;
+        lastTrigger = now;
+        callback();
+      };
+      btn.addEventListener('click', trigger);
+      btn.addEventListener('touchend', trigger, { passive: false });
+    }
+
     // Start & Retry buttons
-    startBtn.addEventListener('click', () => {
+    bindButton(startBtn, () => {
       startScreen.style.display = 'none';
       gameState = 'playing';
       soundManager.init();
       soundManager.startMusic();
       initGame();
-      // Start loop
       lastFrameTime = performance.now();
       animationFrameId = requestAnimationFrame(gameLoop);
     });
 
-    retryBtn.addEventListener('click', () => {
+    bindButton(reviveBtn, () => {
+      window.parent.postMessage({ type: 'REQUEST_AD_REVIVE' }, '*');
+    });
+
+    bindButton(retryBtn, () => {
       gameOverScreen.style.display = 'none';
-      // Request new energy-consumed session instantly
       window.parent.postMessage({
         type: 'SUBMIT_SCORE_AND_RETRY',
         score: score,
@@ -2081,10 +2227,73 @@
       }, '*');
     });
 
-    backMenuBtn.addEventListener('click', () => {
+    bindButton(backMenuBtn, () => {
+      window.parent.postMessage({
+        type: 'SUBMIT_SCORE',
+        score: score,
+        validationPayload: getSecurityPayload()
+      }, '*');
       window.parent.postMessage({
         type: 'CLOSE_GAME'
       }, '*');
+    });
+
+    bindButton(sfxBtn, () => {
+      soundManager.toggleSfx();
+    });
+
+    bindButton(musicBtn, () => {
+      soundManager.toggleMusic();
+    });
+
+    // ── Listen for Rewarded Ad Completion from Parent Window ─────────────────
+    window.addEventListener('message', event => {
+      if (event.data?.type === 'AD_REVIVE_GRANTED' && !hasRevived) {
+        hasRevived = true;
+        gameOverScreen.style.display = 'none';
+        reviveBtn.style.display = 'none';
+
+        // 1. Give 1 life and place player safely on a solid grass row
+        lives = 1;
+        player.col = 4;
+        player.x = 4 * COL_WIDTH + COL_WIDTH / 2;
+        player.targetX = player.x;
+        player.y = player.row * ROW_HEIGHT + ROW_HEIGHT / 2;
+        player.targetY = player.y;
+        player.hopTimer = 0;
+        player.shieldTime = 300;
+
+        // Convert current row into a safe GrassRow so player does not respawn on a car/river
+        rows[player.row] = new GrassRow(player.row);
+
+        // 2. 3-second safe countdown & invulnerability shield
+        reviveShieldTimer = 240; // 4 seconds of protective shield
+        reviveCountdown = 3;
+        gameState = 'revive_countdown';
+        soundManager.init();
+        soundManager.startMusic();
+        soundManager.playShield();
+
+        if ('ontouchstart' in window) {
+          dpad.style.display = 'grid';
+        }
+
+        if (reviveCountdownTimer) clearInterval(reviveCountdownTimer);
+        reviveCountdownTimer = setInterval(() => {
+          reviveCountdown--;
+          if (reviveCountdown === 2 || reviveCountdown === 1) {
+            soundManager.playShield();
+          } else if (reviveCountdown <= 0) {
+            clearInterval(reviveCountdownTimer);
+            reviveCountdownTimer = null;
+            soundManager.playCoin();
+            gameState = 'playing';
+          }
+        }, 1000);
+
+        lastFrameTime = performance.now();
+        animationFrameId = requestAnimationFrame(gameLoop);
+      }
     });
 
     // Draw initial cover background
