@@ -2036,6 +2036,8 @@
       particles.forEach(p => p.draw());
       shardParticles.forEach(sp => sp.draw());
       floatingTexts.forEach(ft => ft.draw());
+      player.draw();
+
       // Invulnerability Energy Shield Bubble (during/after revive)
       if (reviveShieldTimer > 0) {
         reviveShieldTimer--;

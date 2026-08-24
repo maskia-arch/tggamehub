@@ -2001,7 +2001,8 @@
         ctx.strokeStyle = '#34d399';
         ctx.lineWidth = 2.5;
         ctx.beginPath();
-        ctx.arc(player.x, player.y - cameraY, 26, 0, Math.PI * 2);
+        const screenY = canvas.height - (player.y - cameraY);
+        ctx.arc(player.x, screenY, 26, 0, Math.PI * 2);
         ctx.stroke();
         ctx.fillStyle = 'rgba(16, 185, 129, 0.14)';
         ctx.fill();
