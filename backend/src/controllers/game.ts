@@ -166,12 +166,12 @@ export async function submitScore(req: AuthenticatedRequest, res: Response) {
     }
 
     // Anti-cheat: Score Velocity Check (Max points per second)
-    // Clicker: max 100 points/sec. Neon Jump: max 350 points/sec (fast climbs via spring boosts).
+    // Clicker: max 100 points/sec. Neon Jump: max 25 points/sec (platform jumps). Crossy: max 25. Neon Stacking: max 4.
     let maxVelocity = 150;
     if (gameId === 'clicker') {
       maxVelocity = 100;
     } else if (gameId === 'doodlejump') {
-      maxVelocity = 350;
+      maxVelocity = 25;
     } else if (gameId === 'crossyneonroad') {
       maxVelocity = 25;
     } else if (gameId === 'neonstacking') {

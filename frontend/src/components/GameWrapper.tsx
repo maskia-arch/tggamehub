@@ -82,7 +82,7 @@ export function GameWrapper({
       genre: 'Arcade / Jump',
       icon: '👾',
       preview: '/images/neon_jump_preview.png',
-      targetScore: 1500,
+      targetScore: 100,
       coinSymbol: 'DOODLE',
     },
     {

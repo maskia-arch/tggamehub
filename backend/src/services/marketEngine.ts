@@ -237,7 +237,7 @@ export async function getRollingScoreStatistics(gameId: string): Promise<GameSco
 
   // Cold-start fallback baselines
   const fallbackBaselines: Record<string, { mean: number; stdDev: number }> = {
-    doodlejump: { mean: 1500, stdDev: 500 },
+    doodlejump: { mean: 120, stdDev: 50 },
     neonbird: { mean: 20, stdDev: 10 },
     crossyneonroad: { mean: 40, stdDev: 20 },
     neonstacking: { mean: 15, stdDev: 8 },

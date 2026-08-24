@@ -8,6 +8,16 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800;900&display=swap" rel="stylesheet">
   <style>
+    * {
+      -webkit-touch-callout: none !important;
+      -webkit-user-select: none !important;
+      -khtml-user-select: none !important;
+      -moz-user-select: none !important;
+      -ms-user-select: none !important;
+      user-select: none !important;
+      -webkit-tap-highlight-color: transparent !important;
+    }
+
     html, body {
       width: 100%;
       height: 100%;
@@ -20,6 +30,9 @@
       justify-content: center;
       align-items: center;
       overflow: hidden;
+      touch-action: none;
+      -webkit-touch-callout: none;
+      -webkit-user-select: none;
       user-select: none;
       -webkit-tap-highlight-color: transparent;
     }
@@ -32,6 +45,10 @@
       background-color: #05070f;
       overflow: hidden;
       margin: 0 auto;
+      touch-action: none;
+      -webkit-touch-callout: none;
+      -webkit-user-select: none;
+      user-select: none;
     }
 
     canvas {
@@ -39,6 +56,10 @@
       width: 100%;
       height: 100%;
       background: transparent;
+      touch-action: none;
+      -webkit-touch-callout: none;
+      -webkit-user-select: none;
+      user-select: none;
     }
 
     /* Screen overlays */
@@ -214,7 +235,7 @@
     <div id="startScreen" class="overlay">
       <div style="font-size: 40px; margin-bottom: 5px;">👾⚡</div>
       <h1>Neon Jump</h1>
-      <p>Katapultiere den Cyber-Bot in den Himmel. Nutze Booster-Federn und weiche feindlichen Drohnen aus!</p>
+      <p>Springe von Plattform zu Plattform, meistere alle 5 Cyber-Sektoren und nutze Turbo-Sprungfedern!</p>
       
       <div class="controls-guide">
         <div class="guide-item">
@@ -233,7 +254,7 @@
     <!-- Game Over Screen Overlay -->
     <div id="gameOverScreen" class="overlay" style="display: none;">
       <h1 style="color: #ff007f; text-shadow: 0 0 20px rgba(255, 0, 127, 0.4);">Abgestürzt</h1>
-      <div class="score-label">Erreichte Höhe:</div>
+      <div class="score-label">Erreichte Plattformen:</div>
       <div class="score-value" id="finalScore">0</div>
       
       <button class="btn" id="retryBtn">Nochmal spielen</button>
@@ -438,9 +459,13 @@
     let platforms = [];
     let particles = [];
     let shardParticles = [];
+    let floatingTexts = [];
     let backgroundStars = [];
     let monsters = [];
-    let score = 0;
+    let score = 0; // Number of platforms successfully passed
+    let currentLevel = 1;
+    let levelBanner = null; // { title, subtitle, color, timer }
+    let platformIdCounter = 0;
     let savedHighscore = parseInt(localStorage.getItem('tggamehub_doodlejump_highscore') || '0', 10);
     let cameraY = 0;
     let gameState = 'start'; // 'start', 'playing', 'gameover'
@@ -655,6 +680,28 @@
         osc.stop(now + 0.45);
       }
 
+      // Procedural SFX: Ascending level up cyber arpeggio
+      playLevelUp() {
+        this.init();
+        if (!this.ctx || this.isSfxMuted) return;
+        if (this.ctx.state === 'suspended') this.ctx.resume();
+
+        const now = this.ctx.currentTime;
+        const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
+        notes.forEach((freq, idx) => {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(freq, now + idx * 0.07);
+          gain.gain.setValueAtTime(0.12, now + idx * 0.07);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.07 + 0.25);
+          osc.start(now + idx * 0.07);
+          osc.stop(now + idx * 0.07 + 0.25);
+        });
+      }
+
       // Procedural SFX: Game Over (Descending sorrowful cyber triad)
       playGameOver() {
         this.init();
@@ -837,9 +884,9 @@
         this.y = canvas.height - 140;
         this.vx = 0;
         this.vy = 0;
-        this.accel = 0.65;
-        this.friction = 0.84;
-        this.maxSpeed = 6.8;
+        this.accel = 0.82;
+        this.friction = 0.85;
+        this.maxSpeed = 8.0;
         this.angle = 0;
         this.facing = 1; // 1 = right, -1 = left
         this.glowTimer = 0;
@@ -957,17 +1004,156 @@
       }
     }
 
-    // High-Tech Neon Platform with LED Edge Lighting & Particle Effects
+    // ── Floating Score & Status Particles ─────────────────────────────────────
+    class FloatingText {
+      constructor(x, y, text, color = '#00f2fe', size = 12) {
+        this.x = x;
+        this.y = y;
+        this.text = text;
+        this.color = color;
+        this.size = size;
+        this.alpha = 1;
+        this.vy = -1.2;
+      }
+      update() {
+        this.y += this.vy;
+        this.alpha -= 0.035;
+      }
+      draw() {
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, this.alpha);
+        ctx.shadowBlur = 8;
+        ctx.shadowColor = this.color;
+        ctx.fillStyle = this.color;
+        ctx.font = `800 ${this.size}px "Outfit", monospace`;
+        ctx.textAlign = 'center';
+        ctx.fillText(this.text, this.x, this.y);
+        ctx.restore();
+      }
+    }
+
+    // ── Realistic Helical Neon Spring ─────────────────────────────────────────
+    class NeonSpring {
+      constructor(x, y) {
+        this.nominalHeight = 14;
+        this.currentHeight = 14;
+        this.state = 'idle'; // 'idle', 'compressed', 'rebound'
+        this.animTimer = 0;
+      }
+
+      trigger() {
+        this.state = 'compressed';
+        this.animTimer = 0;
+      }
+
+      update() {
+        if (this.state === 'compressed') {
+          this.animTimer += 0.25;
+          this.currentHeight = 4;
+          if (this.animTimer >= 0.4) {
+            this.state = 'rebound';
+            this.animTimer = 0;
+          }
+        } else if (this.state === 'rebound') {
+          this.animTimer += 0.16;
+          this.currentHeight = this.nominalHeight + Math.sin(this.animTimer * Math.PI) * 7;
+          if (this.animTimer >= 1.0) {
+            this.state = 'idle';
+            this.currentHeight = this.nominalHeight;
+          }
+        } else {
+          this.currentHeight = this.nominalHeight;
+        }
+      }
+
+      draw(ctx, centerX, baseY) {
+        ctx.save();
+        const topY = baseY - this.currentHeight;
+
+        // 1. Bottom Mounting Clamp
+        ctx.shadowBlur = 6;
+        ctx.shadowColor = '#ffd358';
+        ctx.fillStyle = '#0f172a';
+        ctx.strokeStyle = '#ffd358';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.roundRect(centerX - 8, baseY - 2, 16, 3, 1);
+        ctx.fill();
+        ctx.stroke();
+
+        // 2. Coiled Wire (Multi-turn zig-zag helical coils)
+        ctx.shadowBlur = 10;
+        ctx.shadowColor = '#ffd358';
+        ctx.strokeStyle = '#ffd358';
+        ctx.lineWidth = 2.4;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+
+        ctx.beginPath();
+        ctx.moveTo(centerX, baseY - 2);
+
+        const segments = 6;
+        const segHeight = (this.currentHeight - 4) / segments;
+        const springRadius = 6.5;
+
+        for (let i = 1; i <= segments; i++) {
+          const segY = (baseY - 2) - i * segHeight;
+          const segX = centerX + (i % 2 === 1 ? springRadius : -springRadius);
+          ctx.lineTo(segX, segY);
+        }
+        ctx.lineTo(centerX, topY);
+        ctx.stroke();
+
+        // Inner glowing white core
+        ctx.shadowBlur = 0;
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 1.0;
+        ctx.beginPath();
+        ctx.moveTo(centerX, baseY - 2);
+        for (let i = 1; i <= segments; i++) {
+          const segY = (baseY - 2) - i * segHeight;
+          const segX = centerX + (i % 2 === 1 ? springRadius : -springRadius);
+          ctx.lineTo(segX, segY);
+        }
+        ctx.lineTo(centerX, topY);
+        ctx.stroke();
+
+        // 3. Top Contact Pressure Plate
+        ctx.shadowBlur = 12;
+        ctx.shadowColor = '#ffd358';
+        ctx.fillStyle = '#ffd358';
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.roundRect(centerX - 7, topY - 3.5, 14, 3.5, 1.5);
+        ctx.fill();
+        ctx.stroke();
+
+        // Pulsing Energy Spark on top
+        const pulse = Math.sin(Date.now() * 0.008) * 0.5 + 0.5;
+        ctx.fillStyle = `rgba(255, 255, 255, ${0.7 + pulse * 0.3})`;
+        ctx.beginPath();
+        ctx.arc(centerX, topY - 1.8, 1.5, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.restore();
+      }
+    }
+
+    // ── High-Tech Neon Platform ───────────────────────────────────────────────
     class NeonPlatform {
-      constructor(x, y, type = 'normal') {
-        this.width = 56;
+      constructor(id, x, y, type = 'normal', hasSpring = false) {
+        this.id = id;
+        this.width = 58;
         this.height = 12;
         this.x = x;
         this.y = y;
         this.type = type; // 'normal', 'moving', 'breaking'
         this.vx = type === 'moving' ? (Math.random() < 0.5 ? -1.8 : 1.8) : 0;
-        this.hasSpring = type === 'normal' && Math.random() < 0.08;
+        this.hasSpring = hasSpring;
+        this.spring = hasSpring ? new NeonSpring(this.x + this.width / 2, this.y) : null;
         this.isBroken = false;
+        this.passed = false; // Scoring check (+1 per passed platform)
         this.pulseTimer = Math.random() * 10;
 
         // Color coding
@@ -989,6 +1175,10 @@
             this.vx = -this.vx;
           }
         }
+
+        if (this.spring) {
+          this.spring.update();
+        }
       }
 
       draw() {
@@ -1007,20 +1197,17 @@
         ctx.fill();
         ctx.stroke();
 
-        // Inner glowing core accent line
+        // Inner glowing core accent
         ctx.shadowBlur = 6;
         ctx.fillStyle = this.color;
         if (this.type === 'normal') {
-          // Center LED bar
           ctx.fillRect(this.x + 8, this.y + 4, this.width - 16, 3);
         } else if (this.type === 'moving') {
-          // Directional pulse arrow
           const offset = Math.sin(this.pulseTimer * 3) * 6;
           ctx.beginPath();
           ctx.arc(this.x + this.width / 2 + offset, this.y + this.height / 2, 2.5, 0, Math.PI * 2);
           ctx.fill();
         } else if (this.type === 'breaking') {
-          // Hazard grid cracks
           ctx.beginPath();
           ctx.moveTo(this.x + 12, this.y + 2);
           ctx.lineTo(this.x + 20, this.y + 10);
@@ -1030,77 +1217,152 @@
           ctx.stroke();
         }
 
-        // Draw High-Tech Turbo Spring if equipped
-        if (this.hasSpring) {
-          const springPulse = Math.sin(this.pulseTimer * 2) * 1.5;
-          ctx.shadowBlur = 12;
-          ctx.shadowColor = '#ffd358';
-          ctx.strokeStyle = '#ffd358';
-          ctx.lineWidth = 2.5;
-
-          // Spring Base
-          ctx.fillStyle = '#05070f';
-          ctx.fillRect(this.x + this.width / 2 - 8, this.y - 7, 16, 7);
-          ctx.strokeRect(this.x + this.width / 2 - 8, this.y - 7, 16, 7);
-
-          // Glowing energy booster core
-          ctx.fillStyle = '#ffd358';
-          ctx.beginPath();
-          ctx.arc(this.x + this.width / 2, this.y - 4 + springPulse, 3, 0, Math.PI * 2);
-          ctx.fill();
-        }
-
         ctx.restore();
+
+        // Draw spring on top of platform
+        if (this.spring) {
+          this.spring.draw(ctx, this.x + this.width / 2, this.y);
+        }
       }
     }
 
-    // Flying Cyber Sentry Drone
-    class CyberDrone {
-      constructor(x, y) {
+    // ── Monster Hierarchy & Rotation ──────────────────────────────────────────
+
+    class BaseMonster {
+      constructor(x, y, radius = 14, color = '#ff007f') {
         this.x = x;
         this.y = y;
-        this.radius = 15;
-        this.vx = (Math.random() < 0.5 ? -1 : 1) * MONSTER_SPEED;
-        this.angle = 0;
+        this.radius = radius;
+        this.color = color;
+        this.alive = true;
+        this.timer = Math.random() * 10;
+      }
+      update() {
+        this.timer += 0.05;
+      }
+      draw() {}
+    }
+
+    // Type 1: Stationary Cyber Sentinel (Standfest auf Plattform)
+    class StationarySentinel extends BaseMonster {
+      constructor(x, y) {
+        super(x, y, 13, '#ef4444');
+        this.type = 'sentinel';
+        this.scanAngle = 0;
       }
 
       update() {
-        this.x += this.vx;
-        if (this.x < this.radius + 6 || this.x > canvas.width - this.radius - 6) {
-          this.vx = -this.vx;
-        }
-        this.angle += 0.08;
+        super.update();
+        this.scanAngle += 0.04;
       }
 
       draw() {
         ctx.save();
         ctx.translate(this.x, this.y);
 
-        // Outer Rotating Spiked Energy Shield
-        ctx.rotate(this.angle);
+        // Holographic Warning Scanning Cones
+        ctx.save();
+        ctx.rotate(this.scanAngle);
+        ctx.fillStyle = 'rgba(239, 68, 68, 0.15)';
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.arc(0, 0, 22, -0.4, 0.4);
+        ctx.closePath();
+        ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.arc(0, 0, 22, Math.PI - 0.4, Math.PI + 0.4);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+
+        // Outer Hexagonal Hazard Armor
+        ctx.shadowBlur = 12;
+        ctx.shadowColor = '#ef4444';
+        ctx.strokeStyle = '#ef4444';
+        ctx.lineWidth = 2;
+        ctx.fillStyle = '#05070f';
+        ctx.beginPath();
+        for (let i = 0; i < 6; i++) {
+          const a = (i * Math.PI) / 3;
+          const px = Math.cos(a) * this.radius;
+          const py = Math.sin(a) * this.radius;
+          if (i === 0) ctx.moveTo(px, py);
+          else ctx.lineTo(px, py);
+        }
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        // Pulsing Core Sentry Eye
+        const eyePulse = Math.sin(this.timer * 4) * 1.5;
+        ctx.shadowBlur = 8;
+        ctx.fillStyle = '#ef4444';
+        ctx.beginPath();
+        ctx.arc(0, 0, 4.5 + eyePulse, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = '#fff';
+        ctx.beginPath();
+        ctx.arc(1, -1, 1.5, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.restore();
+      }
+    }
+
+    // Type 2: Patrolling Hunter Drone (Horizontal Patrouille)
+    class PatrolDrone extends BaseMonster {
+      constructor(x, y, speed = 1.6) {
+        super(x, y, 14, '#ff007f');
+        this.type = 'patrol';
+        this.vx = (Math.random() < 0.5 ? -1 : 1) * speed;
+        this.wingAngle = 0;
+      }
+
+      update() {
+        super.update();
+        this.x += this.vx;
+        if (this.x < this.radius + 6) {
+          this.x = this.radius + 6;
+          this.vx = Math.abs(this.vx);
+        } else if (this.x > canvas.width - this.radius - 6) {
+          this.x = canvas.width - this.radius - 6;
+          this.vx = -Math.abs(this.vx);
+        }
+        this.wingAngle += 0.12;
+      }
+
+      draw() {
+        ctx.save();
+        ctx.translate(this.x, this.y);
+
+        // Rotating Swept Wing Blades
         ctx.shadowBlur = 14;
-        ctx.shadowColor = '#ff007f';
-        ctx.strokeStyle = '#ff007f';
+        ctx.shadowColor = this.color;
+        ctx.strokeStyle = this.color;
         ctx.lineWidth = 2.5;
 
+        ctx.save();
+        ctx.rotate(this.wingAngle);
         ctx.beginPath();
         for (let i = 0; i < 4; i++) {
           const a = (i * Math.PI) / 2;
-          ctx.moveTo(Math.cos(a) * 12, Math.sin(a) * 12);
+          ctx.moveTo(Math.cos(a) * 10, Math.sin(a) * 10);
           ctx.lineTo(Math.cos(a) * 18, Math.sin(a) * 18);
         }
         ctx.stroke();
+        ctx.restore();
 
-        // Inner Robotic Sentry Core
+        // Central Spherical Chassis
         ctx.fillStyle = '#05070f';
         ctx.beginPath();
         ctx.arc(0, 0, 10, 0, Math.PI * 2);
         ctx.fill();
         ctx.stroke();
 
-        // Menacing Glowing Cyber Red/Pink Eye
-        ctx.shadowColor = '#ff007f';
-        ctx.fillStyle = '#ff007f';
+        // Glowing Center Eye
+        ctx.fillStyle = this.color;
         ctx.beginPath();
         ctx.arc(0, 0, 4.5, 0, Math.PI * 2);
         ctx.fill();
@@ -1112,6 +1374,218 @@
 
         ctx.restore();
       }
+    }
+
+    // Type 3: Bobbing Waving Drone (Vertikal & Sinus-Schwebe)
+    class WavingDrone extends BaseMonster {
+      constructor(x, y, speed = 1.2) {
+        super(x, y, 15, '#a855f7');
+        this.type = 'waving';
+        this.baseY = y;
+        this.vx = (Math.random() < 0.5 ? -0.8 : 0.8) * speed;
+        this.amplitude = 18;
+        this.waveSpeed = 2.2;
+      }
+
+      update() {
+        super.update();
+        this.x += this.vx;
+        if (this.x < this.radius + 8) {
+          this.x = this.radius + 8;
+          this.vx = Math.abs(this.vx);
+        } else if (this.x > canvas.width - this.radius - 8) {
+          this.x = canvas.width - this.radius - 8;
+          this.vx = -Math.abs(this.vx);
+        }
+        this.y = this.baseY + Math.sin(this.timer * this.waveSpeed) * this.amplitude;
+      }
+
+      draw() {
+        ctx.save();
+        ctx.translate(this.x, this.y);
+
+        // Dual Orbiting Ion Rings
+        ctx.shadowBlur = 14;
+        ctx.shadowColor = this.color;
+        ctx.strokeStyle = this.color;
+        ctx.lineWidth = 2;
+
+        ctx.beginPath();
+        ctx.ellipse(0, 0, 18, 8, this.timer * 1.5, 0, Math.PI * 2);
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.ellipse(0, 0, 18, 8, -this.timer * 1.5, 0, Math.PI * 2);
+        ctx.stroke();
+
+        // Dark Diamond Pod
+        ctx.fillStyle = '#05070f';
+        ctx.beginPath();
+        ctx.moveTo(0, -11);
+        ctx.lineTo(11, 0);
+        ctx.lineTo(0, 11);
+        ctx.lineTo(-11, 0);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        // Glowing Purple Eye
+        ctx.fillStyle = this.color;
+        ctx.beginPath();
+        ctx.arc(0, 0, 4, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = '#fff';
+        ctx.beginPath();
+        ctx.arc(1, -1, 1.2, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.restore();
+      }
+    }
+
+    // Type 4: Pulsing Phase Orb (Expandierender Schutzschild)
+    class PhaseOrb extends BaseMonster {
+      constructor(x, y) {
+        super(x, y, 16, '#f97316');
+        this.type = 'phase';
+        this.vx = (Math.random() < 0.5 ? -0.9 : 0.9);
+      }
+
+      update() {
+        super.update();
+        this.x += this.vx;
+        if (this.x < this.radius + 8 || this.x > canvas.width - this.radius - 8) {
+          this.vx = -this.vx;
+        }
+      }
+
+      draw() {
+        ctx.save();
+        ctx.translate(this.x, this.y);
+
+        const shieldScale = Math.sin(this.timer * 3) * 3 + 18;
+        ctx.shadowBlur = 15;
+        ctx.shadowColor = this.color;
+        ctx.strokeStyle = this.color;
+        ctx.lineWidth = 1.8;
+
+        // Expanding Energy Shield Ring
+        ctx.beginPath();
+        ctx.arc(0, 0, shieldScale, 0, Math.PI * 2);
+        ctx.stroke();
+
+        // Inner Triangle Rotor
+        ctx.save();
+        ctx.rotate(-this.timer * 2);
+        ctx.fillStyle = '#05070f';
+        ctx.beginPath();
+        for (let i = 0; i < 3; i++) {
+          const a = (i * 2 * Math.PI) / 3;
+          const px = Math.cos(a) * 12;
+          const py = Math.sin(a) * 12;
+          if (i === 0) ctx.moveTo(px, py);
+          else ctx.lineTo(px, py);
+        }
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        ctx.restore();
+
+        // Radiant Core
+        ctx.fillStyle = this.color;
+        ctx.beginPath();
+        ctx.arc(0, 0, 4.5, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = '#fff';
+        ctx.beginPath();
+        ctx.arc(1, -1, 1.5, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.restore();
+      }
+    }
+
+    // ── Progressive Level & Difficulty Engine ─────────────────────────────────
+
+    function getDifficulty(currentScore) {
+      // Level thresholds:
+      // Level 1: 0 - 99   (Cyber Ground - 0 monsters, minimal platform gaps)
+      // Level 2: 100 - 199 (Neon Ascent - Sentinels only, low gaps)
+      // Level 3: 200 - 299 (Cyber Matrix - Patrols & Breaking platforms)
+      // Level 4: 300 - 499 (Plasma Heights - Waves & Orbs)
+      // Level 5: 500+     (Cyber God MAX - Full frenzy)
+
+      let level = 1;
+      let levelName = 'STAGE 1';
+      let sectorName = 'CYBER GROUND';
+      let badgeColor = '#4ade80';
+      let gapMin = 40;
+      let gapMax = 52;
+      let movingChance = 0.0;
+      let breakingChance = 0.0;
+      let springChance = 0.15;
+      let monsterChance = 0.0; // Stage 1 has NO monsters!
+
+      if (currentScore >= 500) {
+        level = 5;
+        levelName = 'CYBER GOD (MAX)';
+        sectorName = 'HYPER VOID';
+        badgeColor = '#ffd358';
+        gapMin = 78;
+        gapMax = 96;
+        movingChance = 0.45;
+        breakingChance = 0.35;
+        springChance = 0.06;
+        monsterChance = 0.16;
+      } else if (currentScore >= 300) {
+        level = 4;
+        levelName = 'STAGE 4';
+        sectorName = 'PLASMA HEIGHTS';
+        badgeColor = '#ff007f';
+        gapMin = 68;
+        gapMax = 86;
+        movingChance = 0.36;
+        breakingChance = 0.28;
+        springChance = 0.07;
+        monsterChance = 0.13;
+      } else if (currentScore >= 200) {
+        level = 3;
+        levelName = 'STAGE 3';
+        sectorName = 'CYBER MATRIX';
+        badgeColor = '#a78bfa';
+        gapMin = 58;
+        gapMax = 74;
+        movingChance = 0.26;
+        breakingChance = 0.18;
+        springChance = 0.08;
+        monsterChance = 0.10;
+      } else if (currentScore >= 100) {
+        level = 2;
+        levelName = 'STAGE 2';
+        sectorName = 'NEON ASCENT';
+        badgeColor = '#00f2fe';
+        gapMin = 48;
+        gapMax = 64;
+        movingChance = 0.16;
+        breakingChance = 0.0;
+        springChance = 0.10;
+        monsterChance = 0.07;
+      }
+
+      return {
+        level,
+        levelName,
+        sectorName,
+        badgeColor,
+        gapMin,
+        gapMax,
+        movingChance,
+        breakingChance,
+        springChance,
+        monsterChance
+      };
     }
 
     // Particle FX
@@ -1212,13 +1686,17 @@
       platforms = [];
       particles = [];
       shardParticles = [];
+      floatingTexts = [];
       monsters = [];
       score = 0;
+      currentLevel = 1;
+      levelBanner = null;
       cameraY = 0;
       touchX = null;
       keys = { left: false, right: false };
       roundStartTime = Date.now();
       totalJumps = 0;
+      platformIdCounter = 0;
 
       // Initialize background stars
       backgroundStars = [];
@@ -1233,65 +1711,122 @@
       }
 
       // Initial Platform directly below player
-      platforms.push(new NeonPlatform(canvas.width / 2 - 28, canvas.height - 60, 'normal'));
+      const basePlatform = new NeonPlatform(++platformIdCounter, canvas.width / 2 - 29, canvas.height - 60, 'normal', false);
+      basePlatform.passed = true;
+      platforms.push(basePlatform);
 
-      // Generate spaced initial platforms
-      let currentY = canvas.height - 130;
+      // Generate spaced initial platforms (Level 1 spacing)
+      let currentY = canvas.height - 110;
+      const diff = getDifficulty(0);
       while (currentY > 0) {
         spawnPlatformAtY(currentY);
-        currentY -= Math.floor(Math.random() * 32) + 56;
+        currentY -= Math.floor(Math.random() * (diff.gapMax - diff.gapMin)) + diff.gapMin;
       }
     }
 
     function spawnPlatformAtY(y) {
-      const x = Math.random() * (canvas.width - 64) + 4;
+      const diff = getDifficulty(score);
+      const x = Math.random() * (canvas.width - 68) + 5;
       const rand = Math.random();
       let type = 'normal';
 
-      if (score > 12000) {
-        if (rand < 0.35) type = 'moving';
-        else if (rand < 0.55) type = 'breaking';
-      } else if (score > 5000) {
-        if (rand < 0.25) type = 'moving';
-        else if (rand < 0.40) type = 'breaking';
-      } else if (score > 1500) {
-        if (rand < 0.15) type = 'moving';
-        else if (rand < 0.25) type = 'breaking';
+      if (rand < diff.movingChance) {
+        type = 'moving';
+      } else if (rand < diff.movingChance + diff.breakingChance) {
+        type = 'breaking';
       }
 
-      platforms.push(new NeonPlatform(x, y, type));
+      const hasSpring = type === 'normal' && Math.random() < diff.springChance;
+      const platform = new NeonPlatform(++platformIdCounter, x, y, type, hasSpring);
+      platforms.push(platform);
 
-      // Trigger alien drone sentry at higher tiers
-      if (score > 3000 && Math.random() < 0.08 && monsters.length < 2) {
-        monsters.push(new CyberDrone(x + 20, y - 45));
+      // Monster Generation based on current stage
+      if (diff.monsterChance > 0 && Math.random() < diff.monsterChance && monsters.length < 3) {
+        let monster = null;
+        if (diff.level === 2) {
+          // Stage 2: Stationary Sentinel standing on / above platform
+          monster = new StationarySentinel(x + platform.width / 2, y - 22);
+        } else if (diff.level === 3) {
+          // Stage 3: Sentinel or Patrol Drone
+          if (Math.random() < 0.5) {
+            monster = new StationarySentinel(x + platform.width / 2, y - 22);
+          } else {
+            monster = new PatrolDrone(x + 20, y - 45, 1.5);
+          }
+        } else if (diff.level === 4) {
+          // Stage 4: Sentinel, Patrol, Waving, or Phase
+          const r = Math.random();
+          if (r < 0.25) monster = new StationarySentinel(x + platform.width / 2, y - 22);
+          else if (r < 0.5) monster = new PatrolDrone(x + 20, y - 45, 1.8);
+          else if (r < 0.75) monster = new WavingDrone(x + 20, y - 45, 1.4);
+          else monster = new PhaseOrb(x + 20, y - 45);
+        } else {
+          // Stage 5: All types, high speed
+          const r = Math.random();
+          if (r < 0.2) monster = new StationarySentinel(x + platform.width / 2, y - 22);
+          else if (r < 0.5) monster = new PatrolDrone(x + 20, y - 45, 2.2);
+          else if (r < 0.75) monster = new WavingDrone(x + 20, y - 45, 1.8);
+          else monster = new PhaseOrb(x + 20, y - 45);
+        }
+
+        if (monster) {
+          monsters.push(monster);
+        }
       }
     }
 
     function update() {
       player.update();
 
+      // Check Level / Stage Progression
+      const diff = getDifficulty(score);
+      if (diff.level > currentLevel) {
+        currentLevel = diff.level;
+        levelBanner = {
+          title: diff.levelName,
+          subtitle: diff.sectorName,
+          color: diff.badgeColor,
+          timer: 120
+        };
+        soundManager.playLevelUp();
+      }
+
       // Camera Y tracking
       if (player.y < canvas.height / 2) {
-        const diff = canvas.height / 2 - player.y;
+        const delta = canvas.height / 2 - player.y;
         player.y = canvas.height / 2;
-        cameraY += diff;
-        score += Math.round(diff);
+        cameraY += delta;
 
         // Move all entities down relative to camera
-        platforms.forEach(p => (p.y += diff));
-        monsters.forEach(m => (m.y += diff));
-        particles.forEach(part => (part.y += diff));
-        shardParticles.forEach(sp => (sp.y += diff));
+        platforms.forEach(p => {
+          p.y += delta;
+        });
+        monsters.forEach(m => {
+          m.y += delta;
+          if (m.baseY !== undefined) m.baseY += delta;
+        });
+        particles.forEach(part => (part.y += delta));
+        shardParticles.forEach(sp => (sp.y += delta));
+        floatingTexts.forEach(ft => (ft.y += delta));
 
         // Parallax stars scroll
         backgroundStars.forEach(s => {
-          s.y = (s.y + diff * s.speed) % canvas.height;
+          s.y = (s.y + delta * s.speed) % canvas.height;
         });
       }
 
+      // Scoring: Passing a platform gives +1 point
+      platforms.forEach(p => {
+        if (!p.passed && (player.y + player.height) < p.y && p.y <= canvas.height + 20) {
+          p.passed = true;
+          score += 1;
+          floatingTexts.push(new FloatingText(p.x + p.width / 2, p.y - 8, '+1', '#00f2fe', 12));
+        }
+      });
+
       // Filter off-screen platforms and generate top replacements
-      platforms = platforms.filter(p => p.y < canvas.height + 10);
-      monsters = monsters.filter(m => m.y < canvas.height + 60);
+      platforms = platforms.filter(p => p.y < canvas.height + 20);
+      monsters = monsters.filter(m => m.y < canvas.height + 60 && m.alive);
 
       let highestY = canvas.height;
       platforms.forEach(p => {
@@ -1299,7 +1834,8 @@
       });
 
       if (highestY > 0) {
-        const nextY = highestY - (Math.floor(Math.random() * 32) + 58);
+        const gap = Math.floor(Math.random() * (diff.gapMax - diff.gapMin)) + diff.gapMin;
+        const nextY = highestY - gap;
         spawnPlatformAtY(nextY);
       }
 
@@ -1307,14 +1843,21 @@
       platforms.forEach(p => p.update());
       monsters.forEach(m => m.update());
 
-      // Update particles
+      // Update particles & floating texts
       particles.forEach(p => p.update());
       particles = particles.filter(p => p.alpha > 0);
 
       shardParticles.forEach(sp => sp.update());
       shardParticles = shardParticles.filter(sp => sp.alpha > 0);
 
-      // Collision checks (Only when descending)
+      floatingTexts.forEach(ft => ft.update());
+      floatingTexts = floatingTexts.filter(ft => ft.alpha > 0);
+
+      if (levelBanner && levelBanner.timer > 0) {
+        levelBanner.timer--;
+      }
+
+      // Collision checks (Only when player is descending)
       if (player.vy > 0) {
         platforms.forEach(p => {
           if (
@@ -1331,9 +1874,9 @@
               player.vy = JUMP_STRENGTH;
               spawnPlatformShards(p.x, p.y, p.width, '#ff007f');
               soundManager.playCrack();
-            } else if (p.hasSpring) {
+            } else if (p.spring && p.spring.state === 'idle') {
+              p.spring.trigger();
               player.vy = SPRING_BOOST;
-              p.hasSpring = false; // consume booster spring
               spawnBurst(player.x + player.width / 2, player.y + player.height, '#ffd358', 25);
               soundManager.playSpring();
             } else {
@@ -1345,19 +1888,39 @@
         });
       }
 
-      // Monster drone collision check
+      // Monster collision check (including Stomp from above)
       monsters.forEach(m => {
-        const dx = player.x + player.width / 2 - m.x;
-        const dy = player.y + player.height / 2 - m.y;
+        if (!m.alive) return;
+        const pCenterX = player.x + player.width / 2;
+        const pCenterY = player.y + player.height / 2;
+        const dx = pCenterX - m.x;
+        const dy = pCenterY - m.y;
         const dist = Math.sqrt(dx * dx + dy * dy);
 
+        // Stomp mechanic: falling from above onto monster defeats it
+        if (
+          player.vy > 0 &&
+          (player.y + player.height) <= m.y + 8 &&
+          (player.y + player.height) >= m.y - m.radius - 8 &&
+          Math.abs(dx) < m.radius + 10
+        ) {
+          m.alive = false;
+          player.vy = JUMP_STRENGTH;
+          score += 2;
+          floatingTexts.push(new FloatingText(m.x, m.y - 12, '+2 STOMP!', '#39ff14', 13));
+          spawnBurst(m.x, m.y, m.color || '#ff007f', 24);
+          soundManager.playBounce();
+          return;
+        }
+
+        // Lethal body contact
         if (dist < m.radius + player.width / 2 - 4) {
           soundManager.playMonsterHit();
           triggerGameOver();
         }
       });
 
-      // Death condition (fell off screen)
+      // Death condition (fell off bottom screen)
       if (player.y > canvas.height + 60) {
         triggerGameOver();
       }
@@ -1396,12 +1959,44 @@
 
       // Draw game elements
       platforms.forEach(p => p.draw());
-      monsters.forEach(m => m.draw());
+      monsters.forEach(m => { if (m.alive) m.draw(); });
       particles.forEach(p => p.draw());
       shardParticles.forEach(sp => sp.draw());
+      floatingTexts.forEach(ft => ft.draw());
       player.draw();
 
+      // Draw Level-Up Banner if active
+      if (levelBanner && levelBanner.timer > 0) {
+        ctx.save();
+        const bannerAlpha = Math.min(1.0, levelBanner.timer / 25);
+        ctx.globalAlpha = bannerAlpha;
+        ctx.textAlign = 'center';
+        
+        // Dark translucent banner backdrop
+        ctx.fillStyle = 'rgba(5, 7, 15, 0.85)';
+        ctx.fillRect(0, canvas.height / 2 - 38, canvas.width, 76);
+        ctx.strokeStyle = levelBanner.color;
+        ctx.lineWidth = 1.5;
+        ctx.strokeRect(0, canvas.height / 2 - 38, canvas.width, 76);
+
+        // Title & Sector
+        ctx.shadowBlur = 16;
+        ctx.shadowColor = levelBanner.color;
+        ctx.fillStyle = levelBanner.color;
+        ctx.font = '900 20px "Outfit", monospace';
+        ctx.letterSpacing = '2px';
+        ctx.fillText(levelBanner.title, canvas.width / 2, canvas.height / 2 - 4);
+
+        ctx.shadowBlur = 8;
+        ctx.fillStyle = '#fff';
+        ctx.font = '700 11px "Outfit", monospace';
+        ctx.letterSpacing = '3px';
+        ctx.fillText(levelBanner.subtitle, canvas.width / 2, canvas.height / 2 + 20);
+        ctx.restore();
+      }
+
       // Top Centered Glowing Score HUD
+      const diff = getDifficulty(score);
       const displayHighscore = Math.max(savedHighscore, score);
       const isNewRecord = score > savedHighscore && savedHighscore > 0;
 
@@ -1416,22 +2011,22 @@
         ctx.font = isNewRecord ? '800 11px "Outfit", monospace' : '700 10px "Outfit", monospace';
         ctx.letterSpacing = '0.5px';
         const hsPrefix = isNewRecord ? '🔥 Highscore: ' : '🏆 Highscore: ';
-        ctx.fillText(`${hsPrefix}${displayHighscore.toLocaleString()}`, canvas.width / 2, 22);
+        ctx.fillText(`${hsPrefix}${displayHighscore.toLocaleString()}`, canvas.width / 2, 20);
       }
 
-      // 2. Live Altitude Score
+      // 2. Live Platform Score
       ctx.fillStyle = '#00f2fe';
-      ctx.font = '900 26px "Outfit", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+      ctx.font = '900 28px "Outfit", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
       ctx.shadowBlur = 12;
       ctx.shadowColor = 'rgba(0, 242, 254, 0.5)';
-      ctx.fillText(score.toLocaleString(), canvas.width / 2, 50);
+      ctx.fillText(score.toLocaleString(), canvas.width / 2, 48);
 
-      // 3. Sub-label for altitude
+      // 3. Stage Level Badge (matching Neon Bird design language)
       ctx.shadowBlur = 0;
-      ctx.fillStyle = 'rgba(156, 163, 175, 0.6)';
-      ctx.font = '600 9px "Outfit", monospace';
+      ctx.fillStyle = diff.badgeColor;
+      ctx.font = '700 9px "Outfit", monospace';
       ctx.letterSpacing = '1px';
-      ctx.fillText('ALTITUDE', canvas.width / 2, 65);
+      ctx.fillText(`${diff.levelName} • ${diff.sectorName}`, canvas.width / 2, 63);
       ctx.restore();
     }
 
@@ -1467,8 +2062,9 @@
     function getSecurityPayload() {
       const roundDuration = (Date.now() - roundStartTime) / 1000;
       return {
+        platformsPassed: score,
         maxHeight: Math.round(cameraY),
-        gameCode: 'doodlejump_neon_v1',
+        gameCode: 'doodlejump_neon_v2',
         jumpCount: totalJumps,
         durationSeconds: roundDuration
       };
@@ -1517,28 +2113,45 @@
 
     // Touch & Mouse click boundaries (Left/Right half inputs)
     function handleStartInput(e) {
+      if (e && e.cancelable) {
+        e.preventDefault();
+      }
       if (gameState !== 'playing') return;
-      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      const clientX = (e && e.touches && e.touches.length > 0) ? e.touches[0].clientX : (e ? e.clientX : null);
+      if (clientX === null || clientX === undefined) return;
       const rect = canvas.getBoundingClientRect();
       const relativeX = clientX - rect.left;
       touchX = (relativeX / rect.width) * canvas.width;
     }
 
-    function handleEndInput() {
+    function handleEndInput(e) {
+      if (e && e.cancelable) {
+        e.preventDefault();
+      }
       touchX = null;
     }
 
     // Mouse events
     canvas.addEventListener('mousedown', handleStartInput);
     canvas.addEventListener('mousemove', e => {
-      if (touchX !== null) handleStartInput(e);
+      if (touchX !== null) {
+        handleStartInput(e);
+      }
     });
     window.addEventListener('mouseup', handleEndInput);
 
-    // Touch events
-    canvas.addEventListener('touchstart', handleStartInput);
-    canvas.addEventListener('touchmove', handleStartInput);
-    window.addEventListener('touchend', handleEndInput);
+    // Touch events (passive: false ensures preventDefault works to block native context/copy menus)
+    canvas.addEventListener('touchstart', handleStartInput, { passive: false });
+    canvas.addEventListener('touchmove', handleStartInput, { passive: false });
+    window.addEventListener('touchend', handleEndInput, { passive: false });
+    window.addEventListener('touchcancel', handleEndInput, { passive: false });
+
+    // Prevent native context menu & text selection popups on long press
+    window.addEventListener('contextmenu', e => e.preventDefault());
+    document.addEventListener('contextmenu', e => e.preventDefault());
+    canvas.addEventListener('contextmenu', e => e.preventDefault());
+    window.addEventListener('selectstart', e => e.preventDefault());
+    document.addEventListener('selectstart', e => e.preventDefault());
 
     // Button interactions
     startBtn.addEventListener('click', () => {
