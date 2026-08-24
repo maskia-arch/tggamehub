@@ -352,6 +352,8 @@ export const translations = {
       reviveSecRemaining: 'Noch {sec}s',
       reviveUnlocked: 'Wiederbelebung freigeschaltet! 🛡️',
       reviveReady: 'Bereit machen!',
+      reviveReadySub: 'Klicke auf den Button, um das Spiel fortzusetzen.',
+      reviveContinueBtn: '🚀 Spiel fortsetzen',
       reviveCountdownGo: 'LOS!',
       items: {
         doodlejump: {
@@ -728,6 +730,8 @@ export const translations = {
       reviveSecRemaining: '{sec}s remaining',
       reviveUnlocked: 'Revival Unlocked! 🛡️',
       reviveReady: 'Get Ready!',
+      reviveReadySub: 'Tap the button to continue your game.',
+      reviveContinueBtn: '🚀 Continue Game',
       reviveCountdownGo: 'GO!',
       items: {
         doodlejump: {
