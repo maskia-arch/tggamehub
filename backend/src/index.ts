@@ -54,6 +54,39 @@ const serveAdminDashboard = (_req: express.Request, res: express.Response) => {
 app.get('/admin', adminAuth, serveAdminDashboard);
 app.get('/admin-dashboard', adminAuth, serveAdminDashboard);
 
+// ── Game Dev Studio HTML (served at /dev/studio and /dev-studio) ─────────────
+const devStudioPath = path.join(__dirname, '../src/dev-studio.html');
+const devStudioFallback = path.join(__dirname, 'dev-studio.html');
+
+const serveDevStudio = (_req: express.Request, res: express.Response) => {
+  const htmlPath = fs.existsSync(devStudioFallback) ? devStudioFallback : devStudioPath;
+  if (!fs.existsSync(htmlPath)) {
+    res.status(404).send('Game Dev Studio HTML not found.');
+    return;
+  }
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+  res.sendFile(htmlPath);
+};
+
+app.get('/dev/studio', serveDevStudio);
+app.get('/dev-studio', serveDevStudio);
+
+// Direct Games Static Serving (for live dev testing in sandbox iframe)
+const possibleGamesPaths = [
+  path.join(__dirname, '../../frontend/public/games'),
+  path.join(process.cwd(), 'frontend/public/games'),
+  path.join(__dirname, '../frontend/dist/games'),
+  path.join(process.cwd(), 'frontend/dist/games'),
+];
+const gamesStaticPath = possibleGamesPaths.find((p) => fs.existsSync(p));
+if (gamesStaticPath) {
+  app.use('/games', (_req, res, next) => {
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    next();
+  }, express.static(gamesStaticPath));
+}
+
 // Register api router
 app.use('/api', routes);
 

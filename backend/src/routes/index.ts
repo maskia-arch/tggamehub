@@ -2,8 +2,8 @@ import { Router, Request, Response } from 'express';
 import { authMiddleware } from '../middleware/auth';
 import { adminAuth } from '../middleware/adminAuth';
 import { getProfile, addEnergyAd, updateDisplayName, updateWalletAddresses, scheduleAccountDeletion, cancelAccountDeletion, claimDailyFreeRefill } from '../controllers/user';
-import { startGame, submitScore, getGameBenchmark, getAllGameBenchmarks } from '../controllers/game';
-import { getLeaderboard } from '../controllers/leaderboard';
+import { startGame, submitScore, getGameBenchmark, getAllGameBenchmarks, getGamesCatalog, updateGameStatusHandler, createDevSandboxToken } from '../controllers/game';
+import { getLeaderboard, getGamesList, getGameLeaderboardHandler, getSeasonLeaderboardHandler } from '../controllers/leaderboard';
 import {
   getAdminStats,
   getAdminUsers,
@@ -78,13 +78,21 @@ router.get('/season/info', async (_req: Request, res: Response) => {
   }
 });
 
-// Game execution endpoints (secured)
+// Game execution & catalog endpoints
+router.get('/games/catalog', getGamesCatalog);
 router.post('/game/start', authMiddleware, startGame);
 router.post('/game/score', authMiddleware, submitScore);
 router.get('/game/benchmarks', authMiddleware, getAllGameBenchmarks);
 router.get('/game/benchmark/:gameId', authMiddleware, getGameBenchmark);
 
-// Leaderboard endpoint (secured to prevent scraping by non-users)
+// Local Dev Studio Game Management & Sandbox Endpoints
+router.post('/dev/games/status', updateGameStatusHandler);
+router.post('/dev/game/sandbox-token', createDevSandboxToken);
+
+// Leaderboard endpoints (modular Two-Pillar architecture)
+router.get('/leaderboard/games', authMiddleware, getGamesList);
+router.get('/leaderboard/game/:gameId', authMiddleware, getGameLeaderboardHandler);
+router.get('/leaderboard/season', authMiddleware, getSeasonLeaderboardHandler);
 router.get('/leaderboard', authMiddleware, getLeaderboard);
 
 // Market / Börse endpoints (secured)

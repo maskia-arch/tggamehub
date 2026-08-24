@@ -14,6 +14,8 @@ interface Game {
   preview?: string;
   targetScore: number;
   coinSymbol: string;
+  status?: 'active' | 'maintenance' | 'hidden' | 'coming_soon';
+  maintenanceMessage?: string | null;
   hidden?: boolean;
 }
 
@@ -120,7 +122,26 @@ export function GameWrapper({
     }
   ];
 
-  const visibleGames = gamesList.filter(game => !game.hidden);
+  const [games, setGames] = useState<Game[]>(gamesList);
+
+  useEffect(() => {
+    async function loadCatalog() {
+      try {
+        const res = await fetch(`${backendUrl}/api/games/catalog`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.games && data.games.length > 0) {
+            setGames(data.games);
+          }
+        }
+      } catch (e) {
+        // Fallback to default gamesList
+      }
+    }
+    loadCatalog();
+  }, [backendUrl]);
+
+  const visibleGames = games.filter(game => game.status !== 'hidden' && !game.hidden);
 
   const handleCloseGame = useCallback(() => {
     setIsPlaying(false);
@@ -351,10 +372,22 @@ export function GameWrapper({
                     }}>
                       {game.icon}
                     </div>
-                    <div>
-                      <h3 style={{ fontSize: '17px', fontWeight: 900, color: '#fff', margin: 0 }}>
-                        {t.games.items[game.id as keyof typeof t.games.items]?.title || game.title}
-                      </h3>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px' }}>
+                        <h3 style={{ fontSize: '17px', fontWeight: 900, color: '#fff', margin: 0 }}>
+                          {t.games.items[game.id as keyof typeof t.games.items]?.title || game.title}
+                        </h3>
+                        {game.status === 'maintenance' && (
+                          <span style={{ fontSize: '9px', fontWeight: 900, color: '#fbbf24', background: 'rgba(251,191,36,0.15)', border: '1px solid rgba(251,191,36,0.35)', borderRadius: '6px', padding: '2px 6px' }}>
+                            ⚠️ Wartung
+                          </span>
+                        )}
+                        {game.status === 'coming_soon' && (
+                          <span style={{ fontSize: '9px', fontWeight: 900, color: '#a78bfa', background: 'rgba(167,139,250,0.15)', border: '1px solid rgba(167,139,250,0.35)', borderRadius: '6px', padding: '2px 6px' }}>
+                            ⏳ In Kürze
+                          </span>
+                        )}
+                      </div>
                       <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                         {t.games.items[game.id as keyof typeof t.games.items]?.genre || game.genre}
                       </span>
@@ -364,6 +397,17 @@ export function GameWrapper({
                   <p style={{ margin: '0 0 12px', fontSize: '12px', color: 'rgba(255,255,255,0.5)', lineHeight: 1.5 }}>
                     {t.games.items[game.id as keyof typeof t.games.items]?.description || game.description}
                   </p>
+
+                  {/* Maintenance Notice Banner if present */}
+                  {game.status === 'maintenance' && game.maintenanceMessage && (
+                    <div style={{
+                      fontSize: '11px', fontWeight: 700, color: '#fbbf24',
+                      background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.25)',
+                      borderRadius: '10px', padding: '8px 12px', marginBottom: '12px', lineHeight: 1.4,
+                    }}>
+                      ⚠️ {game.maintenanceMessage}
+                    </div>
+                  )}
 
                   {/* Börsen Benchmark target badge */}
                   <div style={{
@@ -380,29 +424,139 @@ export function GameWrapper({
                     </span>
                   </div>
 
-                  {/* Play button */}
-                  <button
-                    onClick={() => handleStartGame(game)}
-                    style={{
-                      width: '100%', padding: '14px',
-                      background: 'linear-gradient(135deg, #00f2fe 0%, #4facfe 100%)',
-                      border: 'none', borderRadius: '14px',
-                      color: '#000', fontSize: '13px', fontWeight: 900,
-                      textTransform: 'uppercase', letterSpacing: '0.08em',
-                      cursor: 'pointer', boxShadow: '0 0 20px rgba(0,242,254,0.25)',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
-                      transition: 'all 0.2s',
-                    }}
-                  >
-                    <span>{t.games.playBtn}</span>
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '2px', marginLeft: '4px' }}>
-                      <span>-1</span>
-                      <Zap size={15} className="fill-black stroke-none" />
-                    </span>
-                  </button>
+                  {/* Play button or Status lock */}
+                  {game.status === 'maintenance' ? (
+                    <button
+                      disabled
+                      style={{
+                        width: '100%', padding: '14px',
+                        background: 'rgba(251, 191, 36, 0.1)',
+                        border: '1px solid rgba(251, 191, 36, 0.3)',
+                        borderRadius: '14px',
+                        color: '#fbbf24', fontSize: '13px', fontWeight: 900,
+                        textTransform: 'uppercase', letterSpacing: '0.08em',
+                        cursor: 'not-allowed',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
+                      }}
+                    >
+                      <span>🔒 Wartungsmodus</span>
+                    </button>
+                  ) : game.status === 'coming_soon' ? (
+                    <button
+                      disabled
+                      style={{
+                        width: '100%', padding: '14px',
+                        background: 'rgba(167, 139, 250, 0.1)',
+                        border: '1px solid rgba(167, 139, 250, 0.3)',
+                        borderRadius: '14px',
+                        color: '#a78bfa', fontSize: '13px', fontWeight: 900,
+                        textTransform: 'uppercase', letterSpacing: '0.08em',
+                        cursor: 'not-allowed',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
+                      }}
+                    >
+                      <span>🔒 Bald verfügbar</span>
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => handleStartGame(game)}
+                      style={{
+                        width: '100%', padding: '14px',
+                        background: 'linear-gradient(135deg, #00f2fe 0%, #4facfe 100%)',
+                        border: 'none', borderRadius: '14px',
+                        color: '#000', fontSize: '13px', fontWeight: 900,
+                        textTransform: 'uppercase', letterSpacing: '0.08em',
+                        cursor: 'pointer', boxShadow: '0 0 20px rgba(0,242,254,0.25)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
+                        transition: 'all 0.2s',
+                      }}
+                    >
+                      <span>{t.games.playBtn}</span>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '2px', marginLeft: '4px' }}>
+                        <span>-1</span>
+                        <Zap size={15} className="fill-black stroke-none" />
+                      </span>
+                    </button>
+                  )}
                 </div>
               </div>
             ))}
+
+            {/* ── Coming Soon Game Placeholder Card ── */}
+            <div
+              style={{
+                background: 'rgba(255, 255, 255, 0.02)',
+                border: '1px dashed rgba(255, 255, 255, 0.15)',
+                borderRadius: '24px',
+                padding: '24px 20px',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                textAlign: 'center',
+                gap: '12px',
+                position: 'relative',
+                overflow: 'hidden',
+              }}
+            >
+              <div
+                style={{
+                  width: '52px',
+                  height: '52px',
+                  borderRadius: '16px',
+                  background: 'rgba(255, 255, 255, 0.04)',
+                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '24px',
+                }}
+              >
+                ⏳
+              </div>
+
+              <div>
+                <span
+                  style={{
+                    fontSize: '10px',
+                    fontWeight: 900,
+                    color: '#fbbf24',
+                    background: 'rgba(251, 191, 36, 0.12)',
+                    border: '1px solid rgba(251, 191, 36, 0.3)',
+                    borderRadius: '9999px',
+                    padding: '3px 10px',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.08em',
+                    display: 'inline-block',
+                    marginBottom: '8px',
+                  }}
+                >
+                  In Entwicklung • Coming Soon
+                </span>
+                <h3 style={{ fontSize: '16px', fontWeight: 900, color: '#fff', margin: 0 }}>
+                  Weitere Minigames in Arbeit
+                </h3>
+                <p style={{ margin: '6px 0 0', fontSize: '12px', color: 'rgba(255,255,255,0.4)', lineHeight: 1.5, maxWidth: '280px' }}>
+                  Crossy Neon Road 🐔, Neon Stacking 🧱 und weitere Arcade-Hits folgen in Kürze mit eigenen Token & Highscores!
+                </p>
+              </div>
+
+              <div
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  borderRadius: '14px',
+                  background: 'rgba(255, 255, 255, 0.03)',
+                  border: '1px solid rgba(255, 255, 255, 0.06)',
+                  color: 'rgba(255, 255, 255, 0.3)',
+                  fontSize: '12px',
+                  fontWeight: 800,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.06em',
+                }}
+              >
+                🔒 Bald verfügbar
+              </div>
+            </div>
           </div>
         </>
       )}

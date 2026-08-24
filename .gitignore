@@ -80,6 +80,7 @@ Desktop.ini
 
 # 8. Local Start & Automation Scripts
 start-*.bat
+start-game-dev*
 *.bat
 *.cmd
 *.ps1
@@ -96,5 +97,8 @@ LOKAL/
 *admin-dashboard*
 admin-dashboard.html
 **/admin-dashboard.html
+*dev-studio*
+dev-studio.html
+**/dev-studio.html
 
 

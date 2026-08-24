@@ -1,11 +1,12 @@
-import { Response } from 'express';
+import { Request, Response } from 'express';
 import { AuthenticatedRequest } from '../middleware/auth';
 import * as jwt from 'jsonwebtoken';
 import { config } from '../config';
 import db from '../database/client';
 import { consumeEnergy } from '../services/energy';
-import { submitScoreToLeaderboards } from '../services/redis';
 import { recordUserGameActivity } from '../services/seasonService';
+import { recordGameHighscore } from '../services/gameLeaderboardService';
+import { getDynamicGame, getDynamicGamesList, updateGameSettingsInDb, GameStatus } from '../config/games';
 
 interface GameSessionPayload {
   userId: string;
@@ -29,6 +30,24 @@ export async function startGame(req: AuthenticatedRequest, res: Response) {
     }
     if (!gameId) {
       return res.status(400).json({ error: 'gameId parameter is required' });
+    }
+
+    // Check live game status (Maintenance, Coming Soon, Hidden)
+    const gameConfig = await getDynamicGame(gameId);
+    if (!gameConfig) {
+      return res.status(404).json({ error: 'game_not_found', message: 'Spiel wurde nicht gefunden.' });
+    }
+    if (gameConfig.status === 'maintenance') {
+      return res.status(423).json({
+        error: 'game_in_maintenance',
+        message: gameConfig.maintenanceMessage || 'Dieses Spiel befindet sich derzeit im Wartungsmodus. Bitte versuche es später erneut.',
+      });
+    }
+    if (gameConfig.status === 'hidden') {
+      return res.status(403).json({ error: 'game_disabled', message: 'Dieses Spiel ist derzeit deaktiviert.' });
+    }
+    if (gameConfig.status === 'coming_soon') {
+      return res.status(403).json({ error: 'game_coming_soon', message: 'Dieses Spiel befindet sich noch in der Entwicklung.' });
     }
 
     // Guest users start immediately with a signed session token
@@ -207,15 +226,8 @@ export async function submitScore(req: AuthenticatedRequest, res: Response) {
         .increment('game_cash', earnedCash);
     }
 
-    // Check if user has VIP Pass for 1.25x InGame$ leaderboard multiplier
-    const user = await db('users').where({ id: userId }).first();
-    const isVip = user?.season_pass_type === 'VIP';
-    const leaderboardCash = isVip ? parseFloat((earnedCash * 1.25).toFixed(4)) : earnedCash;
-
-    // Write earned InGame$ to daily, weekly, and monthly leaderboards
-    if (leaderboardCash > 0) {
-      await submitScoreToLeaderboards(userId, leaderboardCash);
-    }
+    // Record game-specific Highscore across Daily, Weekly, Monthly, and All-Time leaderboards
+    await recordGameHighscore(userId, gameId, parsedScore);
 
     // Record activity round & net profit for active season (only if season is currently active)
     await recordUserGameActivity(userId, earnedCash);
@@ -298,3 +310,79 @@ export async function getAllGameBenchmarks(_req: AuthenticatedRequest, res: Resp
     return res.status(500).json({ error: 'Internal server error' });
   }
 }
+
+/**
+ * GET /api/games/catalog
+ * Returns all games with live status, maintenance message, target score for frontend hub
+ */
+export async function getGamesCatalog(_req: Request, res: Response) {
+  try {
+    const games = await getDynamicGamesList();
+    return res.json({
+      success: true,
+      games,
+    });
+  } catch (error) {
+    console.error('Error fetching games catalog:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+}
+
+/**
+ * POST /api/dev/games/status
+ * Updates game status (active, maintenance, hidden, coming_soon) & maintenance message
+ */
+export async function updateGameStatusHandler(req: Request, res: Response) {
+  try {
+    const { gameId, status, maintenanceMessage, targetScore } = req.body;
+    if (!gameId || !status) {
+      return res.status(400).json({ error: 'gameId and status are required' });
+    }
+    if (!['active', 'maintenance', 'hidden', 'coming_soon'].includes(status)) {
+      return res.status(400).json({ error: 'Invalid status value' });
+    }
+
+    const updated = await updateGameSettingsInDb(gameId, status as GameStatus, maintenanceMessage, targetScore);
+    return res.json({
+      success: true,
+      game: updated,
+      message: `Spiel ${updated.title} Status erfolgreich auf ${status.toUpperCase()} geändert.`,
+    });
+  } catch (error) {
+    console.error('Error updating game status:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+}
+
+/**
+ * POST /api/dev/game/sandbox-token
+ * Generates an unrestricted dev/sandbox token for testing in the Game Dev Studio
+ */
+export async function createDevSandboxToken(req: Request, res: Response) {
+  try {
+    const { gameId } = req.body;
+    if (!gameId) {
+      return res.status(400).json({ error: 'gameId is required' });
+    }
+
+    const payload: GameSessionPayload = {
+      userId: 'dev_sandbox_tester',
+      gameId,
+      startedAt: Date.now(),
+      sessionId: `dev_${Date.now()}`,
+    };
+
+    const token = jwt.sign(payload, config.jwtSecret, { expiresIn: '4h' });
+
+    return res.json({
+      success: true,
+      gameSessionToken: token,
+      gameId,
+      mode: 'sandbox_dev',
+    });
+  } catch (error) {
+    console.error('Error generating dev sandbox token:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+}
+
