@@ -33,7 +33,7 @@ export async function up(knex: Knex): Promise<void> {
       },
       {
         game_id: 'crossyneonroad',
-        status: 'coming_soon',
+        status: 'hidden',
         maintenance_message: 'Crossy Neon Road befindet sich aktuell im Feinschliff.',
         target_score: 40,
         created_at: now,
@@ -41,7 +41,7 @@ export async function up(knex: Knex): Promise<void> {
       },
       {
         game_id: 'neonstacking',
-        status: 'coming_soon',
+        status: 'hidden',
         maintenance_message: 'Neon Stacking wird aktuell für Touch-Steuerung optimiert.',
         target_score: 15,
         created_at: now,

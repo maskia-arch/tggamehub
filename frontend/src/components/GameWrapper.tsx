@@ -127,11 +127,20 @@ export function GameWrapper({
   useEffect(() => {
     async function loadCatalog() {
       try {
-        const res = await fetch(`${backendUrl}/api/games/catalog`);
+        const res = await fetch(`${backendUrl}/api/games/catalog?_t=${Date.now()}`);
         if (res.ok) {
           const data = await res.json();
           if (data.games && data.games.length > 0) {
-            setGames(data.games);
+            const merged = data.games.map((fromServer: any) => {
+              const fromLocal = gamesList.find((g) => g.id === fromServer.id);
+              return {
+                ...fromLocal,
+                ...fromServer,
+                preview: fromLocal?.preview || fromServer.preview,
+                description: fromLocal?.description || fromServer.description,
+              };
+            });
+            setGames(merged);
           }
         }
       } catch (e) {
@@ -141,7 +150,9 @@ export function GameWrapper({
     loadCatalog();
   }, [backendUrl]);
 
-  const visibleGames = games.filter(game => game.status !== 'hidden' && !game.hidden);
+  const visibleGames = games.filter(
+    (game) => (game.status === 'active' || game.status === 'maintenance') && !game.hidden
+  );
 
   const handleCloseGame = useCallback(() => {
     setIsPlaying(false);

@@ -10,6 +10,8 @@ export interface HubGameConfig {
   genre: string;
   icon: string;
   path: string;
+  preview?: string;
+  description?: string;
   scoreUnit: string;
   targetScore: number;
   coinSymbol: string;
@@ -25,9 +27,12 @@ export const BASE_HUB_GAMES: Omit<HubGameConfig, 'status' | 'maintenanceMessage'
     genre: 'Arcade / Jump',
     icon: '👾',
     path: '/games/doodlejump/index.html',
+    preview: '/images/neon_jump_preview.png',
+    description: 'Springe hoch, weiche Hindernissen aus. Tastatur & Touch.',
     scoreUnit: 'm',
     targetScore: 1500,
     coinSymbol: 'DOODLE',
+    hidden: false,
   },
   {
     id: 'neonbird',
@@ -35,9 +40,12 @@ export const BASE_HUB_GAMES: Omit<HubGameConfig, 'status' | 'maintenanceMessage'
     genre: 'Arcade / Flappy',
     icon: '🐦',
     path: '/games/neonbird/index.html',
+    preview: '/images/neon_bird_preview.png',
+    description: 'Fliege durch die Neon-Rohre und weiche Hindernissen aus. Leertaste & Touch.',
     scoreUnit: 'pts',
     targetScore: 25,
     coinSymbol: 'FLAPPY',
+    hidden: false,
   },
   {
     id: 'crossyneonroad',
@@ -45,6 +53,8 @@ export const BASE_HUB_GAMES: Omit<HubGameConfig, 'status' | 'maintenanceMessage'
     genre: 'Arcade / Casual',
     icon: '🐔',
     path: '/games/crossyneonroad/index.html',
+    preview: '/images/crossy_neon_road_preview.png',
+    description: 'Hilf dem Neon-Huhn, die Strassen und Fluesse zu ueberqueren. Sammle Leben & weiche Hindernissen aus!',
     scoreUnit: 'm',
     targetScore: 40,
     coinSymbol: 'CROSSY',
@@ -56,6 +66,8 @@ export const BASE_HUB_GAMES: Omit<HubGameConfig, 'status' | 'maintenanceMessage'
     genre: 'Arcade / Stacking',
     icon: '🧱',
     path: '/games/neonstacking/index.html',
+    preview: '/images/neon_stacking_preview.png',
+    description: 'Stapele die Neon-Bloecke so praezise wie moeglich! Schneide ueberstehende Kanten ab. Touch-optimiert.',
     scoreUnit: 'pts',
     targetScore: 15,
     coinSymbol: 'STACK',
@@ -65,7 +77,7 @@ export const BASE_HUB_GAMES: Omit<HubGameConfig, 'status' | 'maintenanceMessage'
 
 export const HUB_GAMES: HubGameConfig[] = BASE_HUB_GAMES.map((g) => ({
   ...g,
-  status: g.hidden ? 'coming_soon' : 'active',
+  status: g.hidden ? 'hidden' : 'active',
   maintenanceMessage: null,
 }));
 
@@ -101,6 +113,8 @@ function discoverFilesystemGames(): Omit<HubGameConfig, 'status' | 'maintenanceM
               genre: 'Arcade / Custom',
               icon: '🕹️',
               path: `/games/${dirName}/index.html`,
+              preview: `/images/${dirName}_preview.png`,
+              description: `Spiele ${formattedTitle} im CoinCade Hub!`,
               scoreUnit: 'pts',
               targetScore: 100,
               coinSymbol: dirName.substring(0, 5).toUpperCase(),
@@ -129,7 +143,7 @@ export async function getDynamicGamesList(): Promise<HubGameConfig[]> {
     if (!hasTable) {
       return allBaseGames.map((g) => ({
         ...g,
-        status: g.hidden ? 'coming_soon' : 'active',
+        status: g.hidden ? 'hidden' : 'active',
         maintenanceMessage: null,
       }));
     }
@@ -139,7 +153,7 @@ export async function getDynamicGamesList(): Promise<HubGameConfig[]> {
 
     return allBaseGames.map((base) => {
       const dbSetting = settingsMap.get(base.id);
-      const status: GameStatus = dbSetting?.status || (base.hidden ? 'coming_soon' : 'active');
+      const status: GameStatus = dbSetting?.status || (base.hidden ? 'hidden' : 'active');
       const maintenanceMessage = dbSetting?.maintenance_message || null;
       const targetScore = dbSetting?.target_score || base.targetScore;
 
@@ -155,7 +169,7 @@ export async function getDynamicGamesList(): Promise<HubGameConfig[]> {
     console.warn('[GAMES CONFIG] Database query note:', err);
     return allBaseGames.map((g) => ({
       ...g,
-      status: g.hidden ? 'coming_soon' : 'active',
+      status: g.hidden ? 'hidden' : 'active',
       maintenanceMessage: null,
     }));
   }
@@ -170,11 +184,11 @@ export async function getDynamicGame(gameId: string): Promise<HubGameConfig | un
 }
 
 /**
- * Returns only actively playable / visible games
+ * Returns only actively playable / visible games (active or maintenance)
  */
 export async function getActivePlayableGames(): Promise<HubGameConfig[]> {
   const all = await getDynamicGamesList();
-  return all.filter((g) => g.status === 'active' || g.status === 'maintenance' || g.status === 'coming_soon');
+  return all.filter((g) => g.status === 'active' || g.status === 'maintenance');
 }
 
 /**
@@ -230,5 +244,5 @@ export function getRegisteredGame(gameId: string): HubGameConfig | undefined {
 }
 
 export function getVisibleGames(): HubGameConfig[] {
-  return HUB_GAMES.filter((g) => !g.hidden);
+  return HUB_GAMES.filter((g) => !g.hidden && g.status !== 'hidden');
 }
