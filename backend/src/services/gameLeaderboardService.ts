@@ -418,3 +418,36 @@ export async function getRegisteredGamesList(onlyActive: boolean = true): Promis
   const all = await getDynamicGamesList();
   return onlyActive ? all.filter((g) => g.status === 'active') : all;
 }
+
+/**
+ * Completely resets all scores, highscores, and cached leaderboards for a given game ID
+ */
+export async function resetGameLeaderboardAndScores(gameId: string): Promise<{ deletedScores: number }> {
+  const gId = gameId.toLowerCase();
+
+  // 1. Delete all database scores
+  const deleted = await db('scores').where({ game_id: gId }).del();
+
+  // 2. Clear Redis cached keys
+  if (redis && isRedisConnected) {
+    try {
+      const keys = await redis.keys(`lb:game:${gId}:*`);
+      if (keys && keys.length > 0) {
+        await redis.del(...keys);
+      }
+    } catch (e) {
+      console.warn('[RESET GAME SCORES] Redis key deletion note:', e);
+    }
+  }
+
+  // 3. Clear In-Memory Emulator Map
+  for (const key of Array.from(memoryGameLeaderboards.keys())) {
+    if (key.includes(`:${gId}:`)) {
+      memoryGameLeaderboards.delete(key);
+    }
+  }
+
+  console.log(`[LEADERBOARD RESET]: Completely wiped ${deleted} scores and reset all leaderboards for ${gId}.`);
+  return { deletedScores: deleted };
+}
+

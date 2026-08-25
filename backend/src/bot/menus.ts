@@ -176,10 +176,10 @@ export async function buildMarketMenu(userId: string): Promise<MenuRenderResult>
   let totalInvestedCost = 0;
   let coinsText = '';
 
-  marketData.coins.forEach((c) => {
+  marketData.coins.forEach((c: any) => {
     const changeSign = c.change24hPercent >= 0 ? '📈 +' : '📉 ';
     const changeStr = `${changeSign}${c.change24hPercent.toFixed(2)}%`;
-    const userHolding = marketData.portfolio.find((p) => p.coinSymbol === c.symbol);
+    const userHolding = marketData.portfolio.find((p: any) => p.coinSymbol === c.symbol);
     const holdingAmount = userHolding ? userHolding.amount : 0;
     const avgBuyPrice = userHolding ? userHolding.avgBuyPrice : 0;
     const priceFormatted = formatBotPrice(c.currentPrice);

@@ -90,17 +90,13 @@ export async function runAutoMigrations(knex: Knex): Promise<void> {
       console.log('[DATABASE AUTO-SYNC]: Created scores table.');
     }
 
-    // Prune legacy altitude scores (>800 pts or v1 code) for doodlejump to ensure clean AMM dynamic benchmarks & market impulses
+    // Reset all legacy highscores for doodlejump (Neon Jump) to provide a fresh, clean leaderboard
     try {
-      const deletedLegacy = await knex('scores')
+      const deletedDoodle = await knex('scores')
         .where({ game_id: 'doodlejump' })
-        .where(function () {
-          this.where('score', '>', 800)
-            .orWhere('validation_payload', 'like', '%doodlejump_neon_v1%');
-        })
         .del();
-      if (deletedLegacy > 0) {
-        console.log(`[DATABASE AUTO-SYNC]: Pruned ${deletedLegacy} legacy altitude scores for doodlejump to protect AMM Market Engine.`);
+      if (deletedDoodle > 0) {
+        console.log(`[DATABASE AUTO-SYNC]: Reset ${deletedDoodle} legacy scores and wiped leaderboard for Neon Jump (doodlejump).`);
       }
     } catch {
       // Ignored
