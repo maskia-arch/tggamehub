@@ -412,9 +412,15 @@ export async function runAutoMigrations(knex: Knex): Promise<void> {
         table.string('coin_symbol').notNullable();
         table.float('amount').defaultTo(0.0);
         table.float('avg_buy_price').defaultTo(0.0);
+        table.float('total_invested').defaultTo(0.0);
+        table.timestamp('created_at').defaultTo(knex.fn.now());
         table.timestamp('updated_at').defaultTo(knex.fn.now());
       });
       console.log('[DATABASE AUTO-SYNC]: Created user_portfolios table.');
+    } else {
+      await ensureColumn(knex, 'user_portfolios', 'total_invested', (t) => t.float('total_invested').defaultTo(0.0));
+      await ensureColumn(knex, 'user_portfolios', 'created_at', (t) => t.timestamp('created_at').defaultTo(knex.fn.now()));
+      await ensureColumn(knex, 'user_portfolios', 'updated_at', (t) => t.timestamp('updated_at').defaultTo(knex.fn.now()));
     }
 
     // ── Table: USER_TRADES ────────────────────────────────────────────────────
@@ -435,6 +441,24 @@ export async function runAutoMigrations(knex: Knex): Promise<void> {
       console.log('[DATABASE AUTO-SYNC]: Created user_trades table.');
     } else {
       await ensureColumn(knex, 'user_trades', 'price_impact_percent', (t) => t.float('price_impact_percent').defaultTo(0.0));
+    }
+
+    // ── Table: MARKET_TRADES (Compatibility Alias Table) ──────────────────────
+    const hasMarketTrades = await knex.schema.hasTable('market_trades');
+    if (!hasMarketTrades) {
+      await knex.schema.createTable('market_trades', (table) => {
+        table.increments('id').primary();
+        table.string('user_id').notNullable();
+        table.string('coin_symbol').notNullable();
+        table.string('trade_type').notNullable();
+        table.float('amount_cash').defaultTo(0.0);
+        table.float('amount_tokens').defaultTo(0.0);
+        table.float('execution_price').defaultTo(0.0);
+        table.float('gas_fee').defaultTo(0.0);
+        table.float('price_impact_percent').defaultTo(0.0);
+        table.timestamp('created_at').defaultTo(knex.fn.now());
+      });
+      console.log('[DATABASE AUTO-SYNC]: Created market_trades compatibility table.');
     }
 
     // ── Table: MARKET_PRICE_HISTORY ───────────────────────────────────────────

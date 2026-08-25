@@ -20,7 +20,10 @@ import {
   settleAdminSeason,
   getAirdropPayouts,
   confirmAirdropPayout,
-  resetDatabaseDangerZone
+  resetDatabaseDangerZone,
+  getAdminLeaderboards,
+  resetAdminGameLeaderboard,
+  resetAdminAllLeaderboards
 } from '../controllers/admin';
 
 import {
@@ -133,6 +136,10 @@ router.post('/admin/season/start', adminAuth, startAdminSeason);
 router.post('/admin/season/settle', adminAuth, settleAdminSeason);
 router.get('/admin/airdrop-payouts', adminAuth, getAirdropPayouts);
 router.post('/admin/airdrop-payouts/confirm', adminAuth, confirmAirdropPayout);
+router.get('/admin/leaderboards', adminAuth, getAdminLeaderboards);
+router.get('/admin/leaderboard/overview', adminAuth, getAdminLeaderboards);
+router.post('/admin/leaderboard/:gameId/reset', adminAuth, resetAdminGameLeaderboard);
+router.post('/admin/leaderboard/reset-all', adminAuth, resetAdminAllLeaderboards);
 router.post('/admin/danger/reset-database', adminAuth, resetDatabaseDangerZone);
 
 export default router;

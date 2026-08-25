@@ -4,6 +4,8 @@ import { submitScoreToLeaderboards, resetLeaderboardCache } from '../services/re
 import { config } from '../config';
 import * as crypto from 'crypto';
 import { recycleExpiredOrders } from './shop';
+import { getDynamicGamesList } from '../config/games';
+import { resetGameLeaderboardAndScores } from '../services/gameLeaderboardService';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // GET /api/admin/stats  — main overview stats
@@ -931,3 +933,131 @@ export async function getAdminUserLogs(req: Request, res: Response) {
     return res.status(500).json({ error: 'Fehler beim Laden der Spieler-Logs', detail: error.message });
   }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GET /api/admin/leaderboard/overview — List all games with highscore stats
+// ─────────────────────────────────────────────────────────────────────────────
+export async function getAdminLeaderboards(_req: Request, res: Response) {
+  try {
+    const allGames = await getDynamicGamesList();
+    const hasScoresTable = await db.schema.hasTable('scores');
+
+    let gameStatsMap: Record<string, { totalScores: number; uniquePlayers: number; highestScore: number; latestScoreAt: string | null }> = {};
+
+    if (hasScoresTable) {
+      try {
+        const rows = await db('scores')
+          .select('game_id')
+          .count('* as total_scores')
+          .countDistinct('user_id as unique_players')
+          .max('score as highest_score')
+          .max('created_at as latest_score_at')
+          .groupBy('game_id');
+
+        for (const r of rows) {
+          const gId = String(r.game_id || '').toLowerCase();
+          gameStatsMap[gId] = {
+            totalScores: Number(r.total_scores || 0),
+            uniquePlayers: Number(r.unique_players || 0),
+            highestScore: Number(r.highest_score || 0),
+            latestScoreAt: r.latest_score_at ? new Date(r.latest_score_at).toISOString() : null,
+          };
+        }
+      } catch (err) {
+        console.warn('[ADMIN LEADERBOARD STATS WARNING]:', err);
+      }
+    }
+
+    const games = allGames.map((g) => {
+      const gId = g.id.toLowerCase();
+      const stats = gameStatsMap[gId] || {
+        totalScores: 0,
+        uniquePlayers: 0,
+        highestScore: 0,
+        latestScoreAt: null,
+      };
+
+      return {
+        id: g.id,
+        title: g.title,
+        genre: g.genre,
+        icon: g.icon,
+        scoreUnit: g.scoreUnit,
+        coinSymbol: g.coinSymbol,
+        status: g.status,
+        totalScores: stats.totalScores,
+        uniquePlayers: stats.uniquePlayers,
+        highestScore: stats.highestScore,
+        latestScoreAt: stats.latestScoreAt,
+      };
+    });
+
+    return res.json({
+      success: true,
+      games,
+    });
+  } catch (error: any) {
+    console.error('[ADMIN LEADERBOARDS ERROR]:', error);
+    return res.status(500).json({ error: 'Fehler beim Laden der Leaderboard-Übersicht', detail: error.message });
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// POST /api/admin/leaderboard/:gameId/reset — Reset single game leaderboard & scores
+// ─────────────────────────────────────────────────────────────────────────────
+export async function resetAdminGameLeaderboard(req: Request, res: Response) {
+  try {
+    const rawGameId = req.params.gameId;
+    if (!rawGameId) {
+      return res.status(400).json({ error: 'Game ID Parameter fehlt.' });
+    }
+
+    const gameId = String(rawGameId).trim().toLowerCase();
+    const result = await resetGameLeaderboardAndScores(gameId);
+
+    console.log(`[ADMIN LEADERBOARD RESET]: Leaderboard & highscores for game "${gameId}" wiped by Admin (${result.deletedScores} scores deleted).`);
+
+    return res.json({
+      success: true,
+      message: `Leaderboard und alle Highscores für "${gameId}" wurden erfolgreich zurückgesetzt (${result.deletedScores} Score-Einträge gelöscht).`,
+      deletedScores: result.deletedScores,
+      gameId,
+    });
+  } catch (error: any) {
+    console.error('[ADMIN RESET GAME LEADERBOARD ERROR]:', error);
+    return res.status(500).json({ error: 'Fehler beim Zurücksetzen des Leaderboards', detail: error.message });
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// POST /api/admin/leaderboard/reset-all — Reset all game leaderboards & scores
+// ─────────────────────────────────────────────────────────────────────────────
+export async function resetAdminAllLeaderboards(_req: Request, res: Response) {
+  try {
+    let deletedCount = 0;
+    const hasScoresTable = await db.schema.hasTable('scores');
+    if (hasScoresTable) {
+      deletedCount = await db('scores').del();
+    }
+
+    await resetLeaderboardCache();
+
+    // Also purge all game-specific Redis keys if available
+    const allGames = await getDynamicGamesList();
+    for (const g of allGames) {
+      await resetGameLeaderboardAndScores(g.id);
+    }
+
+    console.log(`[ADMIN ALL LEADERBOARDS RESET]: All game leaderboards wiped by Admin (${deletedCount} scores deleted).`);
+
+    return res.json({
+      success: true,
+      message: `Alle Leaderboards und Highscores für alle Spiele wurden erfolgreich zurückgesetzt (${deletedCount} Score-Einträge gelöscht).`,
+      deletedScores: deletedCount,
+    });
+  } catch (error: any) {
+    console.error('[ADMIN RESET ALL LEADERBOARDS ERROR]:', error);
+    return res.status(500).json({ error: 'Fehler beim Zurücksetzen aller Leaderboards', detail: error.message });
+  }
+}
+

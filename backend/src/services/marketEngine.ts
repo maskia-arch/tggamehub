@@ -845,18 +845,18 @@ export async function executeAmmTrade(
       // Deduct cash, credit tokens
       await trx('users').where({ id: cleanUserId }).decrement('game_cash', amount);
 
-      const holding = await trx('user_portfolio')
+      const holding = await trx('user_portfolios')
         .where({ user_id: cleanUserId, coin_symbol: sym })
         .first();
 
       if (holding) {
         const oldAmount = Number(holding.amount);
-        const oldInvested = Number(holding.total_invested);
+        const oldInvested = Number(holding.total_invested || 0);
         const newAmount = oldAmount + calc.outputAmount;
         const newInvested = oldInvested + amount;
-        const newAvg = newInvested / newAmount;
+        const newAvg = newAmount > 0 ? newInvested / newAmount : calc.executionPrice;
 
-        await trx('user_portfolio')
+        await trx('user_portfolios')
           .where({ user_id: cleanUserId, coin_symbol: sym })
           .update({
             amount: newAmount,
@@ -865,7 +865,7 @@ export async function executeAmmTrade(
             updated_at: new Date(),
           });
       } else {
-        await trx('user_portfolio').insert({
+        await trx('user_portfolios').insert({
           user_id: cleanUserId,
           coin_symbol: sym,
           amount: calc.outputAmount,
@@ -879,7 +879,7 @@ export async function executeAmmTrade(
       momentum.consecutiveBuys += 1;
       momentum.consecutiveSells = 0;
     } else {
-      const holding = await trx('user_portfolio')
+      const holding = await trx('user_portfolios')
         .where({ user_id: cleanUserId, coin_symbol: sym })
         .first();
 
@@ -898,14 +898,14 @@ export async function executeAmmTrade(
 
       const remainingTokens = userTokens - amount;
       const oldInvested = Number(holding.total_invested || 0);
-      const soldRatio = amount / userTokens;
+      const soldRatio = userTokens > 0 ? amount / userTokens : 1;
       const costBasisSold = oldInvested * soldRatio;
       const netProfit = calc.outputAmount - costBasisSold;
 
       if (remainingTokens <= 0.000001) {
-        await trx('user_portfolio').where({ user_id: cleanUserId, coin_symbol: sym }).del();
+        await trx('user_portfolios').where({ user_id: cleanUserId, coin_symbol: sym }).del();
       } else {
-        await trx('user_portfolio')
+        await trx('user_portfolios')
           .where({ user_id: cleanUserId, coin_symbol: sym })
           .update({
             amount: remainingTokens,
@@ -936,14 +936,14 @@ export async function executeAmmTrade(
         updated_at: new Date(),
       });
 
-    // Record trade
-    const [tradeId] = await trx('market_trades').insert({
+    // Record trade in user_trades
+    const [tradeId] = await trx('user_trades').insert({
       user_id: cleanUserId,
       coin_symbol: sym,
       trade_type: tradeType,
-      amount_cash: tradeType === 'BUY' ? amount : calc.outputAmount,
       amount_tokens: tradeType === 'BUY' ? calc.outputAmount : amount,
-      execution_price: calc.executionPrice,
+      price_per_token: calc.executionPrice,
+      total_cash: tradeType === 'BUY' ? amount : calc.outputAmount,
       gas_fee: calc.gasFee,
       price_impact_percent: calc.priceImpactPercent,
       created_at: new Date(),
@@ -1384,21 +1384,34 @@ export async function getAllMarketCoins(): Promise<MarketCoinOverview[]> {
         ESTABLISHED_TRADER: '💎 Trader-Grade Asset',
       };
 
-      const history24h = await db('market_price_history')
-        .where({ coin_symbol: symbol })
-        .where('timestamp', '>=', oneDayAgo)
-        .orderBy('timestamp', 'asc')
-        .first();
+      let price24hAgo = basePrice;
+      try {
+        const history24h = await db('market_price_history')
+          .where({ coin_symbol: symbol })
+          .where('timestamp', '>=', oneDayAgo)
+          .orderBy('timestamp', 'asc')
+          .first();
 
-      const price24hAgo = history24h ? Number(history24h.price) : basePrice;
+        if (history24h && history24h.price) {
+          price24hAgo = Number(history24h.price);
+        }
+      } catch {}
+
       const change24hPercent =
         price24hAgo > 0 ? Math.round(((currentPrice - price24hAgo) / price24hAgo) * 10000) / 100 : 0.0;
 
-      const volume1hRow = await db('market_trades')
-        .where({ coin_symbol: symbol })
-        .where('created_at', '>=', oneHourAgo)
-        .sum('amount_cash as total')
-        .first();
+      let volume1h = 0;
+      try {
+        const hasUserTrades = await db.schema.hasTable('user_trades');
+        if (hasUserTrades) {
+          const volume1hRow = await db('user_trades')
+            .where({ coin_symbol: symbol })
+            .where('created_at', '>=', oneHourAgo)
+            .sum('total_cash as total')
+            .first();
+          volume1h = Number(volume1hRow?.total || 0);
+        }
+      } catch {}
 
       const stats = await getRollingScoreStatistics(coin.game_id || symbol.toLowerCase());
       const hourlyBoost = await calculateDynamicHourlyBoost(symbol, stats.targetScore);
@@ -1417,7 +1430,7 @@ export async function getAllMarketCoins(): Promise<MarketCoinOverview[]> {
         circulatingSupply: Number(coin.circulating_supply || coin.virtual_token_reserve),
         totalBurned: Number(coin.total_burned || 0),
         volume24h: Number(coin.volume_24h || 0),
-        volume1h: Number(volume1hRow?.total || 0),
+        volume1h,
         change24hPercent,
         targetScore: stats.targetScore,
         hourlyBoost,
@@ -1442,12 +1455,12 @@ export async function getUserPortfolio(userId: string): Promise<{
   const cleanUserId = userId.startsWith('guest_') ? 'guest_session' : userId;
 
   try {
-    const hasTable = await db.schema.hasTable('user_portfolio');
+    const hasTable = await db.schema.hasTable('user_portfolios');
     if (!hasTable) {
       return { portfolio: [], totalPortfolioValue: 0, totalInvested: 0, totalPnlCash: 0, totalPnlPercent: 0 };
     }
 
-    const holdings = await db('user_portfolio').where({ user_id: cleanUserId });
+    const holdings = await db('user_portfolios').where({ user_id: cleanUserId });
     const coins = await db('market_coins').select('symbol', 'name', 'current_price');
     const coinMap = new Map(coins.map((c: any) => [c.symbol, c]));
 
@@ -1635,6 +1648,7 @@ export async function getMarketOverview(userId: string) {
     totalInvested: portfolioData.totalInvested,
     totalPnlCash: portfolioData.totalPnlCash,
     totalPnlPercent: portfolioData.totalPnlPercent,
+    events,
     recentEvents: events,
   };
 }
