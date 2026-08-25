@@ -10,6 +10,7 @@ import { SeasonBanner } from './components/SeasonBanner';
 import { EnergyModal } from './components/EnergyModal';
 import { useLanguage } from './i18n/LanguageContext';
 import { LanguageToggle } from './components/LanguageToggle';
+import { TelegramRedirectLanding } from './components/TelegramRedirectLanding';
 
 // Read API URL from environment, fallback to backend on local dev or current origin in prod
 const BACKEND_URL =
@@ -55,11 +56,16 @@ interface ProfileData {
 
 export default function App() {
   const { t } = useLanguage();
-  const { initData, isGuest } = useTelegram();
+  const { initData, isInsideTelegram, isGuest } = useTelegram();
   const [activeTab, setActiveTab] = useState<'games' | 'market' | 'leaderboard' | 'shop' | 'profile'>('games');
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
   const [showEnergyPopup, setShowEnergyPopup] = useState(false);
+
+  // If accessed directly via browser outside Telegram -> Show referral landing card
+  if (!isInsideTelegram) {
+    return <TelegramRedirectLanding />;
+  }
 
 
   // Fetch/Refresh profile details with optional retry on temporary network drop
