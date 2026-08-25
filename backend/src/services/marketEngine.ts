@@ -1671,4 +1671,5 @@ export async function getMarketOverview(userId: string) {
 
 export const getCoinChart = getCoinCandleData;
 export const executeMarketTrade = executeAmmTrade;
+export const recordGameScore = processGameScoreAmmImpact;
 

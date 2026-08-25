@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Zap, Target } from 'lucide-react';
 import { EnergyModal } from './EnergyModal';
@@ -56,6 +56,12 @@ export function GameWrapper({
   const [adReviveTimer, setAdReviveTimer] = useState<number | null>(null);
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const [benchmarks, setBenchmarks] = useState<Record<string, { targetScore: number; totalRoundsPlayed: number }>>({});
+
+  // Stable iframe URL that only updates when game session token or active game changes
+  const iframeSrc = useMemo(() => {
+    if (!activeGame || !gameSessionToken) return '';
+    return `${activeGame.path}?token=${encodeURIComponent(gameSessionToken)}&lang=${encodeURIComponent(language)}&highscore=${currentGameHighscore}`;
+  }, [activeGame?.id, activeGame?.path, gameSessionToken, language, currentGameHighscore]);
 
   const fetchBenchmarks = useCallback(async () => {
     if (!initData) return;
@@ -642,7 +648,7 @@ export function GameWrapper({
           <div style={{ width: '100%', height: '100%', backgroundColor: '#000', position: 'relative' }}>
             <iframe
               ref={iframeRef}
-              src={`${activeGame.path}?token=${gameSessionToken || ''}&lang=${language}&highscore=${currentGameHighscore}&_t=${Date.now()}`}
+              src={iframeSrc}
               style={{ width: '100%', height: '100%', border: 'none', display: 'block' }}
               title={t.games.items[activeGame.id as keyof typeof t.games.items]?.title || activeGame.title}
               sandbox="allow-scripts allow-same-origin"

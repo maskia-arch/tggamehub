@@ -6,6 +6,7 @@ import db from '../database/client';
 import { consumeEnergy } from '../services/energy';
 import { recordUserGameActivity } from '../services/seasonService';
 import { recordGameHighscore } from '../services/gameLeaderboardService';
+import { processGameScoreAmmImpact } from '../services/marketEngine';
 import { getDynamicGame, getDynamicGamesList, updateGameSettingsInDb, GameStatus } from '../config/games';
 
 interface GameSessionPayload {
@@ -230,8 +231,7 @@ export async function submitScore(req: AuthenticatedRequest, res: Response) {
     }
 
     // Record score volume in Market Engine with Normalized Score Impact & AMM
-    const { recordGameScore } = require('../services/marketEngine');
-    const marketResult = await recordGameScore(gameId, parsedScore, undefined, userId);
+    const marketResult = await processGameScoreAmmImpact(gameId, parsedScore, userId);
     const earnedCash = parseFloat(Number(marketResult.earnedCash || 0.0).toFixed(4));
 
     if (earnedCash > 0) {
