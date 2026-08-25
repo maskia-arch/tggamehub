@@ -77,14 +77,19 @@ interface CandlePoint {
 }
 
 const formatPrice = (price: number): string => {
-  if (price < 0.00001) {
-    return price.toFixed(10) + ' $';
-  } else if (price < 0.001) {
-    return price.toFixed(8) + ' $';
-  } else if (price < 0.1) {
-    return price.toFixed(6) + ' $';
+  if (price === undefined || price === null || isNaN(price)) return '0.00 $';
+  const num = Number(price);
+  if (num === 0) return '0.00 $';
+  if (num < 0.0000001) {
+    return num.toFixed(12) + ' $';
+  } else if (num < 0.0001) {
+    return num.toFixed(8) + ' $';
+  } else if (num < 0.01) {
+    return num.toFixed(6) + ' $';
+  } else if (num < 1) {
+    return num.toFixed(4) + ' $';
   }
-  return price.toFixed(4) + ' $';
+  return num.toFixed(2) + ' $';
 };
 
 const formatTokens = (amount: number): string => {
@@ -118,8 +123,9 @@ export function Market({ initData, backendUrl, onBalanceUpdate }: MarketProps) {
   const [selectedSymbol, setSelectedSymbol] = useState<string>('DOODLE');
   const [chartData, setChartData] = useState<CandlePoint[]>([]);
   const [loadingChart, setLoadingChart] = useState(false);
-  const [hoveredCandle, setHoveredCandle] = useState<CandlePoint | null>(null);
-  const [timeframe, setTimeframe] = useState<'30m' | '60m' | '12h' | '24h'>('30m');
+  const [hoverIndex, setHoverIndex] = useState<number | null>(null);
+  const [timeframe, setTimeframe] = useState<'30m' | '1h' | '12h' | '24h' | '7d'>('24h');
+  const [chartMode, setChartMode] = useState<'candles' | 'area'>('candles');
 
   const [activeTab, setActiveTab] = useState<'market' | 'trade' | 'portfolio'>('market');
   const [tradeType, setTradeType] = useState<'BUY' | 'SELL'>('BUY');
@@ -258,11 +264,16 @@ export function Market({ initData, backendUrl, onBalanceUpdate }: MarketProps) {
     };
   }, [fetchMarket, fetchChart]);
 
-  const handleSelectCoinForTrade = (coin: MarketCoin, type: 'BUY' | 'SELL' = 'BUY') => {
+  const handleSelectCoinForTrade = (coin: MarketCoin, type: 'BUY' | 'SELL' = 'BUY', defaultAmount?: number | string) => {
     setSelectedSymbol(coin.symbol);
     setTradeType(type);
-    setTradeAmount('');
+    if (defaultAmount !== undefined && defaultAmount !== null && defaultAmount !== '') {
+      setTradeAmount(String(defaultAmount));
+    } else {
+      setTradeAmount('');
+    }
     setTradeSuccessMsg(null);
+    setError(null);
     setActiveTab('trade');
   };
 
@@ -310,80 +321,209 @@ export function Market({ initData, backendUrl, onBalanceUpdate }: MarketProps) {
   const numAmount = parseFloat(tradeAmount) || 0;
   const estimatedGas = numAmount > 0 ? Math.max(0.0001, Math.round((0.0005 + (tradeType === 'BUY' ? numAmount : numAmount * (selectedCoin?.currentPrice || 1)) * 0.001) * 10000) / 10000) : 0.0005;
 
-  // Render SVG Live Candlestick (OHLC) Chart
+  // Render High-Precision SVG Crypto Chart (Supports Candlestick & Smooth Area Modes)
   const renderCandlestickChart = () => {
     if (loadingChart && (!chartData || chartData.length === 0)) {
       return (
-        <div style={{ height: '140px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,0.3)', fontSize: '11px' }}>
-          {t.market.loadingCandles}
+        <div style={{ height: '170px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,0.4)', fontSize: '12px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#00f2fe' }} className="animate-ping" />
+            {t.market.loadingCandles}
+          </div>
         </div>
       );
     }
 
     if (!chartData || chartData.length === 0) {
       return (
-        <div style={{ height: '140px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,0.3)', fontSize: '11px' }}>
+        <div style={{ height: '170px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,0.4)', fontSize: '12px' }}>
           {t.market.noCandles}
         </div>
       );
     }
 
-    const highs = chartData.map((c) => c.high);
-    const lows = chartData.map((c) => c.low);
-    let minPrice = Math.min(...lows);
-    let maxPrice = Math.max(...highs);
+    const allPrices = chartData.flatMap((c) => [c.open, c.high, c.low, c.close]).filter((p) => !isNaN(p) && p > 0);
+    const minVal = allPrices.length > 0 ? Math.min(...allPrices) : (selectedCoin?.currentPrice || 1e-8);
+    const maxVal = allPrices.length > 0 ? Math.max(...allPrices) : (selectedCoin?.currentPrice || 1e-8);
 
-    if (minPrice === maxPrice) {
-      minPrice = minPrice > 0 ? minPrice * 0.95 : 0.00000001;
-      maxPrice = maxPrice > 0 ? maxPrice * 1.05 : 0.00000002;
-    }
+    const priceDelta = maxVal - minVal;
+    // Add dynamic vertical margin so candles never touch the border
+    const margin = Math.max(priceDelta * 0.15, maxVal * 0.02, 1e-12);
+    const minPrice = Math.max(0, minVal - margin);
+    const maxPrice = maxVal + margin;
+    const range = maxPrice - minPrice || 1e-12;
 
-    const range = maxPrice - minPrice || 0.00000001;
-    const width = 340;
-    const height = 130;
-    const paddingLeft = 10;
-    const paddingRight = 45; // Room for price badge
-    const paddingTop = 12;
-    const paddingBottom = 16;
+    const width = 360;
+    const height = 160;
+    const paddingLeft = 8;
+    const paddingRight = 74; // Room for price scale text & live pill
+    const paddingTop = 14;
+    const paddingBottom = 22;
 
     const availableWidth = width - paddingLeft - paddingRight;
     const availableHeight = height - paddingTop - paddingBottom;
 
     const getY = (val: number) => {
-      return height - paddingBottom - ((val - minPrice) / range) * availableHeight;
+      const clamped = Math.min(maxPrice, Math.max(minPrice, val));
+      return paddingTop + (1 - (clamped - minPrice) / range) * availableHeight;
     };
 
-    const candleWidth = Math.max(3, (availableWidth / chartData.length) * 0.65);
     const step = availableWidth / chartData.length;
+    const candleWidth = Math.max(3.5, Math.min(8.5, step * 0.70));
 
-    const activeCandle = hoveredCandle || chartData[chartData.length - 1];
-    const livePrice = chartData[chartData.length - 1]?.close || selectedCoin?.currentPrice || 0.00000001;
+    const activeIdx = hoverIndex !== null && hoverIndex >= 0 && hoverIndex < chartData.length ? hoverIndex : (chartData.length - 1);
+    const activeCandle = chartData[activeIdx] || chartData[chartData.length - 1];
+
+    const candleChangePercent = activeCandle && activeCandle.open > 0
+      ? ((activeCandle.close - activeCandle.open) / activeCandle.open) * 100
+      : 0;
+    const isCandleBullish = activeCandle ? activeCandle.close >= activeCandle.open : true;
+
+    const livePrice = chartData[chartData.length - 1]?.close || selectedCoin?.currentPrice || 1e-8;
     const liveY = getY(livePrice);
     const isLiveBullish = chartData[chartData.length - 1]?.isBullish ?? true;
 
+    // Build SVG Path for Area & Line Mode
+    let linePathD = '';
+    let areaPathD = '';
+    if (chartData.length > 0) {
+      const points = chartData.map((c, i) => {
+        const x = paddingLeft + i * step + step / 2;
+        const y = getY(c.close);
+        return { x, y };
+      });
+      linePathD = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(2)},${p.y.toFixed(2)}`).join(' ');
+      const firstX = points[0].x.toFixed(2);
+      const lastX = points[points.length - 1].x.toFixed(2);
+      const bottomY = (height - paddingBottom).toFixed(2);
+      areaPathD = `${linePathD} L ${lastX},${bottomY} L ${firstX},${bottomY} Z`;
+    }
+
+    const midPrice = minVal + priceDelta / 2;
+
+    const handleSvgMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
+      const rect = e.currentTarget.getBoundingClientRect();
+      const clickX = ((e.clientX - rect.left) / rect.width) * width;
+      if (clickX >= paddingLeft && clickX <= width - paddingRight) {
+        const idx = Math.floor((clickX - paddingLeft) / step);
+        if (idx >= 0 && idx < chartData.length) {
+          setHoverIndex(idx);
+        }
+      }
+    };
+
+    const handleSvgTouchMove = (e: React.TouchEvent<SVGSVGElement>) => {
+      if (e.touches && e.touches[0]) {
+        const rect = e.currentTarget.getBoundingClientRect();
+        const clickX = ((e.touches[0].clientX - rect.left) / rect.width) * width;
+        if (clickX >= paddingLeft && clickX <= width - paddingRight) {
+          const idx = Math.floor((clickX - paddingLeft) / step);
+          if (idx >= 0 && idx < chartData.length) {
+            setHoverIndex(idx);
+          }
+        }
+      }
+    };
+
     return (
       <div style={{ position: 'relative', width: '100%' }}>
-        {/* OHLC Bar Header */}
+        {/* Rich Interactive OHLC Bar Header */}
         <div style={{
-          display: 'flex', gap: '8px', flexWrap: 'wrap',
-          fontSize: '9px', fontFamily: 'monospace',
-          color: 'rgba(255,255,255,0.4)', marginBottom: '8px',
-          background: 'rgba(0,0,0,0.2)', padding: '4px 8px', borderRadius: '8px',
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap',
+          gap: '6px', fontSize: '9.5px', fontFamily: 'monospace',
+          color: 'rgba(255,255,255,0.55)', marginBottom: '8px',
+          background: 'rgba(0,0,0,0.35)', padding: '6px 10px', borderRadius: '10px',
+          border: '1px solid rgba(255,255,255,0.06)',
         }}>
-          <span>O: <strong style={{ color: '#fff' }}>{formatPrice(activeCandle.open)}</strong></span>
-          <span>H: <strong style={{ color: '#4ade80' }}>{formatPrice(activeCandle.high)}</strong></span>
-          <span>L: <strong style={{ color: '#f87171' }}>{formatPrice(activeCandle.low)}</strong></span>
-          <span>C: <strong style={{ color: activeCandle.isBullish ? '#4ade80' : '#f87171' }}>{formatPrice(activeCandle.close)}</strong></span>
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            <span>O: <strong style={{ color: '#fff' }}>{formatPrice(activeCandle.open)}</strong></span>
+            <span>H: <strong style={{ color: '#4ade80' }}>{formatPrice(activeCandle.high)}</strong></span>
+            <span>L: <strong style={{ color: '#f87171' }}>{formatPrice(activeCandle.low)}</strong></span>
+            <span>C: <strong style={{ color: isCandleBullish ? '#4ade80' : '#f87171' }}>{formatPrice(activeCandle.close)}</strong></span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span style={{
+              color: isCandleBullish ? '#4ade80' : '#f87171',
+              fontWeight: 800,
+              background: isCandleBullish ? 'rgba(74,222,128,0.12)' : 'rgba(248,113,113,0.12)',
+              padding: '1px 5px', borderRadius: '4px',
+            }}>
+              {candleChangePercent >= 0 ? '+' : ''}{candleChangePercent.toFixed(2)}%
+            </span>
+            {activeCandle.volume > 0 && (
+              <span style={{ color: '#00f2fe' }}>
+                Vol: {formatTokens(activeCandle.volume)}
+              </span>
+            )}
+          </div>
         </div>
 
-        <svg viewBox={`0 0 ${width} ${height}`} style={{ width: '100%', height: '140px', overflow: 'visible' }}>
-          {/* Horizontal Grid lines */}
-          <line x1={paddingLeft} y1={paddingTop} x2={width - paddingRight} y2={paddingTop} stroke="rgba(255,255,255,0.05)" strokeDasharray="2 2" />
-          <line x1={paddingLeft} y1={paddingTop + availableHeight / 2} x2={width - paddingRight} y2={paddingTop + availableHeight / 2} stroke="rgba(255,255,255,0.05)" strokeDasharray="2 2" />
-          <line x1={paddingLeft} y1={height - paddingBottom} x2={width - paddingRight} y2={height - paddingBottom} stroke="rgba(255,255,255,0.05)" strokeDasharray="2 2" />
+        {/* SVG Chart Element */}
+        <svg
+          viewBox={`0 0 ${width} ${height}`}
+          style={{ width: '100%', height: '170px', overflow: 'visible', userSelect: 'none', touchAction: 'none' }}
+          onMouseMove={handleSvgMouseMove}
+          onMouseLeave={() => setHoverIndex(null)}
+          onTouchMove={handleSvgTouchMove}
+          onTouchEnd={() => setHoverIndex(null)}
+        >
+          <defs>
+            {/* Neon Area Gradient */}
+            <linearGradient id="neonAreaGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={isLiveBullish ? '#00f2fe' : '#f43f5e'} stopOpacity="0.32" />
+              <stop offset="100%" stopColor={isLiveBullish ? '#00f2fe' : '#f43f5e'} stopOpacity="0.0" />
+            </linearGradient>
+            {/* Subtle Glow Filter */}
+            <filter id="neonGlowFilter" x="-10%" y="-10%" width="120%" height="120%">
+              <feDropShadow dx="0" dy="0" stdDeviation="2.5" floodColor={isLiveBullish ? '#00f2fe' : '#f43f5e'} floodOpacity="0.5" />
+            </filter>
+          </defs>
 
-          {/* Render Candlesticks */}
+          {/* Horizontal Reference Grid lines */}
+          <line x1={paddingLeft} y1={paddingTop} x2={width - paddingRight} y2={paddingTop} stroke="rgba(255,255,255,0.06)" strokeDasharray="3 3" />
+          <line x1={paddingLeft} y1={paddingTop + availableHeight / 2} x2={width - paddingRight} y2={paddingTop + availableHeight / 2} stroke="rgba(255,255,255,0.06)" strokeDasharray="3 3" />
+          <line x1={paddingLeft} y1={height - paddingBottom} x2={width - paddingRight} y2={height - paddingBottom} stroke="rgba(255,255,255,0.06)" strokeDasharray="3 3" />
+
+          {/* Right Y-Axis Price Scale Labels */}
+          <text x={width - paddingRight + 6} y={paddingTop + 3} fill="rgba(255,255,255,0.4)" fontSize="8.5" fontFamily="monospace" textAnchor="start">
+            {formatPrice(maxVal)}
+          </text>
+          <text x={width - paddingRight + 6} y={paddingTop + availableHeight / 2 + 3} fill="rgba(255,255,255,0.3)" fontSize="8.5" fontFamily="monospace" textAnchor="start">
+            {formatPrice(midPrice)}
+          </text>
+          <text x={width - paddingRight + 6} y={height - paddingBottom + 3} fill="rgba(255,255,255,0.4)" fontSize="8.5" fontFamily="monospace" textAnchor="start">
+            {formatPrice(minVal)}
+          </text>
+
+          {/* Volume Bars at Bottom */}
           {chartData.map((c, index) => {
+            if (!c.volume || c.volume <= 0) return null;
+            const x = paddingLeft + index * step + step / 2;
+            const maxVol = Math.max(...chartData.map((d) => d.volume || 0), 1);
+            const barH = Math.min(22, (c.volume / maxVol) * 22);
+            return (
+              <rect
+                key={`vol-${index}`}
+                x={x - candleWidth / 2}
+                y={height - paddingBottom - barH}
+                width={candleWidth}
+                height={barH}
+                fill={c.isBullish ? 'rgba(74,222,128,0.2)' : 'rgba(248,113,113,0.2)'}
+                rx="0.5"
+              />
+            );
+          })}
+
+          {/* Render Area/Line Mode */}
+          {chartMode === 'area' && areaPathD && (
+            <>
+              <path d={areaPathD} fill="url(#neonAreaGrad)" />
+              <path d={linePathD} fill="none" stroke={isLiveBullish ? '#00f2fe' : '#f43f5e'} strokeWidth="1.8" filter="url(#neonGlowFilter)" />
+            </>
+          )}
+
+          {/* Render Candlesticks Mode */}
+          {chartMode === 'candles' && chartData.map((c, index) => {
             const x = paddingLeft + index * step + step / 2;
             const yHigh = getY(c.high);
             const yLow = getY(c.low);
@@ -392,20 +532,17 @@ export function Market({ initData, backendUrl, onBalanceUpdate }: MarketProps) {
 
             const bodyY = Math.min(yOpen, yClose);
             const bodyHeight = Math.max(2, Math.abs(yOpen - yClose));
-            const color = c.isBullish ? '#4ade80' : '#f87171';
+            const color = c.isBullish ? '#22c55e' : '#ef4444';
+            const isHovered = hoverIndex === index;
 
             return (
-              <g
-                key={index}
-                onMouseEnter={() => setHoveredCandle(c)}
-                onMouseLeave={() => setHoveredCandle(null)}
-                style={{ cursor: 'pointer' }}
-              >
+              <g key={index}>
                 {/* Wick line (High to Low) */}
                 <line
                   x1={x} y1={yHigh}
                   x2={x} y2={yLow}
-                  stroke={color} strokeWidth="1.2"
+                  stroke={color} strokeWidth={isHovered ? '1.8' : '1.2'}
+                  opacity={isHovered ? 1 : 0.85}
                 />
 
                 {/* Candle Body */}
@@ -415,35 +552,74 @@ export function Market({ initData, backendUrl, onBalanceUpdate }: MarketProps) {
                   width={candleWidth}
                   height={bodyHeight}
                   fill={color}
-                  rx="1"
-                  style={{ transition: 'all 0.2s' }}
+                  rx="1.5"
+                  stroke={isHovered ? '#fff' : 'none'}
+                  strokeWidth="0.8"
+                  style={{ transition: 'fill 0.15s' }}
                 />
               </g>
             );
           })}
 
-          {/* Live Price Line & Pulsating Dot */}
+          {/* Active Hover Crosshair */}
+          {hoverIndex !== null && (
+            <>
+              {/* Vertical Crosshair Line */}
+              <line
+                x1={paddingLeft + hoverIndex * step + step / 2}
+                y1={paddingTop}
+                x2={paddingLeft + hoverIndex * step + step / 2}
+                y2={height - paddingBottom}
+                stroke="rgba(255,255,255,0.4)"
+                strokeWidth="1"
+                strokeDasharray="2 2"
+              />
+              {/* Point on active price */}
+              <circle
+                cx={paddingLeft + hoverIndex * step + step / 2}
+                cy={getY(activeCandle.close)}
+                r="3.5"
+                fill="#fff"
+                stroke={isCandleBullish ? '#22c55e' : '#ef4444'}
+                strokeWidth="2"
+              />
+            </>
+          )}
+
+          {/* Live Price Horizontal Line & Right Pill Badge */}
           <line
             x1={paddingLeft} y1={liveY}
-            x2={width - paddingRight + 5} y2={liveY}
-            stroke={isLiveBullish ? '#4ade80' : '#f87171'}
+            x2={width - paddingRight} y2={liveY}
+            stroke={isLiveBullish ? '#22c55e' : '#ef4444'}
             strokeWidth="1"
             strokeDasharray="3 3"
+            opacity="0.8"
           />
 
-          {/* Live Dot on rightmost candle */}
-          <circle
-            cx={width - paddingRight}
-            cy={liveY}
-            r="3"
-            fill={isLiveBullish ? '#4ade80' : '#f87171'}
-          />
+          {/* Live Price Pill on Right Edge */}
+          <g transform={`translate(${width - paddingRight + 4}, ${liveY - 7})`}>
+            <rect
+              width="66" height="14" rx="4"
+              fill={isLiveBullish ? '#22c55e' : '#ef4444'}
+              filter="drop-shadow(0 0 6px rgba(0,0,0,0.5))"
+            />
+            <text
+              x="33" y="10"
+              fill="#000"
+              fontSize="7.5"
+              fontWeight="900"
+              fontFamily="monospace"
+              textAnchor="middle"
+            >
+              {formatPrice(livePrice)}
+            </text>
+          </g>
         </svg>
 
         {/* Timeline Bottom Bar */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9px', color: 'rgba(255,255,255,0.3)', marginTop: '4px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9px', color: 'rgba(255,255,255,0.35)', marginTop: '6px' }}>
           <span>
-            {timeframe === '30m' ? t.market.timeframe30m : timeframe === '60m' ? t.market.timeframe60m : timeframe === '12h' ? t.market.timeframe12h : t.market.timeframe24h}
+            {timeframe === '30m' ? t.market.timeframe30m : timeframe === '1h' ? t.market.timeframe1h : timeframe === '12h' ? t.market.timeframe12h : timeframe === '7d' ? t.market.timeframe7d : t.market.timeframe24h}
           </span>
           <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#4ade80' }}>
             <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#4ade80', display: 'inline-block' }} className="animate-ping" />
@@ -784,25 +960,54 @@ export function Market({ initData, backendUrl, onBalanceUpdate }: MarketProps) {
                   </div>
                 </div>
 
-                {/* Timeframe Switcher (30m default, 60m, 12h, 24h) */}
-                <div style={{ display: 'flex', gap: '4px', marginBottom: '12px', background: 'rgba(0,0,0,0.3)', padding: '3px', borderRadius: '10px', width: 'fit-content' }}>
-                  {(['30m', '60m', '12h', '24h'] as const).map((tf) => (
+                {/* Timeframe & Chart Mode Switcher */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '6px', marginBottom: '12px', flexWrap: 'wrap' }}>
+                  {/* Timeframe Selector */}
+                  <div style={{ display: 'flex', gap: '3px', background: 'rgba(0,0,0,0.35)', padding: '3px', borderRadius: '10px' }}>
+                    {(['30m', '1h', '12h', '24h', '7d'] as const).map((tf) => (
+                      <button
+                        key={tf}
+                        onClick={() => {
+                          setTimeframe(tf);
+                          fetchChart(selectedCoin.symbol, tf);
+                        }}
+                        style={{
+                          padding: '4px 9px', borderRadius: '7px', border: 'none',
+                          background: timeframe === tf ? 'rgba(74,222,128,0.2)' : 'transparent',
+                          color: timeframe === tf ? '#4ade80' : 'rgba(255,255,255,0.4)',
+                          fontSize: '10px', fontWeight: 800, cursor: 'pointer', transition: 'all 0.15s',
+                        }}
+                      >
+                        {tf}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Mode Toggle: Candles vs Line */}
+                  <div style={{ display: 'flex', gap: '3px', background: 'rgba(0,0,0,0.35)', padding: '3px', borderRadius: '10px' }}>
                     <button
-                      key={tf}
-                      onClick={() => {
-                        setTimeframe(tf);
-                        fetchChart(selectedCoin.symbol, tf);
-                      }}
+                      onClick={() => setChartMode('candles')}
                       style={{
-                        padding: '4px 10px', borderRadius: '7px', border: 'none',
-                        background: timeframe === tf ? 'rgba(74,222,128,0.2)' : 'transparent',
-                        color: timeframe === tf ? '#4ade80' : 'rgba(255,255,255,0.4)',
+                        padding: '4px 8px', borderRadius: '7px', border: 'none',
+                        background: chartMode === 'candles' ? 'rgba(0,242,254,0.2)' : 'transparent',
+                        color: chartMode === 'candles' ? '#00f2fe' : 'rgba(255,255,255,0.4)',
                         fontSize: '10px', fontWeight: 800, cursor: 'pointer', transition: 'all 0.15s',
                       }}
                     >
-                      {tf}
+                      🕯️ {t.market.candlesMode || 'Kerzen'}
                     </button>
-                  ))}
+                    <button
+                      onClick={() => setChartMode('area')}
+                      style={{
+                        padding: '4px 8px', borderRadius: '7px', border: 'none',
+                        background: chartMode === 'area' ? 'rgba(0,242,254,0.2)' : 'transparent',
+                        color: chartMode === 'area' ? '#00f2fe' : 'rgba(255,255,255,0.4)',
+                        fontSize: '10px', fontWeight: 800, cursor: 'pointer', transition: 'all 0.15s',
+                      }}
+                    >
+                      📈 {t.market.lineMode || 'Linie'}
+                    </button>
+                  </div>
                 </div>
 
                 {renderCandlestickChart()}
@@ -858,7 +1063,7 @@ export function Market({ initData, backendUrl, onBalanceUpdate }: MarketProps) {
                     <span>
                       {t.market.available}: {tradeType === 'BUY'
                         ? `${(data?.userCash || 0).toFixed(2)} Game$`
-                        : `${(data?.portfolio.find(p => p.coinSymbol === selectedCoin.symbol)?.amount || 0).toFixed(4)} $${selectedCoin.symbol}`}
+                        : `${formatTokens(data?.portfolio.find(p => p.coinSymbol === selectedCoin.symbol)?.amount || 0)} $${selectedCoin.symbol}`}
                     </span>
                   </div>
                   <div style={{ position: 'relative' }}>
@@ -875,9 +1080,10 @@ export function Market({ initData, backendUrl, onBalanceUpdate }: MarketProps) {
                       }}
                     />
                     <button
+                      type="button"
                       onClick={() => {
                         if (tradeType === 'BUY') {
-                          const maxCash = Math.max(0, (data?.userCash || 0) - 0.02);
+                          const maxCash = Math.max(0, (data?.userCash || 0));
                           setTradeAmount(maxCash.toFixed(2));
                         } else {
                           const maxTokens = data?.portfolio.find(p => p.coinSymbol === selectedCoin.symbol)?.amount || 0;
@@ -887,11 +1093,48 @@ export function Market({ initData, backendUrl, onBalanceUpdate }: MarketProps) {
                       style={{
                         position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)',
                         background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: '8px',
-                        padding: '4px 8px', color: 'var(--accent-cyan)', fontSize: '10px', fontWeight: 900, cursor: 'pointer',
+                        padding: '4px 8px', color: '#00f2fe', fontSize: '10px', fontWeight: 900, cursor: 'pointer',
                       }}
                     >
                       MAX
                     </button>
+                  </div>
+
+                  {/* Quick Percentage Presets */}
+                  <div style={{ display: 'flex', gap: '6px', marginTop: '8px' }}>
+                    {[25, 50, 75, 100].map((pct) => (
+                      <button
+                        key={pct}
+                        type="button"
+                        onClick={() => {
+                          if (tradeType === 'BUY') {
+                            const userCash = data?.userCash || 0;
+                            if (pct === 100) {
+                              setTradeAmount(userCash.toFixed(2));
+                            } else {
+                              const cash = (userCash * pct) / 100;
+                              setTradeAmount(cash.toFixed(2));
+                            }
+                          } else {
+                            const holdingTokens = data?.portfolio.find(p => p.coinSymbol === selectedCoin.symbol)?.amount || 0;
+                            if (pct === 100) {
+                              setTradeAmount(holdingTokens.toString());
+                            } else {
+                              const tokens = (holdingTokens * pct) / 100;
+                              setTradeAmount(tokens.toString());
+                            }
+                          }
+                        }}
+                        style={{
+                          flex: 1, padding: '5px 0', borderRadius: '8px',
+                          border: '1px solid rgba(255,255,255,0.08)',
+                          background: 'rgba(255,255,255,0.04)', color: 'rgba(255,255,255,0.65)',
+                          fontSize: '10px', fontWeight: 800, cursor: 'pointer', transition: 'all 0.15s',
+                        }}
+                      >
+                        {pct === 100 ? '100% (MAX)' : `${pct}%`}
+                      </button>
+                    ))}
                   </div>
                 </div>
 
@@ -1033,38 +1276,57 @@ export function Market({ initData, backendUrl, onBalanceUpdate }: MarketProps) {
                       style={{
                         background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)',
                         borderRadius: '18px', padding: '16px',
-                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                        display: 'flex', flexDirection: 'column', gap: '12px',
                       }}
                     >
-                      <div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <span style={{ fontSize: '15px', fontWeight: 900, color: '#fff' }}>${item.coinSymbol}</span>
-                          <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)' }}>{item.coinName}</span>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span style={{ fontSize: '16px', fontWeight: 900, color: '#fff' }}>${item.coinSymbol}</span>
+                            <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)' }}>{item.coinName}</span>
+                          </div>
+                          <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)', marginTop: '4px', fontFamily: 'monospace' }}>
+                            {formatTokens(item.amount)} Tokens @ {formatPrice(item.avgBuyPrice)}
+                          </div>
                         </div>
-                        <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)', marginTop: '4px', fontFamily: 'monospace' }}>
-                          {formatTokens(item.amount)} Tokens @ {formatPrice(item.avgBuyPrice)}
+
+                        <div style={{ textAlign: 'right' }}>
+                          <div style={{ fontSize: '16px', fontWeight: 900, color: '#fff', fontFamily: 'monospace' }}>
+                            {item.currentValue.toFixed(2)} Game$
+                          </div>
+                          <div style={{ fontSize: '11px', fontWeight: 800, color: isProfitable ? '#4ade80' : '#f87171', marginTop: '3px' }}>
+                            {isProfitable ? '+' : ''}{item.pnlCash.toFixed(2)} $ ({isProfitable ? '+' : ''}{item.pnlPercent.toFixed(2)}%)
+                          </div>
                         </div>
                       </div>
 
-                      <div style={{ textAlign: 'right' }}>
-                        <div style={{ fontSize: '15px', fontWeight: 900, color: '#fff', fontFamily: 'monospace' }}>
-                          {item.currentValue.toFixed(2)} Game$
-                        </div>
-                        <div style={{ fontSize: '11px', fontWeight: 800, color: isProfitable ? '#4ade80' : '#f87171', marginTop: '3px' }}>
-                          {isProfitable ? '+' : ''}{item.pnlCash.toFixed(2)} $ ({isProfitable ? '+' : ''}{item.pnlPercent.toFixed(2)}%)
-                        </div>
-                        {coinMatch && (
+                      {/* Direct Buy & Sell Action Buttons */}
+                      {coinMatch && (
+                        <div style={{ display: 'flex', gap: '8px', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '10px' }}>
                           <button
-                            onClick={() => handleSelectCoinForTrade(coinMatch, 'SELL')}
+                            type="button"
+                            onClick={() => handleSelectCoinForTrade(coinMatch, 'BUY')}
                             style={{
-                              marginTop: '6px', background: 'rgba(248,113,113,0.15)', border: '1px solid rgba(248,113,113,0.3)',
-                              borderRadius: '8px', padding: '3px 8px', color: '#f87171', fontSize: '10px', fontWeight: 800, cursor: 'pointer',
+                              flex: 1, padding: '7px 0', borderRadius: '10px', border: '1px solid rgba(74,222,128,0.25)',
+                              background: 'rgba(74,222,128,0.1)', color: '#4ade80', fontSize: '11px', fontWeight: 800, cursor: 'pointer',
+                              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px',
                             }}
                           >
-                            {t.market.sellTokens}
+                            <span>+</span> {t.market.buyDollars || 'Kaufen'}
                           </button>
-                        )}
-                      </div>
+                          <button
+                            type="button"
+                            onClick={() => handleSelectCoinForTrade(coinMatch, 'SELL', item.amount)}
+                            style={{
+                              flex: 1, padding: '7px 0', borderRadius: '10px', border: '1px solid rgba(248,113,113,0.25)',
+                              background: 'rgba(248,113,113,0.1)', color: '#f87171', fontSize: '11px', fontWeight: 800, cursor: 'pointer',
+                              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px',
+                            }}
+                          >
+                            <span>⚡</span> {t.market.sellTokens || 'Verkaufen'} (MAX)
+                          </button>
+                        </div>
+                      )}
                     </div>
                   );
                 })

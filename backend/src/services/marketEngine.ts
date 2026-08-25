@@ -819,7 +819,7 @@ export async function executeAmmTrade(
   const sym = coinSymbol.toUpperCase();
   const momentum = getCoinMomentum(sym);
 
-  const cleanUserId = userId.startsWith('guest_') ? 'guest_session' : userId;
+  const cleanUserId = String(userId || '').startsWith('guest_') ? 'guest_session' : String(userId || '');
 
   return await db.transaction(async (trx) => {
     const user = await trx('users').where({ id: cleanUserId }).first();
@@ -840,17 +840,26 @@ export async function executeAmmTrade(
 
     if (tradeType === 'BUY') {
       const userCash = Number(user.game_cash || 0);
-      if (userCash < amount) {
-        throw new Error(`Unzureichendes InGame-$ Guthaben. Verfügbar: $${userCash.toFixed(2)}`);
+      let cashToSpend = amount;
+      if (cashToSpend > userCash) {
+        if (cashToSpend - userCash < 0.01) {
+          cashToSpend = userCash;
+        } else {
+          throw new Error(`Unzureichendes InGame-$ Guthaben. Verfügbar: $${userCash.toFixed(2)}`);
+        }
       }
 
-      calc = calculateAmmBuy(amount, virtualGame, virtualToken, constantK);
+      if (cashToSpend <= 0) {
+        throw new Error('Ungültiger Kaufbetrag.');
+      }
+
+      calc = calculateAmmBuy(cashToSpend, virtualGame, virtualToken, constantK);
       if (Math.abs(calc.priceImpactPercent) > maxSlippagePercent) {
         throw new Error(`Slippage (${calc.priceImpactPercent.toFixed(2)}%) übersteigt Limit (${maxSlippagePercent}%).`);
       }
 
       // Deduct cash, credit tokens
-      await trx('users').where({ id: cleanUserId }).decrement('game_cash', amount);
+      await trx('users').where({ id: cleanUserId }).decrement('game_cash', cashToSpend);
 
       const holding = await trx('user_portfolios')
         .where({ user_id: cleanUserId, coin_symbol: sym })
@@ -860,7 +869,7 @@ export async function executeAmmTrade(
         const oldAmount = Number(holding.amount);
         const oldInvested = Number(holding.total_invested || 0);
         const newAmount = oldAmount + calc.outputAmount;
-        const newInvested = oldInvested + amount;
+        const newInvested = oldInvested + cashToSpend;
         const newAvg = newAmount > 0 ? newInvested / newAmount : calc.executionPrice;
 
         await trx('user_portfolios')
@@ -877,7 +886,7 @@ export async function executeAmmTrade(
           coin_symbol: sym,
           amount: calc.outputAmount,
           avg_buy_price: calc.executionPrice,
-          total_invested: amount,
+          total_invested: cashToSpend,
           created_at: new Date(),
           updated_at: new Date(),
         });
@@ -891,11 +900,24 @@ export async function executeAmmTrade(
         .first();
 
       const userTokens = Number(holding?.amount || 0);
-      if (userTokens < amount) {
-        throw new Error(`Unzureichende $${sym} Token. Verfügbar: ${userTokens.toLocaleString()}`);
+      if (userTokens <= 0) {
+        throw new Error(`Keine $${sym} Token im Portfolio vorhanden.`);
       }
 
-      calc = calculateAmmSell(amount, virtualGame, virtualToken, constantK);
+      let tokensToSell = amount;
+      if (tokensToSell > userTokens) {
+        if (tokensToSell - userTokens < 0.05 || (tokensToSell - userTokens) / userTokens < 0.001) {
+          tokensToSell = userTokens;
+        } else {
+          throw new Error(`Unzureichende $${sym} Token. Verfügbar: ${userTokens.toLocaleString()}`);
+        }
+      }
+
+      if (tokensToSell <= 0) {
+        throw new Error('Ungültige Verkaufsmenge.');
+      }
+
+      calc = calculateAmmSell(tokensToSell, virtualGame, virtualToken, constantK);
       if (Math.abs(calc.priceImpactPercent) > maxSlippagePercent) {
         throw new Error(`Slippage (${Math.abs(calc.priceImpactPercent).toFixed(2)}%) übersteigt Limit (${maxSlippagePercent}%).`);
       }
@@ -903,9 +925,9 @@ export async function executeAmmTrade(
       // Credit cash, deduct tokens
       await trx('users').where({ id: cleanUserId }).increment('game_cash', calc.outputAmount);
 
-      const remainingTokens = userTokens - amount;
-      const oldInvested = Number(holding.total_invested || 0);
-      const soldRatio = userTokens > 0 ? amount / userTokens : 1;
+      const remainingTokens = userTokens - tokensToSell;
+      const oldInvested = Number(holding?.total_invested || 0);
+      const soldRatio = userTokens > 0 ? tokensToSell / userTokens : 1;
       const costBasisSold = oldInvested * soldRatio;
       const netProfit = calc.outputAmount - costBasisSold;
 
@@ -1468,7 +1490,7 @@ export async function getUserPortfolio(userId: string): Promise<{
   totalPnlCash: number;
   totalPnlPercent: number;
 }> {
-  const cleanUserId = userId.startsWith('guest_') ? 'guest_session' : userId;
+  const cleanUserId = String(userId || '').startsWith('guest_') ? 'guest_session' : String(userId || '');
 
   try {
     const hasTable = await db.schema.hasTable('user_portfolios');
@@ -1502,10 +1524,10 @@ export async function getUserPortfolio(userId: string): Promise<{
       portfolio.push({
         coinSymbol: sym,
         coinName: coin?.name || `${sym} Coin`,
-        amount: Math.round(amount * 100) / 100,
+        amount: amount,
         avgBuyPrice,
         currentPrice,
-        currentValue: Math.round(currentValue * 100) / 100,
+        currentValue: Math.round(currentValue * 10000) / 10000,
         totalInvested: Math.round(invested * 100) / 100,
         pnlCash: Math.round(pnlCash * 100) / 100,
         pnlPercent,
@@ -1555,87 +1577,117 @@ export async function getCoinCandleData(
 ): Promise<CandlePoint[]> {
   const sym = symbol.toUpperCase();
   const now = Date.now();
-  let timeAgo: Date;
-  let intervalMs: number;
 
-  if (timeframe === '1h' || timeframe === '30m') {
-    timeAgo = new Date(now - (timeframe === '30m' ? 30 * 60 * 1000 : 3600 * 1000));
-    intervalMs = 60 * 1000; // 1-minute buckets
-  } else if (timeframe === '7d') {
-    timeAgo = new Date(now - 7 * 24 * 3600 * 1000);
-    intervalMs = 4 * 3600 * 1000; // 4-hour buckets
+  const tf = (timeframe || '24h').toLowerCase();
+  let durationMs = 24 * 3600 * 1000;
+  if (tf === '30m') {
+    durationMs = 30 * 60 * 1000;
+  } else if (tf === '60m' || tf === '1h') {
+    durationMs = 60 * 60 * 1000;
+  } else if (tf === '4h') {
+    durationMs = 4 * 3600 * 1000;
+  } else if (tf === '12h') {
+    durationMs = 12 * 3600 * 1000;
+  } else if (tf === '7d') {
+    durationMs = 7 * 24 * 3600 * 1000;
   } else {
-    timeAgo = new Date(now - 24 * 3600 * 1000);
-    intervalMs = 15 * 60 * 1000; // 15-minute buckets
+    durationMs = 24 * 3600 * 1000;
   }
 
+  const numBuckets = 30;
+  const intervalMs = durationMs / numBuckets;
+  const startTime = now - durationMs;
+
   try {
+    const coin = await db('market_coins').where({ symbol: sym }).first();
+    const currentPrice = Number(coin?.current_price || MARKET_CONFIG.BASE_PRICE);
+    const basePrice = Number(coin?.base_price || MARKET_CONFIG.BASE_PRICE);
+
     const hasHistoryTable = await db.schema.hasTable('market_price_history');
-    if (!hasHistoryTable) return [];
-
-    const history = await db('market_price_history')
-      .where({ coin_symbol: sym })
-      .where('timestamp', '>=', timeAgo)
-      .orderBy('timestamp', 'asc');
-
-    if (history.length === 0) {
-      const coin = await db('market_coins').where({ symbol: sym }).first();
-      const currentPrice = Number(coin?.current_price || MARKET_CONFIG.BASE_PRICE);
-      return [
-        {
-          open: currentPrice,
-          high: currentPrice,
-          low: currentPrice,
-          close: currentPrice,
-          volume: 0,
-          timestamp: new Date().toISOString(),
-          isBullish: true,
-        },
-      ];
+    if (!hasHistoryTable) {
+      return Array.from({ length: numBuckets }, (_, i) => ({
+        open: currentPrice,
+        high: currentPrice,
+        low: currentPrice,
+        close: currentPrice,
+        volume: 0,
+        timestamp: new Date(startTime + i * intervalMs).toISOString(),
+        isBullish: true,
+      }));
     }
 
-    const buckets: Record<number, { prices: number[]; volume: number; timestamp: string }> = {};
+    // Get last price before the window to anchor first candle
+    const priorHistory = await db('market_price_history')
+      .where({ coin_symbol: sym })
+      .where('timestamp', '<', new Date(startTime))
+      .orderBy('timestamp', 'desc')
+      .first();
+
+    let lastKnownPrice = priorHistory ? Number(priorHistory.price) : (currentPrice || basePrice);
+
+    // Get all records in the window
+    const history = await db('market_price_history')
+      .where({ coin_symbol: sym })
+      .where('timestamp', '>=', new Date(startTime))
+      .orderBy('timestamp', 'asc');
+
+    const bucketEvents: { prices: number[]; volume: number }[] = Array.from(
+      { length: numBuckets },
+      () => ({ prices: [], volume: 0 })
+    );
 
     for (const h of history) {
       const t = new Date(h.timestamp).getTime();
-      const bucketKey = Math.floor(t / intervalMs) * intervalMs;
-
-      if (!buckets[bucketKey]) {
-        buckets[bucketKey] = {
-          prices: [],
-          volume: 0,
-          timestamp: new Date(bucketKey).toISOString(),
-        };
+      const idx = Math.min(numBuckets - 1, Math.max(0, Math.floor((t - startTime) / intervalMs)));
+      const p = Number(h.price);
+      if (!isNaN(p) && p > 0) {
+        bucketEvents[idx].prices.push(p);
+        bucketEvents[idx].volume += Number(h.volume || 0);
       }
-      buckets[bucketKey].prices.push(Number(h.price));
-      buckets[bucketKey].volume += Number(h.volume || 0);
     }
-
-    const sortedBucketKeys = Object.keys(buckets)
-      .map(Number)
-      .sort((a, b) => a - b);
 
     const candleData: CandlePoint[] = [];
 
-    for (const key of sortedBucketKeys) {
-      const b = buckets[key];
-      const p = b.prices;
-      if (p.length === 0) continue;
+    for (let i = 0; i < numBuckets; i++) {
+      const bucketTime = new Date(startTime + i * intervalMs).toISOString();
+      const ev = bucketEvents[i];
 
-      const open = p[0];
-      const close = p[p.length - 1];
-      const high = Math.max(...p);
-      const low = Math.min(...p);
+      if (ev.prices.length > 0) {
+        const open = ev.prices[0];
+        const close = ev.prices[ev.prices.length - 1];
+        const high = Math.max(...ev.prices);
+        const low = Math.min(...ev.prices);
 
-      candleData.push({
-        open,
-        high,
-        low,
-        close,
-        volume: Math.round(b.volume * 100) / 100,
-        timestamp: b.timestamp,
-        isBullish: close >= open,
-      });
+        candleData.push({
+          open,
+          high,
+          low,
+          close,
+          volume: Math.round(ev.volume * 100) / 100,
+          timestamp: bucketTime,
+          isBullish: close >= open,
+        });
+        lastKnownPrice = close;
+      } else {
+        candleData.push({
+          open: lastKnownPrice,
+          high: lastKnownPrice,
+          low: lastKnownPrice,
+          close: lastKnownPrice,
+          volume: 0,
+          timestamp: bucketTime,
+          isBullish: true,
+        });
+      }
+    }
+
+    // Always anchor the very last candle to the live current_price
+    if (candleData.length > 0) {
+      const lastCandle = candleData[candleData.length - 1];
+      lastCandle.close = currentPrice;
+      lastCandle.high = Math.max(lastCandle.high, currentPrice);
+      lastCandle.low = Math.min(lastCandle.low, currentPrice);
+      lastCandle.isBullish = currentPrice >= lastCandle.open;
     }
 
     return candleData;
@@ -1649,7 +1701,7 @@ export async function getCoinCandleData(
  * GET /api/market/overview aggregator
  */
 export async function getMarketOverview(userId: string) {
-  const cleanUserId = (userId || '').startsWith('guest_') ? 'guest_session' : userId;
+  const cleanUserId = String(userId || '').startsWith('guest_') ? 'guest_session' : String(userId || '');
   const coins = await getAllMarketCoins();
   const portfolioData = await getUserPortfolio(cleanUserId);
   const events = await getMarketEvents(10);
