@@ -90,18 +90,6 @@ export async function runAutoMigrations(knex: Knex): Promise<void> {
       console.log('[DATABASE AUTO-SYNC]: Created scores table.');
     }
 
-    // Reset all legacy highscores for doodlejump (Neon Jump) to provide a fresh, clean leaderboard
-    try {
-      const deletedDoodle = await knex('scores')
-        .where({ game_id: 'doodlejump' })
-        .del();
-      if (deletedDoodle > 0) {
-        console.log(`[DATABASE AUTO-SYNC]: Reset ${deletedDoodle} legacy scores and wiped leaderboard for Neon Jump (doodlejump).`);
-      }
-    } catch {
-      // Ignored
-    }
-
     // ── Table: REFERRALS ──────────────────────────────────────────────────────
     const hasReferralsTable = await knex.schema.hasTable('referrals');
     if (!hasReferralsTable) {

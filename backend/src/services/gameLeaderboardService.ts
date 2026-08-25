@@ -426,12 +426,20 @@ export async function resetGameLeaderboardAndScores(gameId: string): Promise<{ d
   const gId = gameId.toLowerCase();
 
   // 1. Delete all database scores
-  const deleted = await db('scores').where({ game_id: gId }).del();
+  let deleted = 0;
+  try {
+    const hasScoresTable = await db.schema.hasTable('scores');
+    if (hasScoresTable) {
+      deleted = await db('scores').where({ game_id: gId }).del();
+    }
+  } catch (err) {
+    console.warn('[RESET GAME SCORES] DB score deletion note:', err);
+  }
 
   // 2. Clear Redis cached keys
   if (redis && isRedisConnected) {
     try {
-      const keys = await redis.keys(`lb:game:${gId}:*`);
+      const keys = await redis.keys(`*${gId}*`);
       if (keys && keys.length > 0) {
         await redis.del(...keys);
       }
@@ -442,7 +450,7 @@ export async function resetGameLeaderboardAndScores(gameId: string): Promise<{ d
 
   // 3. Clear In-Memory Emulator Map
   for (const key of Array.from(memoryGameLeaderboards.keys())) {
-    if (key.includes(`:${gId}:`)) {
+    if (key.toLowerCase().includes(gId)) {
       memoryGameLeaderboards.delete(key);
     }
   }
