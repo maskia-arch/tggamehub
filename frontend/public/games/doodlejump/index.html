@@ -535,7 +535,30 @@
     let currentLevel = 1;
     let levelGlowTimer = 0;
     let platformIdCounter = 0;
-    let savedHighscore = parseInt(localStorage.getItem('tggamehub_doodlejump_highscore') || '0', 10);
+    
+    // Authoritative Server-Synced Highscore (Resets immediately to 0 if server highscore is wiped)
+    const serverHsParam = urlParams.get('highscore');
+    let savedHighscore = 0;
+    if (serverHsParam !== null && serverHsParam !== undefined) {
+      savedHighscore = parseInt(serverHsParam, 10) || 0;
+      try {
+        localStorage.setItem('tggamehub_doodlejump_highscore', savedHighscore.toString());
+      } catch(e) {}
+    } else {
+      savedHighscore = parseInt(localStorage.getItem('tggamehub_doodlejump_highscore') || '0', 10);
+    }
+
+    // Message listener for live highscore resets from parent app
+    window.addEventListener('message', (event) => {
+      if (!event.data) return;
+      if (event.data.type === 'SET_SERVER_HIGHSCORE' || event.data.type === 'RESET_HIGHSCORE') {
+        savedHighscore = parseInt(event.data.highscore || 0, 10) || 0;
+        try {
+          localStorage.setItem('tggamehub_doodlejump_highscore', savedHighscore.toString());
+        } catch(e) {}
+      }
+    });
+
     let cameraY = 0;
     let gameState = 'start'; // 'start', 'playing', 'revive_countdown', 'gameover'
     let keys = { left: false, right: false };

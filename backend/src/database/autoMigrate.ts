@@ -375,6 +375,9 @@ export async function runAutoMigrations(knex: Knex): Promise<void> {
       await ensureColumn(knex, 'market_coins', 'virtual_token_reserve', (t) => t.float('virtual_token_reserve').defaultTo(10000000000000.0));
       await ensureColumn(knex, 'market_coins', 'constant_product_k', (t) => t.float('constant_product_k').defaultTo(1000000000000000000.0));
 
+      // Clean up inactive / unreleased game coins ($CROSSY, $STACK, etc.)
+      await knex('market_coins').whereNotIn('symbol', ['DOODLE', 'FLAPPY']).del();
+
       // Ensure canonical names & initialize pool reserves if missing or 0
       await knex('market_coins').where({ symbol: 'DOODLE' }).update({
         name: 'Neon Jump Coin',

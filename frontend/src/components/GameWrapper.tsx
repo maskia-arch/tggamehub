@@ -50,6 +50,7 @@ export function GameWrapper({
   const [activeGame, setActiveGame] = useState<Game | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [gameSessionToken, setGameSessionToken] = useState<string | null>(null);
+  const [currentGameHighscore, setCurrentGameHighscore] = useState<number>(0);
   const [submitting, setSubmitting] = useState(false);
   const [showEnergyPopup, setShowEnergyPopup] = useState(false);
   const [adReviveTimer, setAdReviveTimer] = useState<number | null>(null);
@@ -161,6 +162,7 @@ export function GameWrapper({
   const handleCloseGame = useCallback(() => {
     setIsPlaying(false);
     setGameSessionToken(null);
+    setCurrentGameHighscore(0);
   }, []);
 
   const handleStartGame = useCallback(
@@ -186,6 +188,7 @@ export function GameWrapper({
           return;
         }
 
+        setCurrentGameHighscore(typeof data.highscore === 'number' ? data.highscore : 0);
         setGameSessionToken(data.gameSessionToken);
         setIsPlaying(true);
         setSubmitting(false);
@@ -639,7 +642,7 @@ export function GameWrapper({
           <div style={{ width: '100%', height: '100%', backgroundColor: '#000', position: 'relative' }}>
             <iframe
               ref={iframeRef}
-              src={`${activeGame.path}?token=${gameSessionToken || ''}&lang=${language}`}
+              src={`${activeGame.path}?token=${gameSessionToken || ''}&lang=${language}&highscore=${currentGameHighscore}&_t=${Date.now()}`}
               style={{ width: '100%', height: '100%', border: 'none', display: 'block' }}
               title={t.games.items[activeGame.id as keyof typeof t.games.items]?.title || activeGame.title}
               sandbox="allow-scripts allow-same-origin"

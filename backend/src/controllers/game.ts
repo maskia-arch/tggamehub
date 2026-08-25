@@ -50,6 +50,18 @@ export async function startGame(req: AuthenticatedRequest, res: Response) {
       return res.status(403).json({ error: 'game_coming_soon', message: 'Dieses Spiel befindet sich noch in der Entwicklung.' });
     }
 
+    // Query authoritative personal highscore for this game from database
+    let personalHighscore = 0;
+    try {
+      const userBest = await db('scores')
+        .where({ game_id: gameConfig.id, user_id: userId })
+        .max('score as max_score')
+        .first();
+      personalHighscore = userBest?.max_score ? parseInt(userBest.max_score, 10) : 0;
+    } catch (err) {
+      console.warn('[GAME START] Could not query user highscore:', err);
+    }
+
     // Guest users start immediately with a signed session token
     if (req.telegramUser?.isGuest) {
       const payload: GameSessionPayload = {
@@ -61,6 +73,7 @@ export async function startGame(req: AuthenticatedRequest, res: Response) {
       return res.json({
         success: true,
         gameSessionToken,
+        highscore: personalHighscore,
         message: 'Guest session started.',
       });
     }
@@ -86,6 +99,7 @@ export async function startGame(req: AuthenticatedRequest, res: Response) {
     return res.json({
       success: true,
       gameSessionToken,
+      highscore: personalHighscore,
       message: 'Energy deducted. Session started.',
     });
   } catch (error) {

@@ -365,7 +365,30 @@
     let pipes = [];
     let particles = [];
     let score = 0;
-    let savedHighscore = parseInt(localStorage.getItem('tggamehub_neonbird_highscore') || '0', 10);
+    
+    // Authoritative Server-Synced Highscore (Resets immediately to 0 if server highscore is wiped)
+    const serverHsParam = urlParams.get('highscore');
+    let savedHighscore = 0;
+    if (serverHsParam !== null && serverHsParam !== undefined) {
+      savedHighscore = parseInt(serverHsParam, 10) || 0;
+      try {
+        localStorage.setItem('tggamehub_neonbird_highscore', savedHighscore.toString());
+      } catch(e) {}
+    } else {
+      savedHighscore = parseInt(localStorage.getItem('tggamehub_neonbird_highscore') || '0', 10);
+    }
+
+    // Message listener for live highscore resets from parent app
+    window.addEventListener('message', (event) => {
+      if (!event.data) return;
+      if (event.data.type === 'SET_SERVER_HIGHSCORE' || event.data.type === 'RESET_HIGHSCORE') {
+        savedHighscore = parseInt(event.data.highscore || 0, 10) || 0;
+        try {
+          localStorage.setItem('tggamehub_neonbird_highscore', savedHighscore.toString());
+        } catch(e) {}
+      }
+    });
+
     let gameState = 'start'; // 'start', 'playing', 'revive_countdown', 'gameover'
     let animationFrameId;
     let totalJumps = 0;

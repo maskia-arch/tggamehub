@@ -140,12 +140,10 @@ export interface AmmTradeCalculation {
   newTokenReserve: number;
 }
 
-// Canonical Fallback Minigame to Coin mapping
+// Canonical Fallback Minigame to Coin mapping (Active Games Only)
 export const GAME_COIN_MAP: Record<string, { symbol: string; name: string }> = {
   doodlejump: { symbol: 'DOODLE', name: 'Neon Jump Coin' },
   neonbird: { symbol: 'FLAPPY', name: 'Neon Bird Coin' },
-  crossyneonroad: { symbol: 'CROSSY', name: 'Crossy Road Coin' },
-  neonstacking: { symbol: 'STACK', name: 'Neon Stacking Coin' },
 };
 
 // Internal momentum & activity state
@@ -260,7 +258,8 @@ export async function initCoinPool(
 }
 
 /**
- * Auto-initializes market coins for all registered games in the Hub
+ * Auto-initializes market coins ONLY for active, published games in the Hub.
+ * Unreleased or hidden games do not have a coin yet and are pruned from market_coins.
  */
 export async function ensureAllGameCoinsInitialized() {
   try {
@@ -268,11 +267,19 @@ export async function ensureAllGameCoinsInitialized() {
     if (!hasTable) return;
 
     const allGames = await getDynamicGamesList();
-    for (const game of allGames) {
+    const activeGames = allGames.filter((g) => g.status === 'active' && !g.hidden);
+    const activeSymbols = activeGames.map((g) => g.coinSymbol.toUpperCase());
+
+    // Prune coins from unreleased or hidden games
+    if (activeSymbols.length > 0) {
+      await db('market_coins').whereNotIn('symbol', activeSymbols).del();
+    }
+
+    for (const game of activeGames) {
       const sym = game.coinSymbol.toUpperCase();
       const existing = await db('market_coins').where({ symbol: sym }).first();
       if (!existing) {
-        await initCoinPool(sym, MARKET_CONFIG.BASE_PRICE, MARKET_CONFIG.INITIAL_VIRTUAL_GAME_RESERVE, game.title, game.id);
+        await initCoinPool(sym, MARKET_CONFIG.BASE_PRICE, MARKET_CONFIG.INITIAL_VIRTUAL_GAME_RESERVE, `${game.title} Coin`, game.id);
       }
     }
   } catch (err) {
@@ -993,7 +1000,11 @@ export async function executeAmmTrade(
  */
 export async function processMarketTick() {
   try {
-    const coins = await db('market_coins').select('*');
+    const allGames = await getDynamicGamesList();
+    const activeSymbols = allGames.filter((g) => g.status === 'active' && !g.hidden).map((g) => g.coinSymbol.toUpperCase());
+    if (activeSymbols.length === 0) return;
+
+    const coins = await db('market_coins').whereIn('symbol', activeSymbols);
     if (!coins || coins.length === 0) return;
     const now = Date.now();
 
@@ -1366,7 +1377,12 @@ export async function getAllMarketCoins(): Promise<MarketCoinOverview[]> {
 
     await ensureAllGameCoinsInitialized();
 
-    const coins = await db('market_coins').select('*');
+    const allGames = await getDynamicGamesList();
+    const activeGames = allGames.filter((g) => g.status === 'active' && !g.hidden);
+    const activeSymbols = activeGames.map((g) => g.coinSymbol.toUpperCase());
+    if (activeSymbols.length === 0) return [];
+
+    const coins = await db('market_coins').whereIn('symbol', activeSymbols);
     const oneDayAgo = new Date(Date.now() - 24 * 3600 * 1000);
     const oneHourAgo = new Date(Date.now() - 3600 * 1000);
 

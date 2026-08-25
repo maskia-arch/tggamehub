@@ -6,6 +6,7 @@ import * as crypto from 'crypto';
 import { recycleExpiredOrders } from './shop';
 import { getDynamicGamesList } from '../config/games';
 import { resetGameLeaderboardAndScores } from '../services/gameLeaderboardService';
+import { ensureAllGameCoinsInitialized } from '../services/marketEngine';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // GET /api/admin/stats  — main overview stats
@@ -681,7 +682,14 @@ export async function getAdminCoins(_req: Request, res: Response) {
       return res.json({ success: true, coins: [] });
     }
 
-    const coins = await db('market_coins').select('*').orderBy('symbol', 'asc');
+    await ensureAllGameCoinsInitialized();
+    const allGames = await getDynamicGamesList();
+    const activeSymbols = allGames.filter((g) => g.status === 'active' && !g.hidden).map((g) => g.coinSymbol.toUpperCase());
+    if (activeSymbols.length === 0) {
+      return res.json({ success: true, coins: [] });
+    }
+
+    const coins = await db('market_coins').whereIn('symbol', activeSymbols).orderBy('symbol', 'asc');
     return res.json({
       success: true,
       coins: coins.map((c: any) => ({
