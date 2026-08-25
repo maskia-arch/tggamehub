@@ -820,8 +820,9 @@ export async function executeAmmTrade(
   const momentum = getCoinMomentum(sym);
 
   const cleanUserId = String(userId || '').startsWith('guest_') ? 'guest_session' : String(userId || '');
+  let recordedNetProfit = 0;
 
-  return await db.transaction(async (trx) => {
+  const result = await db.transaction(async (trx) => {
     const user = await trx('users').where({ id: cleanUserId }).first();
     if (!user) {
       throw new Error('Benutzerkonto nicht gefunden.');
@@ -837,10 +838,12 @@ export async function executeAmmTrade(
     const constantK = Number(coin.constant_product_k);
 
     let calc: AmmTradeCalculation;
+    let cashToSpend = 0;
+    let tokensToSell = 0;
 
     if (tradeType === 'BUY') {
       const userCash = Number(user.game_cash || 0);
-      let cashToSpend = amount;
+      cashToSpend = amount;
       if (cashToSpend > userCash) {
         if (cashToSpend - userCash < 0.01) {
           cashToSpend = userCash;
@@ -904,7 +907,7 @@ export async function executeAmmTrade(
         throw new Error(`Keine $${sym} Token im Portfolio vorhanden.`);
       }
 
-      let tokensToSell = amount;
+      tokensToSell = amount;
       if (tokensToSell > userTokens) {
         if (tokensToSell - userTokens < 0.05 || (tokensToSell - userTokens) / userTokens < 0.001) {
           tokensToSell = userTokens;
@@ -944,7 +947,7 @@ export async function executeAmmTrade(
       }
 
       if (netProfit > 0 && !cleanUserId.startsWith('guest_')) {
-        await recordUserMarketProfit(cleanUserId, netProfit);
+        recordedNetProfit = netProfit;
       }
 
       momentum.consecutiveSells += 1;
@@ -954,34 +957,42 @@ export async function executeAmmTrade(
     // Update Coin Spot Price
     const newSpotPrice = Math.max(MARKET_CONFIG.MIN_PRICE, calc.newGameReserve / calc.newTokenReserve);
     const roundedPrice = Math.round(newSpotPrice * 1e12) / 1e12;
-
+    const effectiveCashVolume = tradeType === 'BUY' ? cashToSpend : calc.outputAmount;
     await trx('market_coins')
       .where({ symbol: sym })
       .update({
         current_price: roundedPrice,
         virtual_game_reserve: calc.newGameReserve,
         virtual_token_reserve: calc.newTokenReserve,
-        volume_24h: Number(coin.volume_24h || 0) + (tradeType === 'BUY' ? amount : calc.outputAmount),
+        volume_24h: Number(coin.volume_24h || 0) + effectiveCashVolume,
         updated_at: new Date(),
       });
 
-    // Record trade in user_trades
-    const [tradeId] = await trx('user_trades').insert({
-      user_id: cleanUserId,
-      coin_symbol: sym,
-      trade_type: tradeType,
-      amount_tokens: tradeType === 'BUY' ? calc.outputAmount : amount,
-      price_per_token: calc.executionPrice,
-      total_cash: tradeType === 'BUY' ? amount : calc.outputAmount,
-      gas_fee: calc.gasFee,
-      price_impact_percent: calc.priceImpactPercent,
-      created_at: new Date(),
-    });
+    // Record trade in user_trades (safe against PostgreSQL / SQLite driver differences)
+    let tradeId: any = null;
+    try {
+      const insertRes = await trx('user_trades').insert({
+        user_id: cleanUserId,
+        coin_symbol: sym,
+        trade_type: tradeType,
+        amount_tokens: tradeType === 'BUY' ? calc.outputAmount : tokensToSell,
+        price_per_token: calc.executionPrice,
+        total_cash: effectiveCashVolume,
+        gas_fee: calc.gasFee,
+        price_impact_percent: calc.priceImpactPercent,
+        created_at: new Date(),
+      });
+      if (Array.isArray(insertRes) && insertRes.length > 0) {
+        tradeId = typeof insertRes[0] === 'object' && insertRes[0] !== null ? (insertRes[0] as any).id : insertRes[0];
+      }
+    } catch (insertErr) {
+      console.warn('[AMM TRADE]: user_trades audit insert note:', insertErr);
+    }
 
     await trx('market_price_history').insert({
       coin_symbol: sym,
       price: roundedPrice,
-      volume: tradeType === 'BUY' ? amount : calc.outputAmount,
+      volume: effectiveCashVolume,
       timestamp: new Date(),
     });
 
@@ -1011,6 +1022,16 @@ export async function executeAmmTrade(
       },
     };
   });
+
+  if (recordedNetProfit > 0 && !cleanUserId.startsWith('guest_')) {
+    try {
+      await recordUserMarketProfit(cleanUserId, recordedNetProfit);
+    } catch (profitErr) {
+      console.warn('[AMM TRADE]: Failed to record user season profit:', profitErr);
+    }
+  }
+
+  return result;
 }
 
 // ============================================================================

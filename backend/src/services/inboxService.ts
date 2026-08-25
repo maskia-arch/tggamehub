@@ -21,16 +21,18 @@ export async function addInboxMessage(
   category: 'system' | 'airdrop' | 'referral' | 'market' | 'reward' = 'system'
 ): Promise<number | null> {
   try {
-    const [result] = await db('user_inbox').insert({
+    const result = await db('user_inbox').insert({
       user_id: userId,
       title,
       message,
       category,
       is_read: false,
-    }).returning('id');
+    });
 
-    const msgId = typeof result === 'object' && result?.id ? result.id : (typeof result === 'number' ? result : 1);
-    return msgId;
+    const msgId = Array.isArray(result) && result.length > 0
+      ? (typeof result[0] === 'object' && result[0] !== null ? (result[0] as any).id : result[0])
+      : (typeof result === 'object' && result !== null && 'id' in result ? (result as any).id : 1);
+    return msgId || 1;
   } catch (err: any) {
     console.error('[INBOX ERROR]: Failed to insert inbox message:', err);
     return null;
