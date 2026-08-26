@@ -117,7 +117,7 @@ export function GameWrapper({
       preview: '/images/crossy_neon_road_preview.png',
       targetScore: 40,
       coinSymbol: 'CROSSY',
-      hidden: true,
+      hidden: false,
     },
     {
       id: 'neonstacking',
@@ -149,6 +149,7 @@ export function GameWrapper({
                 ...fromServer,
                 preview: fromLocal?.preview || fromServer.preview,
                 description: fromLocal?.description || fromServer.description,
+                hidden: fromServer.hidden !== undefined ? fromServer.hidden : (fromServer.status === 'hidden'),
               };
             });
             setGames(merged);

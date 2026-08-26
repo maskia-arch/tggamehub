@@ -81,17 +81,18 @@ const DEFAULT_ACTIVE_GAMES: HubGame[] = [
     targetScore: 25,
     coinSymbol: 'FLAPPY',
   },
-];
-
-const UPCOMING_GAMES = [
   {
     id: 'crossyneonroad',
     title: 'Crossy Neon Road',
     genre: 'Arcade / Casual',
     icon: '🐔',
+    scoreUnit: 'pts',
+    targetScore: 40,
     coinSymbol: 'CROSSY',
-    desc: 'Überquere belebte Neon-Straßen & Flüsse. Weiche Fahrzeugen aus!',
   },
+];
+
+const UPCOMING_GAMES = [
   {
     id: 'neonstacking',
     title: 'Neon Stacking',

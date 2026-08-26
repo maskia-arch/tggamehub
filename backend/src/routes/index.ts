@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import { authMiddleware } from '../middleware/auth';
 import { adminAuth } from '../middleware/adminAuth';
 import { getProfile, addEnergyAd, updateDisplayName, updateWalletAddresses, scheduleAccountDeletion, cancelAccountDeletion, claimDailyFreeRefill } from '../controllers/user';
-import { startGame, submitScore, getGameBenchmark, getAllGameBenchmarks, getGamesCatalog, updateGameStatusHandler, createDevSandboxToken } from '../controllers/game';
+import { startGame, submitScore, getGameBenchmark, getAllGameBenchmarks, getGamesCatalog, updateGameStatusHandler, createDevSandboxToken, reorderGamesHandler } from '../controllers/game';
 import { getLeaderboard, getGamesList, getGameLeaderboardHandler, getSeasonLeaderboardHandler } from '../controllers/leaderboard';
 import {
   getAdminStats,
@@ -90,6 +90,7 @@ router.get('/game/benchmark/:gameId', authMiddleware, getGameBenchmark);
 
 // Local Dev Studio Game Management & Sandbox Endpoints
 router.post('/dev/games/status', updateGameStatusHandler);
+router.post('/dev/games/reorder', reorderGamesHandler);
 router.post('/dev/game/sandbox-token', createDevSandboxToken);
 
 // Leaderboard endpoints (modular Two-Pillar architecture)

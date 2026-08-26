@@ -7,7 +7,7 @@ import { consumeEnergy } from '../services/energy';
 import { recordUserGameActivity } from '../services/seasonService';
 import { recordGameHighscore } from '../services/gameLeaderboardService';
 import { processGameScoreAmmImpact, ensureAllGameCoinsInitialized } from '../services/marketEngine';
-import { getDynamicGame, getDynamicGamesList, updateGameSettingsInDb, GameStatus } from '../config/games';
+import { getDynamicGame, getDynamicGamesList, updateGameSettingsInDb, updateGamesOrderInDb, GameStatus } from '../config/games';
 
 interface GameSessionPayload {
   userId: string;
@@ -365,6 +365,29 @@ export async function updateGameStatusHandler(req: Request, res: Response) {
     });
   } catch (error) {
     console.error('Error updating game status:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+}
+
+/**
+ * POST /api/dev/games/reorder
+ * Reorders games based on an array of gameIds
+ */
+export async function reorderGamesHandler(req: Request, res: Response) {
+  try {
+    const { orderedGameIds } = req.body;
+    if (!Array.isArray(orderedGameIds) || orderedGameIds.length === 0) {
+      return res.status(400).json({ error: 'orderedGameIds array is required' });
+    }
+
+    const updated = await updateGamesOrderInDb(orderedGameIds);
+    return res.json({
+      success: true,
+      games: updated,
+      message: 'Reihenfolge der Spiele erfolgreich gespeichert.',
+    });
+  } catch (error) {
+    console.error('Error reordering games:', error);
     return res.status(500).json({ error: 'Internal server error' });
   }
 }

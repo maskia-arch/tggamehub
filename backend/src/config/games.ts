@@ -18,6 +18,7 @@ export interface HubGameConfig {
   status: GameStatus;
   maintenanceMessage?: string | null;
   hidden?: boolean;
+  sortOrder?: number;
 }
 
 export const BASE_HUB_GAMES: Omit<HubGameConfig, 'status' | 'maintenanceMessage'>[] = [
@@ -33,6 +34,7 @@ export const BASE_HUB_GAMES: Omit<HubGameConfig, 'status' | 'maintenanceMessage'
     targetScore: 100,
     coinSymbol: 'DOODLE',
     hidden: false,
+    sortOrder: 0,
   },
   {
     id: 'neonbird',
@@ -46,6 +48,7 @@ export const BASE_HUB_GAMES: Omit<HubGameConfig, 'status' | 'maintenanceMessage'
     targetScore: 25,
     coinSymbol: 'FLAPPY',
     hidden: false,
+    sortOrder: 1,
   },
   {
     id: 'crossyneonroad',
@@ -58,7 +61,8 @@ export const BASE_HUB_GAMES: Omit<HubGameConfig, 'status' | 'maintenanceMessage'
     scoreUnit: 'pts',
     targetScore: 40,
     coinSymbol: 'CROSSY',
-    hidden: true,
+    hidden: false,
+    sortOrder: 2,
   },
   {
     id: 'neonstacking',
@@ -72,14 +76,36 @@ export const BASE_HUB_GAMES: Omit<HubGameConfig, 'status' | 'maintenanceMessage'
     targetScore: 15,
     coinSymbol: 'STACK',
     hidden: true,
+    sortOrder: 3,
   },
 ];
 
-export const HUB_GAMES: HubGameConfig[] = BASE_HUB_GAMES.map((g) => ({
+export const HUB_GAMES: HubGameConfig[] = BASE_HUB_GAMES.map((g, idx) => ({
   ...g,
   status: g.hidden ? 'hidden' : 'active',
   maintenanceMessage: null,
+  sortOrder: g.sortOrder ?? idx,
 }));
+
+/**
+ * Ensures sort_order column exists in database
+ */
+export async function ensureSortOrderColumn() {
+  try {
+    const hasTable = await db.schema.hasTable('hub_game_settings');
+    if (hasTable) {
+      const hasColumn = await db.schema.hasColumn('hub_game_settings', 'sort_order');
+      if (!hasColumn) {
+        await db.schema.alterTable('hub_game_settings', (table) => {
+          table.integer('sort_order').defaultTo(999);
+        });
+        console.log('[GAMES CONFIG]: Added sort_order column to hub_game_settings');
+      }
+    }
+  } catch (err) {
+    console.warn('[GAMES CONFIG]: ensureSortOrderColumn note:', err);
+  }
+}
 
 /**
  * Scans filesystem for any newly added games in frontend/public/games
@@ -119,6 +145,7 @@ function discoverFilesystemGames(): Omit<HubGameConfig, 'status' | 'maintenanceM
               targetScore: 100,
               coinSymbol: dirName.substring(0, 5).toUpperCase(),
               hidden: true,
+              sortOrder: 99,
             });
             knownIds.add(dirName);
           }
@@ -133,7 +160,7 @@ function discoverFilesystemGames(): Omit<HubGameConfig, 'status' | 'maintenanceM
 }
 
 /**
- * Returns all hub games with their latest live database statuses and maintenance messages
+ * Returns all hub games with their latest live database statuses, sorted by sort_order
  */
 export async function getDynamicGamesList(): Promise<HubGameConfig[]> {
   const allBaseGames = discoverFilesystemGames();
@@ -141,21 +168,26 @@ export async function getDynamicGamesList(): Promise<HubGameConfig[]> {
   try {
     const hasTable = await db.schema.hasTable('hub_game_settings');
     if (!hasTable) {
-      return allBaseGames.map((g) => ({
-        ...g,
-        status: g.hidden ? 'hidden' : 'active',
-        maintenanceMessage: null,
-      }));
+      return allBaseGames
+        .map((g, idx) => ({
+          ...g,
+          status: (g.hidden ? 'hidden' : 'active') as GameStatus,
+          maintenanceMessage: null,
+          sortOrder: g.sortOrder ?? idx,
+        }))
+        .sort((a, b) => (a.sortOrder ?? 999) - (b.sortOrder ?? 999));
     }
 
+    await ensureSortOrderColumn();
     const settingsRows = await db('hub_game_settings').select('*');
     const settingsMap = new Map(settingsRows.map((r: any) => [r.game_id, r]));
 
-    return allBaseGames.map((base) => {
+    const mapped = allBaseGames.map((base, idx) => {
       const dbSetting = settingsMap.get(base.id);
-      const status: GameStatus = dbSetting?.status || (base.hidden ? 'hidden' : 'active');
+      const status: GameStatus = (dbSetting?.status || (base.hidden ? 'hidden' : 'active')) as GameStatus;
       const maintenanceMessage = dbSetting?.maintenance_message || null;
       const targetScore = dbSetting?.target_score || base.targetScore;
+      const sortOrder = dbSetting?.sort_order !== undefined && dbSetting?.sort_order !== null ? Number(dbSetting.sort_order) : (base.sortOrder ?? idx);
 
       return {
         ...base,
@@ -163,15 +195,21 @@ export async function getDynamicGamesList(): Promise<HubGameConfig[]> {
         status,
         maintenanceMessage,
         hidden: status === 'hidden',
+        sortOrder,
       };
     });
+
+    return mapped.sort((a, b) => (a.sortOrder ?? 999) - (b.sortOrder ?? 999));
   } catch (err) {
     console.warn('[GAMES CONFIG] Database query note:', err);
-    return allBaseGames.map((g) => ({
-      ...g,
-      status: g.hidden ? 'hidden' : 'active',
-      maintenanceMessage: null,
-    }));
+    return allBaseGames
+      .map((g, idx) => ({
+        ...g,
+        status: (g.hidden ? 'hidden' : 'active') as GameStatus,
+        maintenanceMessage: null,
+        sortOrder: g.sortOrder ?? idx,
+      }))
+      .sort((a, b) => (a.sortOrder ?? 999) - (b.sortOrder ?? 999));
   }
 }
 
@@ -184,7 +222,7 @@ export async function getDynamicGame(gameId: string): Promise<HubGameConfig | un
 }
 
 /**
- * Returns only actively playable / visible games (active or maintenance)
+ * Returns only actively playable / visible games (active or maintenance), sorted by sort_order
  */
 export async function getActivePlayableGames(): Promise<HubGameConfig[]> {
   const all = await getDynamicGamesList();
@@ -198,10 +236,12 @@ export async function updateGameSettingsInDb(
   gameId: string,
   status: GameStatus,
   maintenanceMessage?: string | null,
-  targetScore?: number
+  targetScore?: number,
+  sortOrder?: number
 ): Promise<HubGameConfig> {
   const gId = gameId.toLowerCase();
   const now = new Date().toISOString();
+  await ensureSortOrderColumn();
 
   const existing = await db('hub_game_settings').where({ game_id: gId }).first();
   if (existing) {
@@ -211,6 +251,7 @@ export async function updateGameSettingsInDb(
     };
     if (maintenanceMessage !== undefined) updateData.maintenance_message = maintenanceMessage;
     if (targetScore !== undefined) updateData.target_score = targetScore;
+    if (sortOrder !== undefined) updateData.sort_order = sortOrder;
 
     await db('hub_game_settings').where({ game_id: gId }).update(updateData);
   } else {
@@ -219,6 +260,7 @@ export async function updateGameSettingsInDb(
       status,
       maintenance_message: maintenanceMessage || null,
       target_score: targetScore || 100,
+      sort_order: sortOrder ?? 999,
       created_at: now,
       updated_at: now,
     });
@@ -236,7 +278,37 @@ export async function updateGameSettingsInDb(
     coinSymbol: gId.toUpperCase(),
     status,
     maintenanceMessage,
+    sortOrder: sortOrder ?? 999,
   };
+}
+
+/**
+ * Reorders games based on an array of game IDs and persists to database
+ */
+export async function updateGamesOrderInDb(orderedGameIds: string[]): Promise<HubGameConfig[]> {
+  await ensureSortOrderColumn();
+  const now = new Date().toISOString();
+
+  for (let i = 0; i < orderedGameIds.length; i++) {
+    const gId = orderedGameIds[i].toLowerCase();
+    const existing = await db('hub_game_settings').where({ game_id: gId }).first();
+    if (existing) {
+      await db('hub_game_settings').where({ game_id: gId }).update({
+        sort_order: i,
+        updated_at: now,
+      });
+    } else {
+      await db('hub_game_settings').insert({
+        game_id: gId,
+        status: 'active',
+        sort_order: i,
+        created_at: now,
+        updated_at: now,
+      });
+    }
+  }
+
+  return await getDynamicGamesList();
 }
 
 export function getRegisteredGame(gameId: string): HubGameConfig | undefined {
