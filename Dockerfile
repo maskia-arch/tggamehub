@@ -31,6 +31,9 @@ WORKDIR /app
 # Copy compiled backend & runtime files
 COPY --from=backend-builder /app/backend/dist ./backend/dist
 COPY --from=backend-builder /app/backend/knexfile.js ./backend/knexfile.js
+COPY --from=backend-builder /app/backend/src/admin-dashboard.html ./backend/src/admin-dashboard.html
+COPY --from=backend-builder /app/backend/src/dev-studio.html ./backend/src/dev-studio.html
+COPY --from=backend-builder /app/backend/src/assets ./backend/src/assets
 
 # Copy compiled frontend SPA
 COPY --from=frontend-builder /app/frontend/dist ./frontend/dist

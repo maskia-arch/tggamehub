@@ -264,19 +264,29 @@ export function Market({ initData, backendUrl, onBalanceUpdate }: MarketProps) {
       fetchChart(selectedSymbolRef.current, timeframeRef.current);
     }
 
-    let intervalId: any = null;
+    let marketIntervalId: any = null;
+    let newsIntervalId: any = null;
 
     const startPolling = () => {
-      if (intervalId) clearInterval(intervalId);
-      intervalId = setInterval(() => {
+      if (marketIntervalId) clearInterval(marketIntervalId);
+      if (newsIntervalId) clearInterval(newsIntervalId);
+
+      // Fast ticker for AMM price & chart updates (3s)
+      marketIntervalId = setInterval(() => {
         if (document.visibilityState === 'visible') {
           fetchMarket(true);
-          fetchNews();
           if (selectedSymbolRef.current) {
             fetchChart(selectedSymbolRef.current, timeframeRef.current);
           }
         }
       }, 3000);
+
+      // Relaxed polling for news ticker updates (20s)
+      newsIntervalId = setInterval(() => {
+        if (document.visibilityState === 'visible') {
+          fetchNews();
+        }
+      }, 20000);
     };
 
     const handleVisibilityChange = () => {
@@ -289,13 +299,15 @@ export function Market({ initData, backendUrl, onBalanceUpdate }: MarketProps) {
         }
         startPolling();
       } else {
-        if (intervalId) clearInterval(intervalId);
+        if (marketIntervalId) clearInterval(marketIntervalId);
+        if (newsIntervalId) clearInterval(newsIntervalId);
       }
     };
 
     const handleFocus = () => {
       setError(null);
       fetchMarket(false);
+      fetchNews();
       if (selectedSymbolRef.current) {
         fetchChart(selectedSymbolRef.current, timeframeRef.current);
       }
@@ -306,11 +318,12 @@ export function Market({ initData, backendUrl, onBalanceUpdate }: MarketProps) {
     startPolling();
 
     return () => {
-      if (intervalId) clearInterval(intervalId);
+      if (marketIntervalId) clearInterval(marketIntervalId);
+      if (newsIntervalId) clearInterval(newsIntervalId);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('focus', handleFocus);
     };
-  }, [fetchMarket, fetchChart]);
+  }, [fetchMarket, fetchChart, fetchNews]);
 
   const handleSelectCoinForTrade = (coin: MarketCoin, type: 'BUY' | 'SELL' = 'BUY', defaultAmount?: number | string) => {
     setSelectedSymbol(coin.symbol);
