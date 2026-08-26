@@ -101,14 +101,24 @@ export async function renderBotScreen(
     ...(extra && extra.reply_markup ? { reply_markup: extra.reply_markup } : (extra || {})),
   };
 
-  // 1. Clean up any pending push notification message if one exists
+  // 1. Clean up any pending push notification or market alert messages if they exist
   try {
-    const userRow = await db('users').where({ id: userId }).select('last_bot_message_id', 'last_notification_message_id').first();
-    if (userRow?.last_notification_message_id && chatId) {
-      try {
-        await ctx.telegram.deleteMessage(chatId, userRow.last_notification_message_id);
-      } catch {}
-      await db('users').where({ id: userId }).update({ last_notification_message_id: null });
+    const userRow = await db('users').where({ id: userId }).select('last_bot_message_id', 'last_notification_message_id', 'last_market_alert_message_id').first();
+    if (chatId) {
+      if (userRow?.last_notification_message_id) {
+        try {
+          await ctx.telegram.deleteMessage(chatId, userRow.last_notification_message_id);
+        } catch {}
+      }
+      if (userRow?.last_market_alert_message_id) {
+        try {
+          await ctx.telegram.deleteMessage(chatId, userRow.last_market_alert_message_id);
+        } catch {}
+      }
+      await db('users').where({ id: userId }).update({
+        last_notification_message_id: null,
+        last_market_alert_message_id: null,
+      });
     }
   } catch {}
 

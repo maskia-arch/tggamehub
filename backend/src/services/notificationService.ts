@@ -63,31 +63,57 @@ export async function checkAndSendFullEnergyNotifications(): Promise<void> {
             `🏆 Starte jetzt ein Match in CoinCade, jage neue Highscores und sammle Game$ für den Season-Airdrop-Pot! 🚀`;
 
           let newNotifId: number | null = null;
-          try {
-            // Delete previous notification message to avoid spamming the chat
-            if (u.last_notification_message_id) {
+          let energyEdited = false;
+
+          if (u.last_notification_message_id) {
+            try {
+              await bot.telegram.editMessageText(
+                u.id,
+                u.last_notification_message_id,
+                undefined,
+                text,
+                {
+                  parse_mode: 'Markdown',
+                  reply_markup: {
+                    inline_keyboard: [
+                      [{ text: '🕹️ Jetzt spielen (Mini App)', web_app: { url: config.frontendUrl } }],
+                      [
+                        { text: '📊 Mein Portfolio', callback_data: 'menu_market' },
+                        { text: '👤 Profil', callback_data: 'menu_profile' }
+                      ]
+                    ]
+                  }
+                }
+              );
+              energyEdited = true;
+              newNotifId = u.last_notification_message_id;
+              console.log(`[NOTIFICATION]: In-place edited full energy notification for user ${u.id} (msg: ${newNotifId})`);
+            } catch (editErr) {
               try {
                 await bot.telegram.deleteMessage(u.id, u.last_notification_message_id);
               } catch {}
             }
+          }
 
-            const sent = await bot.telegram.sendMessage(u.id, text, {
-              parse_mode: 'Markdown',
-              reply_markup: {
-                inline_keyboard: [
-                  [{ text: '🕹️ Jetzt spielen (Mini App)', web_app: { url: config.frontendUrl } }],
-                  [
-                    { text: '📊 Mein Portfolio', callback_data: 'menu_market' },
-                    { text: '👤 Profil', callback_data: 'menu_profile' }
+          if (!energyEdited) {
+            try {
+              const sent = await bot.telegram.sendMessage(u.id, text, {
+                parse_mode: 'Markdown',
+                reply_markup: {
+                  inline_keyboard: [
+                    [{ text: '🕹️ Jetzt spielen (Mini App)', web_app: { url: config.frontendUrl } }],
+                    [
+                      { text: '📊 Mein Portfolio', callback_data: 'menu_market' },
+                      { text: '👤 Profil', callback_data: 'menu_profile' }
+                    ]
                   ]
-                ]
-              }
-            });
-            newNotifId = sent.message_id;
-            console.log(`[NOTIFICATION]: Sent full energy push notification to user ${u.id} (msg_id: ${newNotifId})`);
-          } catch (tgErr: any) {
-            // User may not have started the bot or blocked it
-            console.log(`[NOTIFICATION]: Could not send full energy push to ${u.id}:`, tgErr.message || tgErr);
+                }
+              });
+              newNotifId = sent.message_id;
+              console.log(`[NOTIFICATION]: Sent full energy push notification to user ${u.id} (msg_id: ${newNotifId})`);
+            } catch (tgErr: any) {
+              console.log(`[NOTIFICATION]: Could not send full energy push to ${u.id}:`, tgErr.message || tgErr);
+            }
           }
 
           // Also record in internal player inbox (silently, without extra chat spam)
@@ -116,7 +142,8 @@ export async function checkAndSendFullEnergyNotifications(): Promise<void> {
 }
 
 /**
- * Checks all holders of a specific coin and notifies them on significant price pumps or drops.
+ * Checks all holders of a specific coin and notifies them on significant price movements.
+ * Edits existing alert message in-place to keep the chat tidy and prevent multiple spam alerts.
  */
 export async function checkAndSendPortfolioAlerts(
   symbol: string,
@@ -126,8 +153,8 @@ export async function checkAndSendPortfolioAlerts(
   const bot = getBotInstance();
   if (!bot) return;
 
-  // Only trigger on noticeable movement (>= 2.0%)
-  if (Math.abs(priceChangePercent) < 2.0) return;
+  // Only trigger on significant genuine market movement (>= 15.0%)
+  if (Math.abs(priceChangePercent) < 15.0) return;
 
   try {
     const hasPortfolios = await db.schema.hasTable('user_portfolios');
@@ -140,7 +167,7 @@ export async function checkAndSendPortfolioAlerts(
       .andWhere('user_id', 'not like', 'mock_%');
 
     const now = Date.now();
-    const COOLDOWN_MS = 30 * 60 * 1000; // 30 minutes cooldown per user per coin
+    const COOLDOWN_MS = 6 * 60 * 60 * 1000; // 6 hours cooldown per user per coin to prevent spam
 
     for (const h of holders) {
       const cooldownKey = `${h.user_id}_${symbol}`;
@@ -172,23 +199,67 @@ export async function checkAndSendPortfolioAlerts(
         `${pnlEmoji} *Dein Gewinn/Verlust:* \`${pnlSign}${pnl.toFixed(2)} $ (${pnlSign}${pnlPct.toFixed(1)}%)\`\n\n` +
         `_Öffne die Mini App für Live-Charts und Trading!_`;
 
-      try {
-        await bot.telegram.sendMessage(h.user_id, text, {
-          parse_mode: 'Markdown',
-          reply_markup: {
-            inline_keyboard: [
-              [{ text: '📈 Krypto-Börse in Mini App', web_app: { url: config.frontendUrl } }],
-              [
-                { text: '📊 Mein Portfolio', callback_data: 'menu_market' },
-                { text: '🕹️ Arcade Lobby', callback_data: 'menu_main' }
+      const userRow = await db('users').where({ id: h.user_id }).select('last_market_alert_message_id').first();
+      const lastAlertMsgId = userRow?.last_market_alert_message_id;
+
+      let newAlertMsgId: number | null = null;
+      let alertEdited = false;
+
+      if (lastAlertMsgId) {
+        try {
+          await bot.telegram.editMessageText(
+            h.user_id,
+            lastAlertMsgId,
+            undefined,
+            text,
+            {
+              parse_mode: 'Markdown',
+              reply_markup: {
+                inline_keyboard: [
+                  [{ text: '📈 Krypto-Börse in Mini App', web_app: { url: config.frontendUrl } }],
+                  [
+                    { text: '📊 Mein Portfolio', callback_data: 'menu_market' },
+                    { text: '🕹️ Arcade Lobby', callback_data: 'menu_main' }
+                  ]
+                ]
+              }
+            }
+          );
+          alertEdited = true;
+          newAlertMsgId = lastAlertMsgId;
+          console.log(`[PORTFOLIO ALERT]: In-place edited market alert for user ${h.user_id} (msg: ${lastAlertMsgId})`);
+        } catch (editErr) {
+          try {
+            await bot.telegram.deleteMessage(h.user_id, lastAlertMsgId);
+          } catch {}
+        }
+      }
+
+      if (!alertEdited) {
+        try {
+          const sent = await bot.telegram.sendMessage(h.user_id, text, {
+            parse_mode: 'Markdown',
+            reply_markup: {
+              inline_keyboard: [
+                [{ text: '📈 Krypto-Börse in Mini App', web_app: { url: config.frontendUrl } }],
+                [
+                  { text: '📊 Mein Portfolio', callback_data: 'menu_market' },
+                  { text: '🕹️ Arcade Lobby', callback_data: 'menu_main' }
+                ]
               ]
-            ]
-          }
-        });
-        portfolioAlertCooldowns.set(cooldownKey, now);
-        console.log(`[PORTFOLIO ALERT]: Sent market alert on $${symbol} to user ${h.user_id}`);
-      } catch (tgErr: any) {
-        console.log(`[PORTFOLIO ALERT]: Could not message user ${h.user_id}:`, tgErr.message || tgErr);
+            }
+          });
+          newAlertMsgId = sent.message_id;
+          console.log(`[PORTFOLIO ALERT]: Sent fresh market alert on $${symbol} to user ${h.user_id} (msg: ${newAlertMsgId})`);
+        } catch (tgErr: any) {
+          console.log(`[PORTFOLIO ALERT]: Could not message user ${h.user_id}:`, tgErr.message || tgErr);
+        }
+      }
+
+      portfolioAlertCooldowns.set(cooldownKey, now);
+
+      if (newAlertMsgId) {
+        await db('users').where({ id: h.user_id }).update({ last_market_alert_message_id: newAlertMsgId });
       }
 
       // Record in inbox

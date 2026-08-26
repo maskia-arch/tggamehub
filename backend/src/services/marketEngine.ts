@@ -280,6 +280,24 @@ export async function ensureAllGameCoinsInitialized() {
       const existing = await db('market_coins').where({ symbol: sym }).first();
       if (!existing) {
         await initCoinPool(sym, MARKET_CONFIG.BASE_PRICE, MARKET_CONFIG.INITIAL_VIRTUAL_GAME_RESERVE, `${game.title} Coin`, game.id);
+      } else {
+        // Sanity Check: If coin price is detached (> 1.0e-7) without massive reserves, realign to gameplay-backed AMM value
+        const curPrice = Number(existing.current_price || MARKET_CONFIG.BASE_PRICE);
+        if (curPrice > 1.0e-7) {
+          const totalBurned = Number(existing.total_burned || 0);
+          const truePrice = Math.max(MARKET_CONFIG.BASE_PRICE, Math.round(MARKET_CONFIG.BASE_PRICE * (1 + totalBurned / 10_000_000) * 1e12) / 1e12);
+          const constantK = Number(existing.constant_product_k || MARKET_CONFIG.CONSTANT_PRODUCT_K);
+          const safeGame = Math.sqrt(constantK * truePrice);
+          const safeToken = Math.sqrt(constantK / truePrice);
+          await db('market_coins').where({ symbol: sym }).update({
+            current_price: truePrice,
+            base_price: MARKET_CONFIG.BASE_PRICE,
+            virtual_game_reserve: safeGame,
+            virtual_token_reserve: safeToken,
+            updated_at: new Date(),
+          });
+          console.log(`[Market Engine]: Auto-healed inflated $${sym} price from ${curPrice} to gameplay-backed ${truePrice} Game$`);
+        }
       }
     }
   } catch (err) {
@@ -1035,11 +1053,14 @@ export async function executeAmmTrade(
 }
 
 // ============================================================================
-// 4. TICK-BASED PRICE AGGREGATOR & VALUATION-TIER VOLATILITY
+// 4. TICK-BASED MARKET ENGINE (STRICTLY GAMEPLAY & AMM BACKED)
 // ============================================================================
 
 /**
- * Composite Market Update Tick with valuation-tier-aware dynamics
+ * Composite Market Update Tick:
+ * - When there is active trading/gameplay: maintains realistic micro-spread orderbook noise.
+ * - When there is no activity for extended periods: allows gentle, realistic cooling towards baseline.
+ * - NEVER artificially pumps or compounds prices without real player scores or trades.
  */
 export async function processMarketTick() {
   try {
@@ -1056,121 +1077,54 @@ export async function processMarketTick() {
       const currentPrice = Number(coin.current_price || MARKET_CONFIG.BASE_PRICE);
       const basePrice = Number(coin.base_price || MARKET_CONFIG.BASE_PRICE);
       const constantK = Number(coin.constant_product_k || MARKET_CONFIG.CONSTANT_PRODUCT_K);
-      const tier = getCoinMarketTier(currentPrice);
 
       const momentum = getCoinMomentum(symbol);
       const secondsSinceActivity = (now - momentum.lastActivityTime) / 1000;
 
-      // 1. Orderbook Micro-Spread Noise (only active when volume exists)
-      const noiseMagnitude = tier === 'ESTABLISHED_TRADER' ? MARKET_CONFIG.MICRO_SPREAD_NOISE : MARKET_CONFIG.MICRO_SPREAD_NOISE * 0.4;
-      const microNoise = (Math.random() * 2 - 1) * noiseMagnitude;
+      let totalShift = 0.0;
 
-      // 2. Momentum / Streak Booster
-      let deltaMomentum = 0.0;
-      if (momentum.consecutiveBuys > 0) {
-        const streak = Math.min(MARKET_CONFIG.MAX_MOMENTUM_STREAK, momentum.consecutiveBuys);
-        deltaMomentum = streak * MARKET_CONFIG.MOMENTUM_BOOST_PER_STREAK;
+      if (secondsSinceActivity < 60) {
+        // Active Market: Orderbook Micro-Spread Noise (±0.005% max)
+        const microNoise = (Math.random() * 2 - 1) * 0.00005;
+        totalShift += microNoise;
+      } else if (secondsSinceActivity > 900 && currentPrice > basePrice) {
+        // Inactive Market (> 15 min without games/trades): Very gentle cooling drift towards base price
+        const elevationRatio = (currentPrice - basePrice) / basePrice;
+        const gentleDrift = -0.000005 * Math.min(1.0, elevationRatio);
+        totalShift += gentleDrift;
       }
 
-      // 3. Passive Mean Reversion / Cooling Drift
-      let drift = 0.0;
-      if (secondsSinceActivity > 45) {
-        const deviationRatio = (currentPrice - basePrice) / Math.max(1e-8, basePrice);
-        drift = MARKET_CONFIG.PASSIVE_DRIFT_PER_TICK * Math.sign(deviationRatio) * Math.min(1.5, Math.abs(deviationRatio));
-      }
+      if (Math.abs(totalShift) > 1e-7) {
+        const rawNewPrice = currentPrice * (1 + totalShift);
+        const newPrice = Math.max(basePrice, Math.round(rawNewPrice * 1e12) / 1e12);
 
-      // 4. VALUATION-TIER-AWARE WHALE DYNAMICS (Realistic & Cooldown Protected)
-      let whaleShift = 0.0;
-      const timeSinceLastWhale = now - (momentum.lastWhaleEventTime || 0);
+        if (Math.abs(newPrice - currentPrice) >= 1e-12) {
+          const newGameReserve = Math.sqrt(constantK * newPrice);
+          const newTokenReserve = Math.sqrt(constantK / newPrice);
 
-      if (timeSinceLastWhale >= MARKET_CONFIG.WHALE_COOLDOWN_MS) {
-        const surgeFromBase = (currentPrice - basePrice) / basePrice;
-
-        if (tier === 'ESTABLISHED_TRADER') {
-          // Tier 3 (>= 0.01$): Established Asset - Whales do realistic rebalancing on surges >= +50%
-          if (surgeFromBase >= 0.50 && Math.random() < 0.003) {
-            const dumpPercent = 0.04 + Math.random() * 0.05; // -4% to -9% healthy pullback
-            whaleShift = -dumpPercent;
-            momentum.lastWhaleEventTime = now;
-
-            await db('market_events').insert({
-              coin_symbol: symbol,
-              event_type: 'WHALE_REBALANCE',
-              title: '🐋 Whale Portfolio-Umschichtung',
-              description: `Ein Großinvestor realisiert Gewinne bei $${symbol}. Gesunde Konsolidierung um -${(dumpPercent * 100).toFixed(1)}%.`,
-              price_impact_percent: Math.round(-dumpPercent * 10000) / 100,
-              created_at: new Date(),
+          await db('market_coins')
+            .where({ symbol })
+            .update({
+              current_price: newPrice,
+              virtual_game_reserve: newGameReserve,
+              virtual_token_reserve: newTokenReserve,
+              updated_at: new Date(),
             });
-            console.log(`[Market Tick]: Whale Rebalance on $${symbol} (-${(dumpPercent * 100).toFixed(1)}%)`);
-          }
-        } else if (tier === 'EMERGING') {
-          // Tier 2 (0.0001$ - 0.01$): Emerging Coin - Whales are rare (0.1% chance) and only on large surges >= +100%
-          if (surgeFromBase >= 1.00 && Math.random() < 0.001) {
-            const dumpPercent = 0.03 + Math.random() * 0.04; // -3% to -7% moderate pullback
-            whaleShift = -dumpPercent;
-            momentum.lastWhaleEventTime = now;
 
-            await db('market_events').insert({
-              coin_symbol: symbol,
-              event_type: 'WHALE_TAKE_PROFIT',
-              title: '🐋 Whale Gewinnmitnahme',
-              description: `Nach Verdopplung des Kurses nimmt ein früher Wal bei $${symbol} Teilgewinne mit (-${(dumpPercent * 100).toFixed(1)}%).`,
-              price_impact_percent: Math.round(-dumpPercent * 10000) / 100,
-              created_at: new Date(),
-            });
-            console.log(`[Market Tick]: Whale Take-Profit on $${symbol} (-${(dumpPercent * 100).toFixed(1)}%)`);
-          }
-        } else {
-          // Tier 1 (< 0.0001$): Micro-Meme Coin - Extremely rare (0.03% chance) and only on massive +200% rally
-          if (surgeFromBase >= 2.00 && Math.random() < 0.0003) {
-            const dumpPercent = 0.02 + Math.random() * 0.03; // -2% to -5% gentle community take-profit
-            whaleShift = -dumpPercent;
-            momentum.lastWhaleEventTime = now;
-
-            await db('market_events').insert({
-              coin_symbol: symbol,
-              event_type: 'COMMUNITY_PROFIT_TAKE',
-              title: '🌾 Frühe Gamer Gewinnmitnahme',
-              description: `Nach starkem Hype sichern sich einige frühe Spieler Ingame-$ (-${(dumpPercent * 100).toFixed(1)}%).`,
-              price_impact_percent: Math.round(-dumpPercent * 10000) / 100,
-              created_at: new Date(),
-            });
-            console.log(`[Market Tick]: Micro Take-Profit on $${symbol} (-${(dumpPercent * 100).toFixed(1)}%)`);
-          }
-        }
-      }
-
-      // Composite Price Formula
-      const totalShift = deltaMomentum + drift + whaleShift + microNoise;
-      const rawNewPrice = currentPrice * (1 + totalShift);
-      const newPrice = Math.max(MARKET_CONFIG.MIN_PRICE, Math.round(rawNewPrice * 1e12) / 1e12);
-
-      if (Math.abs(newPrice - currentPrice) >= 1e-12) {
-        const newGameReserve = Math.sqrt(constantK * newPrice);
-        const newTokenReserve = Math.sqrt(constantK / newPrice);
-
-        await db('market_coins')
-          .where({ symbol })
-          .update({
-            current_price: newPrice,
-            virtual_game_reserve: newGameReserve,
-            virtual_token_reserve: newTokenReserve,
-            updated_at: new Date(),
+          await db('market_price_history').insert({
+            coin_symbol: symbol,
+            price: newPrice,
+            volume: 0,
+            timestamp: new Date(),
           });
 
-        await db('market_price_history').insert({
-          coin_symbol: symbol,
-          price: newPrice,
-          volume: 0,
-          timestamp: new Date(),
-        });
-
-        momentum.lastTickPrice = newPrice;
+          momentum.lastTickPrice = newPrice;
+        }
       }
     }
 
-    // Stochastic Random Market Events (1% chance per 5s tick)
-    if (Math.random() < 0.01) {
+    // Rare narrative news logger (Purely informational in event feed, NO price pump)
+    if (Math.random() < 0.002) {
       await triggerRandomMarketEvent(coins);
     }
   } catch (err) {
@@ -1197,11 +1151,12 @@ export function startMarketTicker() {
 }
 
 // ============================================================================
-// 5. VALUATION-TIER-AWARE NARRATIVE & RANDOM EVENT ENGINE
+// 5. NARRATIVE MARKET NEWS FEED (INFORMATIONAL ONLY)
 // ============================================================================
 
 /**
- * Generates realistic, tier-appropriate narrative market events
+ * Generates community news items for the market events feed.
+ * Purely informative — does not artificially inflate prices or send notification spam.
  */
 async function triggerRandomMarketEvent(coins: any[]) {
   try {
@@ -1210,202 +1165,39 @@ async function triggerRandomMarketEvent(coins: any[]) {
 
     const randomCoin = coins[Math.floor(Math.random() * coins.length)];
     const symbol = randomCoin.symbol;
-    const currentPrice = Number(randomCoin.current_price || MARKET_CONFIG.BASE_PRICE);
-    const constantK = Number(randomCoin.constant_product_k || MARKET_CONFIG.CONSTANT_PRODUCT_K);
-    const tier = getCoinMarketTier(currentPrice);
 
-    interface EventTemplate {
-      type: string;
-      title: string;
-      description: string;
-      minImpact: number;
-      maxImpact: number;
-    }
+    const narrativeNews = [
+      {
+        type: 'COMMUNITY_REPORT',
+        title: '📊 Community Markt-Bericht',
+        description: `Stabiles Handelsumfeld bei $${symbol}. Spieler nutzen Kursbewegungen für Taktiken.`,
+      },
+      {
+        type: 'NETWORK_UPDATE',
+        title: '⚡ Minigame-Netzwerk Live',
+        description: `Kontinuierliche Punktverbrennung bei $${symbol} hält den Umlaufbestand stabil.`,
+      },
+      {
+        type: 'TOURNAMENT_WATCH',
+        title: '🏆 Ranglisten-Wettstreit',
+        description: `Spannende Runden im Minigame-Hub für $${symbol}! Spieler kämpfen um neue Highscores.`,
+      },
+    ];
 
-    let eventTemplates: EventTemplate[] = [];
-
-    if (tier === 'MICRO_NANO') {
-      // Tier 1: Micro / Meme Coins (< 0.0001$) - Community, Gameplay & Viral Trends (NO "Händler")
-      eventTemplates = [
-        {
-          type: 'COMMUNITY_RAID',
-          title: '⚡ Community Kaufwelle',
-          description: `Zahlreiche Spieler entdecken $${symbol} im Telegram Minigame-Hub!`,
-          minImpact: 0.008,
-          maxImpact: 0.025,
-        },
-        {
-          type: 'GAMEPLAY_RUSH',
-          title: '🎮 Highscore-Welle',
-          description: `Intensive Spielrunden verbrennen $${symbol} Token und treiben den Kurs.`,
-          minImpact: 0.006,
-          maxImpact: 0.020,
-        },
-        {
-          type: 'VIRAL_MEME',
-          title: '🚀 Telegram Hype',
-          description: `Ein viraler Screenshot der Rangliste sorgt für Begeisterung bei $${symbol}.`,
-          minImpact: 0.010,
-          maxImpact: 0.035,
-        },
-        {
-          type: 'COMMUNITY_COOLING',
-          title: '💤 Spielpause',
-          description: `Kurze Verschnaufpause der Spieler nach ausgiebigen Highscore-Versuchen.`,
-          minImpact: -0.012,
-          maxImpact: -0.004,
-        },
-        {
-          type: 'EARLY_FARMER_EXIT',
-          title: '🌾 Früh-Farmer Auszahlung',
-          description: `Einige frühe Spieler tauschen erwirtschaftete $${symbol} in Game$ ein.`,
-          minImpact: -0.015,
-          maxImpact: -0.005,
-        },
-        {
-          type: 'MICRO_WHALE_ACCUMULATE',
-          title: '💎 Diamant-Hände Akkumulation',
-          description: `Ein engagierter Community-Member stockt seine $${symbol} Bestände auf.`,
-          minImpact: 0.020,
-          maxImpact: 0.045,
-        },
-      ];
-    } else if (tier === 'EMERGING') {
-      // Tier 2: Emerging Growth Coins (0.0001$ - 0.01$) - Volume, Tournaments & Deflation
-      eventTemplates = [
-        {
-          type: 'VOLUME_BREAKOUT',
-          title: '📈 Volumen-Ausbruch',
-          description: `Das 24h-Handelsvolumen von $${symbol} erreicht ein neues Wochenhoch!`,
-          minImpact: 0.015,
-          maxImpact: 0.035,
-        },
-        {
-          type: 'TOURNAMENT_FEVER',
-          title: '🏆 Turnier-Fieber',
-          description: `Der aktuelle Community-Wettkampf lässt die Verbrennungsrate von $${symbol} ansteigen.`,
-          minImpact: 0.020,
-          maxImpact: 0.045,
-        },
-        {
-          type: 'DEFLATIONARY_BURN',
-          title: '🔥 Massive Verbrennung',
-          description: `Rekord-Highscores reduzieren das zirkulierende Angebot von $${symbol} merklich.`,
-          minImpact: 0.012,
-          maxImpact: 0.030,
-        },
-        {
-          type: 'MOMENTUM_PULLBACK',
-          title: '📉 Gesunde Konsolidierung',
-          description: `Nach starkem Aufwärtstrend konsolidiert $${symbol} auf hohem Niveau.`,
-          minImpact: -0.020,
-          maxImpact: -0.008,
-        },
-        {
-          type: 'COMMUNITY_FUD',
-          title: '📰 Marktdiskussion',
-          description: `Spekulationen über neue Spiel-Updates führen zu kurzzeitigen Gewinnmitnahmen.`,
-          minImpact: -0.025,
-          maxImpact: -0.010,
-        },
-        {
-          type: 'WHALE_ACCUMULATION',
-          title: '🐋 Wal-Akkumulation',
-          description: `Ein Krypto-Wal kauft kontinuierlich Positionen im $${symbol} AMM Pool.`,
-          minImpact: 0.030,
-          maxImpact: 0.060,
-        },
-      ];
-    } else {
-      // Tier 3: Established Trader Assets (>= 0.01$) - Professional Händler, Algo-Bots & Orderbooks
-      eventTemplates = [
-        {
-          type: 'ALGO_TRADER_BUY',
-          title: '🤖 Händler-Algorithmus Kaufwelle',
-          description: `Automatisierte Trading-Bots und professionelle Händler lösen Kaufsignale bei $${symbol} aus.`,
-          minImpact: 0.012,
-          maxImpact: 0.032,
-        },
-        {
-          type: 'MARKET_MAKER_SPREAD',
-          title: '📊 Market Maker Liquiditäts-Optimierung',
-          description: `Professionelle Liquiditätsanbieter straffen die Spreads im $${symbol} Orderbuch.`,
-          minImpact: 0.008,
-          maxImpact: 0.022,
-        },
-        {
-          type: 'INSTITUTIONAL_INFLOW',
-          title: '💼 Institutioneller Kapitalzufluss',
-          description: `Größere Investoren und Trading-Desks allokieren Kapital in $${symbol}.`,
-          minImpact: 0.025,
-          maxImpact: 0.055,
-        },
-        {
-          type: 'TRADER_PROFIT_TAKING',
-          title: '📉 Händler Gewinnmitnahmen',
-          description: `Day-Trader und Swing-Händler schließen Long-Positionen an wichtigen Widerständen.`,
-          minImpact: -0.028,
-          maxImpact: -0.010,
-        },
-        {
-          type: 'LIQUIDATION_SQUEEZE',
-          title: '⚡ Short-Squeeze Rallye',
-          description: `Ein plötzlicher Preissprung zwingt Short-Positionen zur Eindeckung bei $${symbol}!`,
-          minImpact: 0.035,
-          maxImpact: 0.070,
-        },
-        {
-          type: 'WHALE_DISTRIBUTION',
-          title: '🐋 Wal Limit-Verkauf',
-          description: `Ein Großanleger platziert dosierte Verkaufsaufträge zur Portfolio-Diversifikation.`,
-          minImpact: -0.030,
-          maxImpact: -0.012,
-        },
-      ];
-    }
-
-    const template = eventTemplates[Math.floor(Math.random() * eventTemplates.length)];
-    const impactFactor = template.minImpact + Math.random() * (template.maxImpact - template.minImpact);
-    const priceImpactPercent = Math.round(impactFactor * 10000) / 100;
-
-    const newPrice = Math.max(MARKET_CONFIG.MIN_PRICE, Math.round(currentPrice * (1 + impactFactor) * 1e12) / 1e12);
-
-    const newGameReserve = Math.sqrt(constantK * newPrice);
-    const newTokenReserve = Math.sqrt(constantK / newPrice);
-
-    await db('market_coins')
-      .where({ symbol })
-      .update({
-        current_price: newPrice,
-        virtual_game_reserve: newGameReserve,
-        virtual_token_reserve: newTokenReserve,
-        updated_at: new Date(),
-      });
-
-    await db('market_price_history').insert({
-      coin_symbol: symbol,
-      price: newPrice,
-      volume: 0,
-      timestamp: new Date(),
-    });
+    const item = narrativeNews[Math.floor(Math.random() * narrativeNews.length)];
 
     await db('market_events').insert({
       coin_symbol: symbol,
-      event_type: template.type,
-      title: template.title,
-      description: template.description,
-      price_impact_percent: priceImpactPercent,
+      event_type: item.type,
+      title: item.title,
+      description: item.description,
+      price_impact_percent: 0.0,
       created_at: new Date(),
     });
 
-    console.log(`[Market Trigger Event (${tier})]: ${template.title} on $${symbol} -> ${priceImpactPercent >= 0 ? '+' : ''}${priceImpactPercent}%`);
-
-    try {
-      const { checkAndSendPortfolioAlerts } = require('./notificationService');
-      await checkAndSendPortfolioAlerts(symbol, priceImpactPercent, newPrice);
-    } catch (notifErr) {}
+    console.log(`[Market News]: ${item.title} on $${symbol}`);
   } catch (err) {
-    console.error('[Market Event Trigger Error]:', err);
+    console.error('[Market News Logger Error]:', err);
   }
 }
 
