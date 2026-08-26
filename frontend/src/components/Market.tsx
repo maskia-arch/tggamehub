@@ -133,7 +133,7 @@ export function Market({ initData, backendUrl, onBalanceUpdate }: MarketProps) {
   const [trading, setTrading] = useState(false);
   const [tradeSuccessMsg, setTradeSuccessMsg] = useState<string | null>(null);
 
-  const CANONICAL_COIN_ORDER = ['DOODLE', 'FLAPPY'];
+  const CANONICAL_COIN_ORDER = ['DOODLE', 'FLAPPY', 'CROSSY', 'STACK'];
   const sortedCoins = [...(data?.coins || [])].sort((a, b) => {
     const iA = CANONICAL_COIN_ORDER.indexOf(a.symbol.toUpperCase());
     const iB = CANONICAL_COIN_ORDER.indexOf(b.symbol.toUpperCase());
