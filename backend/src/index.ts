@@ -155,7 +155,7 @@ import { runAutoMigrations } from './database/autoMigrate';
 runAutoMigrations(db)
   .then(() => {
     // Start Express listener
-    app.listen(config.port, () => {
+    const server = app.listen(config.port, () => {
       console.log(`[SERVER]: Express server running on port ${config.port} (${config.nodeEnv} mode)`);
       
       // Start Telegram Bot
@@ -169,6 +169,24 @@ runAutoMigrations(db)
       const { startNotificationScheduler } = require('./services/notificationService');
       startNotificationScheduler();
     });
+
+    // Graceful process shutdown handler (ensures port release and cleanly kills old instances)
+    const handleShutdown = (signal: string) => {
+      console.log(`[SERVER]: Received ${signal}. Closing HTTP server and freeing port ${config.port}...`);
+      server.close(() => {
+        console.log('[SERVER]: HTTP server closed gracefully.');
+        process.exit(0);
+      });
+      // Force exit after 3 seconds if hanging
+      setTimeout(() => {
+        console.warn('[SERVER]: Forcefully terminating process after timeout.');
+        process.exit(0);
+      }, 3000).unref();
+    };
+
+    process.on('SIGTERM', () => handleShutdown('SIGTERM'));
+    process.on('SIGINT', () => handleShutdown('SIGINT'));
+    process.on('SIGHUP', () => handleShutdown('SIGHUP'));
   })
   .catch((err) => {
     console.error('[DATABASE ERROR]: Failed auto-migration check on startup.', err);

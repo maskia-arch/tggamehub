@@ -329,7 +329,7 @@ export async function runAutoMigrations(knex: Knex): Promise<void> {
     const hasMarketCoins = await knex.schema.hasTable('market_coins');
     if (!hasMarketCoins) {
       await knex.schema.createTable('market_coins', (table) => {
-        table.string('symbol').primary(); // DOODLE, FLAPPY
+        table.string('symbol').primary(); // DOODLE, FLAPPY, CROSSY
         table.string('name').notNullable();
         table.string('game_id').notNullable();
         table.float('current_price').notNullable().defaultTo(0.00000001);
@@ -371,14 +371,24 @@ export async function runAutoMigrations(knex: Knex): Promise<void> {
           total_burned: 0.0,
           volume_24h: 0.0
         },
+        {
+          symbol: 'CROSSY',
+          name: 'Crossy Neon Road Coin',
+          game_id: 'crossyneonroad',
+          current_price: 0.00000001,
+          base_price: 0.00000001,
+          virtual_game_reserve: 100000.0,
+          virtual_token_reserve: 10000000000000.0,
+          constant_product_k: 1000000000000000000.0,
+          circulating_supply: 10000000000000.0,
+          total_burned: 0.0,
+          volume_24h: 0.0
+        },
       ]);
     } else {
       await ensureColumn(knex, 'market_coins', 'virtual_game_reserve', (t) => t.float('virtual_game_reserve').defaultTo(100000.0));
       await ensureColumn(knex, 'market_coins', 'virtual_token_reserve', (t) => t.float('virtual_token_reserve').defaultTo(10000000000000.0));
       await ensureColumn(knex, 'market_coins', 'constant_product_k', (t) => t.float('constant_product_k').defaultTo(1000000000000000000.0));
-
-      // Clean up inactive / unreleased game coins ($CROSSY, $STACK, etc.)
-      await knex('market_coins').whereNotIn('symbol', ['DOODLE', 'FLAPPY']).del();
 
       // Ensure canonical names & initialize pool reserves if missing or 0
       await knex('market_coins').where({ symbol: 'DOODLE' }).update({
@@ -386,6 +396,9 @@ export async function runAutoMigrations(knex: Knex): Promise<void> {
       });
       await knex('market_coins').where({ symbol: 'FLAPPY' }).update({
         name: 'Neon Bird Coin',
+      });
+      await knex('market_coins').where({ symbol: 'CROSSY' }).update({
+        name: 'Crossy Neon Road Coin',
       });
 
       // Self-heal pool reserves for any coins with 0 or null reserves
@@ -405,6 +418,46 @@ export async function runAutoMigrations(knex: Knex): Promise<void> {
           await knex('market_coins').where({ symbol: coin.symbol }).update(updates);
           console.log(`[DATABASE AUTO-SYNC]: Initialized AMM pool parameters for $${coin.symbol}`);
         }
+      }
+    }
+
+    // ── Table: HUB_GAME_SETTINGS ──────────────────────────────────────────────
+    const hasGameSettings = await knex.schema.hasTable('hub_game_settings');
+    if (!hasGameSettings) {
+      await knex.schema.createTable('hub_game_settings', (table) => {
+        table.string('game_id').primary();
+        table.string('status').notNullable().defaultTo('active');
+        table.text('maintenance_message').nullable();
+        table.integer('target_score').defaultTo(100);
+        table.integer('sort_order').defaultTo(999);
+        table.timestamp('created_at').defaultTo(knex.fn.now());
+        table.timestamp('updated_at').defaultTo(knex.fn.now());
+      });
+      console.log('[DATABASE AUTO-SYNC]: Created hub_game_settings table.');
+    } else {
+      await ensureColumn(knex, 'hub_game_settings', 'sort_order', (t) => t.integer('sort_order').defaultTo(999));
+      await ensureColumn(knex, 'hub_game_settings', 'target_score', (t) => t.integer('target_score').defaultTo(100));
+      await ensureColumn(knex, 'hub_game_settings', 'maintenance_message', (t) => t.text('maintenance_message').nullable());
+    }
+
+    // Ensure default settings exist for canonical games
+    const defaultGames = [
+      { game_id: 'doodlejump', status: 'active', target_score: 1500, sort_order: 0 },
+      { game_id: 'neonbird', status: 'active', target_score: 25, sort_order: 1 },
+      { game_id: 'crossyneonroad', status: 'active', target_score: 40, sort_order: 2 },
+      { game_id: 'neonstacking', status: 'hidden', target_score: 15, sort_order: 3 },
+    ];
+
+    for (const dg of defaultGames) {
+      const exists = await knex('hub_game_settings').where({ game_id: dg.game_id }).first();
+      if (!exists) {
+        await knex('hub_game_settings').insert({
+          ...dg,
+          maintenance_message: null,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        });
+        console.log(`[DATABASE AUTO-SYNC]: Seeded game setting for ${dg.game_id} (${dg.status}, sort_order: ${dg.sort_order})`);
       }
     }
 
@@ -529,6 +582,14 @@ export async function runAutoMigrations(knex: Knex): Promise<void> {
         is_active: false,
       });
       console.log('[DATABASE AUTO-SYNC]: Seeded initial Season 0 in preparing state (target: 1000.00 €).');
+    }
+
+    // ── Auto-initialize AMM Coin Pools for all active games ───────────────
+    try {
+      const { ensureAllGameCoinsInitialized } = require('../services/marketEngine');
+      await ensureAllGameCoinsInitialized();
+    } catch (e: any) {
+      console.warn('[DATABASE AUTO-SYNC]: Note initializing coin pools:', e.message);
     }
 
     console.log('[DATABASE AUTO-SYNC]: All database tables, columns, and SQL structures are 100% verified and synchronized.');
