@@ -37,4 +37,5 @@ COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
 
 EXPOSE 5000
 
-CMD ["node", "--no-deprecation", "backend/dist/index.js"]
+# Memory limit: 512MB max heap to prevent OOM on small VPS (adjust up if server has more RAM)
+CMD ["node", "--no-deprecation", "--max-old-space-size=512", "backend/dist/index.js"]

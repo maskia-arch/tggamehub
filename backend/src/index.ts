@@ -8,6 +8,17 @@ import db from './database/client';
 import { initTelegramBot } from './bot';
 import { adminAuth } from './middleware/adminAuth';
 
+// ── Global Crash Protection ───────────────────────────────────────────────────
+// Prevent unhandled rejections / exceptions from killing the process
+process.on('unhandledRejection', (reason: any) => {
+  console.error('[PROCESS]: Unhandled Promise Rejection (non-fatal):', reason?.message || reason);
+  // Do NOT exit — keep the server alive
+});
+process.on('uncaughtException', (err: Error) => {
+  console.error('[PROCESS]: Uncaught Exception (non-fatal):', err.message);
+  // Do NOT exit — keep the server alive unless it is truly unrecoverable
+});
+
 const app = express();
 
 // Configure CORS to allow requests from Frontend Mini App, Admin Dashboard, and local dev environments
