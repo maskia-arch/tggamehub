@@ -1,7 +1,7 @@
 import Redis from 'ioredis';
 import { config } from '../config';
 import db from '../database/client';
-import { getRegisteredGame, getDynamicGamesList, HubGameConfig } from '../config/games';
+import { getRegisteredGame, getDynamicGame, getDynamicGamesList, HubGameConfig } from '../config/games';
 
 let isRedisConnected = false;
 let redis: Redis | null = null;
@@ -194,7 +194,7 @@ export async function getGameLeaderboard(
   limit: number = 100,
   requestingUserId?: string
 ): Promise<GameLeaderboardResponse> {
-  const gameConfig: HubGameConfig = getRegisteredGame(gameId) || {
+  const gameConfig: HubGameConfig = (await getDynamicGame(gameId)) || getRegisteredGame(gameId) || {
     id: gameId,
     title: gameId.toUpperCase(),
     genre: 'Arcade',

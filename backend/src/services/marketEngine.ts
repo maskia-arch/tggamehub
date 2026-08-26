@@ -241,7 +241,7 @@ export async function initCoinPool(
   const tokenReserve = safeGameReserve / safePrice;
   const constantK = safeGameReserve * tokenReserve;
 
-  const defaultName = gameTitle ? `${gameTitle} Coin` : (GAME_COIN_MAP[sym.toLowerCase()]?.name || `${sym} Coin`);
+  const defaultName = gameTitle ? (gameTitle.endsWith('Coin') ? gameTitle : `${gameTitle} Coin`) : (GAME_COIN_MAP[sym.toLowerCase()]?.name || `${sym} Coin`);
   const gameId = gameIdParam || Object.keys(GAME_COIN_MAP).find((k) => GAME_COIN_MAP[k].symbol === sym) || sym.toLowerCase();
 
   const existing = await db('market_coins').where({ symbol: sym }).first();
@@ -249,6 +249,7 @@ export async function initCoinPool(
     await db('market_coins')
       .where({ symbol: sym })
       .update({
+        name: defaultName,
         current_price: safePrice,
         base_price: safePrice,
         virtual_game_reserve: safeGameReserve,
@@ -299,7 +300,7 @@ export async function ensureAllGameCoinsInitialized() {
       const sym = game.coinSymbol.toUpperCase();
       const existing = await db('market_coins').where({ symbol: sym }).first();
       if (!existing) {
-        await initCoinPool(sym, MARKET_CONFIG.BASE_PRICE, MARKET_CONFIG.INITIAL_VIRTUAL_GAME_RESERVE, `${game.title} Coin`, game.id);
+        await initCoinPool(sym, MARKET_CONFIG.BASE_PRICE, MARKET_CONFIG.INITIAL_VIRTUAL_GAME_RESERVE, game.title, game.id);
       } else {
         // Sanity Check: If coin price is detached (> 1.0e-7) without massive reserves, realign to gameplay-backed AMM value
         const curPrice = Number(existing.current_price || MARKET_CONFIG.BASE_PRICE);
