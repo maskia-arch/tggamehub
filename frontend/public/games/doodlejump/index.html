@@ -980,29 +980,29 @@
         this.glowTimer = 0;
       }
 
-      update() {
+      update(dt = 1) {
         // Horizontal user inputs
         if (keys.left || (touchX !== null && touchX < canvas.width / 2)) {
-          this.vx -= this.accel;
+          this.vx -= this.accel * dt;
           this.facing = -1;
         } else if (keys.right || (touchX !== null && touchX >= canvas.width / 2)) {
-          this.vx += this.accel;
+          this.vx += this.accel * dt;
           this.facing = 1;
         }
 
-        // Apply friction and bounds
-        this.vx *= this.friction;
+        // Apply friction and bounds with smooth delta exponentiation
+        this.vx *= Math.pow(this.friction, dt);
         if (this.vx > this.maxSpeed) this.vx = this.maxSpeed;
         if (this.vx < -this.maxSpeed) this.vx = -this.maxSpeed;
 
-        this.x += this.vx;
-        this.y += this.vy;
-        this.vy += GRAVITY;
-        this.glowTimer += 0.15;
+        this.x += this.vx * dt;
+        this.y += this.vy * dt;
+        this.vy += GRAVITY * dt;
+        this.glowTimer += 0.15 * dt;
 
         // Smooth banking tilt angle
         const targetAngle = (this.vx / this.maxSpeed) * 0.35;
-        this.angle += (targetAngle - this.angle) * 0.2;
+        this.angle += (targetAngle - this.angle) * Math.min(1, 0.22 * dt);
 
         // Screen horizontal wrapping
         if (this.x + this.width < 0) {
@@ -1013,8 +1013,8 @@
 
         // Spawn Jetpack Thruster Particles
         if (this.vy < 0) {
-          const spawnCount = this.vy < -12 ? 3 : 1;
-          for (let i = 0; i < spawnCount; i++) {
+          const spawnChance = this.vy < -12 ? 0.9 : 0.45;
+          if (Math.random() < spawnChance * dt) {
             const pX = this.x + this.width / 2 + (Math.random() - 0.5) * 8;
             const pY = this.y + this.height - 2;
             particles.push(new TrailParticle(
@@ -1103,9 +1103,9 @@
         this.alpha = 1;
         this.vy = -1.2;
       }
-      update() {
-        this.y += this.vy;
-        this.alpha -= 0.035;
+      update(dt = 1) {
+        this.y += this.vy * dt;
+        this.alpha -= 0.035 * dt;
       }
       draw() {
         ctx.save();
@@ -1134,17 +1134,17 @@
         this.animTimer = 0;
       }
 
-      update() {
+      update(dt = 1) {
         if (this.state === 'compressed') {
-          this.animTimer += 0.25;
+          this.animTimer += 0.25 * dt;
           this.currentHeight = 4;
           if (this.animTimer >= 0.4) {
             this.state = 'rebound';
             this.animTimer = 0;
           }
         } else if (this.state === 'rebound') {
-          this.animTimer += 0.16;
-          this.currentHeight = this.nominalHeight + Math.sin(this.animTimer * Math.PI) * 7;
+          this.animTimer += 0.16 * dt;
+          this.currentHeight = this.nominalHeight + Math.sin(Math.min(1, this.animTimer) * Math.PI) * 7;
           if (this.animTimer >= 1.0) {
             this.state = 'idle';
             this.currentHeight = this.nominalHeight;
@@ -1254,18 +1254,22 @@
         }
       }
 
-      update() {
-        this.pulseTimer += 0.08;
+      update(dt = 1) {
+        this.pulseTimer += 0.08 * dt;
 
         if (this.type === 'moving') {
-          this.x += this.vx;
-          if (this.x < 8 || this.x + this.width > canvas.width - 8) {
-            this.vx = -this.vx;
+          this.x += this.vx * dt;
+          if (this.x < 8) {
+            this.x = 8;
+            this.vx = Math.abs(this.vx);
+          } else if (this.x + this.width > canvas.width - 8) {
+            this.x = canvas.width - 8 - this.width;
+            this.vx = -Math.abs(this.vx);
           }
         }
 
         if (this.spring) {
-          this.spring.update();
+          this.spring.update(dt);
         }
       }
 
@@ -1325,8 +1329,8 @@
         this.alive = true;
         this.timer = Math.random() * 10;
       }
-      update() {
-        this.timer += 0.05;
+      update(dt = 1) {
+        this.timer += 0.05 * dt;
       }
       draw() {}
     }
@@ -1339,9 +1343,9 @@
         this.scanAngle = 0;
       }
 
-      update() {
-        super.update();
-        this.scanAngle += 0.04;
+      update(dt = 1) {
+        super.update(dt);
+        this.scanAngle += 0.04 * dt;
       }
 
       draw() {
@@ -1408,9 +1412,9 @@
         this.wingAngle = 0;
       }
 
-      update() {
-        super.update();
-        this.x += this.vx;
+      update(dt = 1) {
+        super.update(dt);
+        this.x += this.vx * dt;
         if (this.x < this.radius + 6) {
           this.x = this.radius + 6;
           this.vx = Math.abs(this.vx);
@@ -1418,7 +1422,7 @@
           this.x = canvas.width - this.radius - 6;
           this.vx = -Math.abs(this.vx);
         }
-        this.wingAngle += 0.12;
+        this.wingAngle += 0.12 * dt;
       }
 
       draw() {
@@ -1475,9 +1479,9 @@
         this.waveSpeed = 2.2;
       }
 
-      update() {
-        super.update();
-        this.x += this.vx;
+      update(dt = 1) {
+        super.update(dt);
+        this.x += this.vx * dt;
         if (this.x < this.radius + 8) {
           this.x = this.radius + 8;
           this.vx = Math.abs(this.vx);
@@ -1540,9 +1544,9 @@
         this.vx = (Math.random() < 0.5 ? -0.9 : 0.9);
       }
 
-      update() {
-        super.update();
-        this.x += this.vx;
+      update(dt = 1) {
+        super.update(dt);
+        this.x += this.vx * dt;
         if (this.x < this.radius + 8 || this.x > canvas.width - this.radius - 8) {
           this.vx = -this.vx;
         }
@@ -1683,10 +1687,10 @@
         this.decay = decay;
       }
 
-      update() {
-        this.x += this.vx;
-        this.y += this.vy;
-        this.alpha -= this.decay;
+      update(dt = 1) {
+        this.x += this.vx * dt;
+        this.y += this.vy * dt;
+        this.alpha -= this.decay * dt;
       }
 
       draw() {
@@ -1718,12 +1722,12 @@
         this.alpha = 1;
       }
 
-      update() {
-        this.x += this.vx;
-        this.y += this.vy;
-        this.vy += GRAVITY * 0.8;
-        this.rot += this.vRot;
-        this.alpha -= 0.035;
+      update(dt = 1) {
+        this.x += this.vx * dt;
+        this.y += this.vy * dt;
+        this.vy += GRAVITY * 0.8 * dt;
+        this.rot += this.vRot * dt;
+        this.alpha -= 0.035 * dt;
       }
 
       draw() {
@@ -1865,18 +1869,18 @@
       }
     }
 
-    function update() {
+    function update(dt = 1) {
       if (gameState === 'revive_countdown') {
         player.vx = 0;
         player.vy = 0;
         player.y = canvas.height - 150;
         player.x = canvas.width / 2 - player.width / 2;
-        particles.forEach(p => p.update());
+        particles.forEach(p => p.update(dt));
         particles = particles.filter(p => p.alpha > 0);
         return;
       }
 
-      player.update();
+      player.update(dt);
 
       // Check Level / Stage Progression
       const diff = getDifficulty(score);
@@ -1919,7 +1923,7 @@
       });
 
       // Filter off-screen platforms and generate top replacements
-      platforms = platforms.filter(p => p.y < canvas.height + 20);
+      platforms = platforms.filter(p => p.y < canvas.height + 30);
       monsters = monsters.filter(m => m.y < canvas.height + 60 && m.alive);
 
       let highestY = canvas.height;
@@ -1933,22 +1937,22 @@
         spawnPlatformAtY(nextY);
       }
 
-      // Update platforms & monsters
-      platforms.forEach(p => p.update());
-      monsters.forEach(m => m.update());
+      // Update platforms & monsters with normalized dt
+      platforms.forEach(p => p.update(dt));
+      monsters.forEach(m => m.update(dt));
 
-      // Update particles & floating texts
-      particles.forEach(p => p.update());
+      // Update particles & floating texts with normalized dt
+      particles.forEach(p => p.update(dt));
       particles = particles.filter(p => p.alpha > 0);
 
-      shardParticles.forEach(sp => sp.update());
+      shardParticles.forEach(sp => sp.update(dt));
       shardParticles = shardParticles.filter(sp => sp.alpha > 0);
 
-      floatingTexts.forEach(ft => ft.update());
+      floatingTexts.forEach(ft => ft.update(dt));
       floatingTexts = floatingTexts.filter(ft => ft.alpha > 0);
 
       if (levelGlowTimer > 0) {
-        levelGlowTimer--;
+        levelGlowTimer = Math.max(0, levelGlowTimer - dt);
       }
 
       // Collision checks (Only when player is descending)
@@ -1959,7 +1963,7 @@
             player.x + player.width - 6 > p.x &&
             player.x + 6 < p.x + p.width &&
             player.y + player.height >= p.y &&
-            player.y + player.height <= p.y + p.height + 10
+            player.y + player.height <= p.y + p.height + 12
           ) {
             totalJumps++;
 
@@ -2025,37 +2029,35 @@
     function draw() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      // Draw subtle Cyber Scanner Grid lines
-      ctx.strokeStyle = 'rgba(0, 242, 254, 0.03)';
+      // Draw subtle Cyber Scanner Grid lines in single unified path for maximum FPS
+      ctx.strokeStyle = 'rgba(0, 242, 254, 0.035)';
       ctx.lineWidth = 1;
-      for (let i = 0; i < canvas.width; i += 20) {
-        ctx.beginPath();
+      ctx.beginPath();
+      for (let i = 0; i < canvas.width; i += 24) {
         ctx.moveTo(i, 0);
         ctx.lineTo(i, canvas.height);
-        ctx.stroke();
       }
-      for (let j = 0; j < canvas.height; j += 20) {
-        ctx.beginPath();
+      for (let j = 0; j < canvas.height; j += 24) {
         ctx.moveTo(0, j);
         ctx.lineTo(canvas.width, j);
-        ctx.stroke();
       }
+      ctx.stroke();
 
-      // Draw Parallax Starfield Particles
+      // Draw Parallax Starfield Particles without heavy shadowBlur overhead
       backgroundStars.forEach(s => {
-        ctx.save();
         ctx.fillStyle = `rgba(0, 242, 254, ${s.alpha})`;
-        ctx.shadowBlur = 4;
-        ctx.shadowColor = '#00f2fe';
         ctx.beginPath();
         ctx.arc(s.x, s.y, s.size, 0, Math.PI * 2);
         ctx.fill();
-        ctx.restore();
       });
 
-      // Draw game elements
-      platforms.forEach(p => p.draw());
-      monsters.forEach(m => { if (m.alive) m.draw(); });
+      // Draw game elements (viewport culled)
+      platforms.forEach(p => {
+        if (p.y >= -20 && p.y <= canvas.height + 20) p.draw();
+      });
+      monsters.forEach(m => {
+        if (m.alive && m.y >= -30 && m.y <= canvas.height + 30) m.draw();
+      });
       particles.forEach(p => p.draw());
       shardParticles.forEach(sp => sp.draw());
       floatingTexts.forEach(ft => ft.draw());
@@ -2144,8 +2146,6 @@
     }
 
     let lastFrameTime = 0;
-    let frameAccumulator = 0;
-    const TIME_STEP = 1000 / 60; // Exact 60 FPS standard (16.667 ms)
 
     function gameLoop(timestamp) {
       if (gameState !== 'playing' && gameState !== 'revive_countdown') return;
@@ -2158,16 +2158,14 @@
       let elapsed = now - lastFrameTime;
       lastFrameTime = now;
 
-      // Cap max delta to prevent spiral of death on lag / tab switch
-      if (elapsed > 100) elapsed = 100;
-      frameAccumulator += elapsed;
+      // Clamp elapsed time between 2ms and 66ms (prevents large jumps on tab switch/lag spikes)
+      if (elapsed > 66) elapsed = 66;
+      if (elapsed < 2) elapsed = 16.667;
 
-      // Execute updates at strict 60Hz rate
-      while (frameAccumulator >= TIME_STEP) {
-        update();
-        frameAccumulator -= TIME_STEP;
-      }
+      // Smooth normalized delta-time: 1.0 at 60 FPS, 0.5 at 120 FPS
+      const dt = elapsed / 16.6667;
 
+      update(dt);
       draw();
       animationFrameId = requestAnimationFrame(gameLoop);
     }

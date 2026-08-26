@@ -1002,6 +1002,8 @@
         if (lastPipe.x < canvas.width - diff.spacing) {
           pipes.push(new NeonPipe(canvas.width, lastPipe.id + 1, score));
         }
+      } else {
+        pipes.push(new NeonPipe(canvas.width + 40, score, score));
       }
 
       // Update pipes
@@ -1312,7 +1314,10 @@
         bird.angle = 0;
 
         // 2. Clear nearby pipes so the takeoff corridor is 100% open
-        pipes = pipes.filter(p => p.x > 220);
+        pipes = pipes.filter(p => p.x > 260);
+        if (pipes.length === 0) {
+          pipes.push(new NeonPipe(canvas.width + 60, score, score));
+        }
 
         // 3. Initiate 3-second safe countdown & invulnerability shield
         reviveShieldTimer = 240; // 4 seconds of protective shield

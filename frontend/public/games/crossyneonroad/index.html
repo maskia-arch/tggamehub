@@ -297,7 +297,7 @@
         </div>
       </div>
 
-      <button class="btn" id="startBtn">Hopfen starten</button>
+      <button class="btn" id="startBtn">Hüpfen starten</button>
     </div>
 
     <!-- Game Over Screen Overlay -->
@@ -587,7 +587,7 @@
         desc: 'Hilf dem Neon-Huhn, verkehrsreiche Straßen, reißende Flüsse und Schienen zu überqueren!',
         ctrlKb: 'Steuerung (Tastatur)',
         ctrlTouch: 'Steuerung (Touch/Mobile)',
-        startBtn: 'Hopfen starten',
+        startBtn: 'Hüpfen starten',
         crashed: 'Überfahren',
         scoreLabel: 'Punkte:',
         reviveBtn: '💚 Wiederbeleben (1x Ad)',
@@ -1109,15 +1109,15 @@
         this.decay = 0.02 + Math.random() * 0.03;
       }
 
-      update() {
-        this.x += this.vx;
-        this.y += this.vy;
-        this.alpha -= this.decay;
+      update(dt = 1) {
+        this.x += this.vx * dt;
+        this.y += this.vy * dt;
+        this.alpha -= this.decay * dt;
       }
 
       draw() {
         ctx.save();
-        ctx.globalAlpha = this.alpha;
+        ctx.globalAlpha = Math.max(0, this.alpha);
         ctx.shadowBlur = 8;
         ctx.shadowColor = this.color;
         ctx.fillStyle = this.color;
@@ -1200,8 +1200,8 @@
         }
       }
 
-      update() {
-        this.x += this.speed * this.dir;
+      update(dt = 1) {
+        this.x += this.speed * this.dir * dt;
         
         // Wrapping at fixed boundaries to preserve spacing perfectly
         if (this.dir === 1 && this.x > canvas.width + 120) {
@@ -1499,24 +1499,25 @@
         }
       }
 
-      update() {
+      update(dt = 1) {
         // Update regular obstacles
-        this.obstacles.forEach(obs => obs.update());
+        this.obstacles.forEach(obs => obs.update(dt));
 
         // Update items (rotation)
         if (this.item && !this.item.collected) {
-          this.item.rot += 0.035;
+          this.item.rot += 0.035 * dt;
         }
 
         // Rail Row train logistics
         if (this.type === 'rail') {
           if (!this.trainActive) {
-            this.timeToTrain--;
+            this.timeToTrain -= dt;
             if (this.timeToTrain <= 85) {
+              const wasWarning = this.warningActive;
               this.warningActive = true;
-              this.warningTimer++;
+              this.warningTimer += dt;
               // Play authentic railroad signal "ding ding-ding" bell
-              if (this.warningTimer === 1 || this.warningTimer === 42) {
+              if (!wasWarning || (this.warningTimer >= 42 && this.warningTimer - dt < 42)) {
                 soundManager.playTrainWarning();
               }
             }
@@ -1529,7 +1530,7 @@
             }
           } else {
             // Train is active
-            this.trainX += this.trainSpeed * this.trainDirection;
+            this.trainX += this.trainSpeed * this.trainDirection * dt;
             
             // Check if train is off-screen
             if ((this.trainDirection === 1 && this.trainX > canvas.width + 200) ||
@@ -1949,30 +1950,30 @@
         }
       }
 
-      update() {
+      update(dt = 1) {
         // Interpolate position smoothly
         if (this.hopTimer > 0) {
-          this.hopTimer--;
+          this.hopTimer = Math.max(0, this.hopTimer - dt);
         }
         
-        // Smooth lerp positions
-        this.x += (this.targetX - this.x) * 0.28;
-        this.y += (this.targetY - this.y) * 0.28;
+        // Frame-rate independent smooth lerp positions
+        this.x += (this.targetX - this.x) * Math.min(1, 0.28 * dt);
+        this.y += (this.targetY - this.y) * Math.min(1, 0.28 * dt);
 
         // Smooth rotation angle interpolation (shortest angular distance)
         let diff = this.targetAngle - this.angle;
         while (diff < -Math.PI) diff += Math.PI * 2;
         while (diff > Math.PI) diff -= Math.PI * 2;
-        this.angle += diff * 0.4;
+        this.angle += diff * Math.min(1, 0.38 * dt);
 
         // Timers
-        if (this.shieldTime > 0) this.shieldTime--;
-        if (this.invulnerableTimer > 0) this.invulnerableTimer--;
-        this.blinkTimer++;
+        if (this.shieldTime > 0) this.shieldTime = Math.max(0, this.shieldTime - dt);
+        if (this.invulnerableTimer > 0) this.invulnerableTimer = Math.max(0, this.invulnerableTimer - dt);
+        this.blinkTimer += dt;
 
         // River log carry logic
         const currentRow = rows[this.row];
-        if (currentRow && currentRow.type === 'river' && this.hopTimer === 0) {
+        if (currentRow && currentRow.type === 'river' && this.hopTimer <= 0.1) {
           let onLog = false;
           let logCarrier = null;
 
@@ -1985,7 +1986,7 @@
 
           if (onLog && logCarrier) {
             // Carry player with log speed
-            const shift = logCarrier.speed * logCarrier.dir;
+            const shift = logCarrier.speed * logCarrier.dir * dt;
             this.targetX += shift;
             this.x += shift;
             
@@ -2325,14 +2326,14 @@
       }
     }
 
-    function update() {
+    function update(dt = 1) {
       if (gameState === 'revive_countdown') {
-        particles.forEach(p => p.update());
+        particles.forEach(p => p.update(dt));
         particles = particles.filter(p => p.alpha > 0);
         return;
       }
 
-      player.update();
+      player.update(dt);
 
       // Dynamically generate rows ahead and delete rows far behind camera
       const currentMinRow = Math.floor(cameraY / ROW_HEIGHT) - 6;
@@ -2351,18 +2352,18 @@
         getOrCreateRow(i);
       }
 
-      // Update rows
-      Object.values(rows).forEach(row => row.update());
+      // Update rows with dt
+      Object.values(rows).forEach(row => row.update(dt));
 
-      // Update particles
-      particles.forEach(p => p.update());
+      // Update particles with dt
+      particles.forEach(p => p.update(dt));
       particles = particles.filter(p => p.alpha > 0);
 
-      // Smooth camera follow target row
+      // Smooth camera follow target row (frame-rate independent)
       const cameraTargetY = (player.row * ROW_HEIGHT) - 340;
       // Scroll camera smoothly, never scrolling back downwards
       if (cameraTargetY > cameraY) {
-        cameraY += (cameraTargetY - cameraY) * 0.085;
+        cameraY += (cameraTargetY - cameraY) * Math.min(1, 0.12 * dt);
       }
 
       // Check if player falls off bottom of the screen (slow speed death)
@@ -2461,8 +2462,15 @@
       ctx.fillStyle = '#05070f';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      // Draw rows
-      Object.values(rows).forEach(row => row.draw());
+      // Frustum culling: only draw rows currently inside visible screen + margin
+      const minVisibleY = cameraY - ROW_HEIGHT * 2;
+      const maxVisibleY = cameraY + canvas.height + ROW_HEIGHT * 2;
+
+      Object.values(rows).forEach(row => {
+        if (row.y >= minVisibleY && row.y <= maxVisibleY) {
+          row.draw();
+        }
+      });
 
       // Draw player
       player.draw();
@@ -2620,8 +2628,6 @@
     }
 
     let lastFrameTime = 0;
-    let frameAccumulator = 0;
-    const TIME_STEP = 1000 / TARGET_FPS; // Exact 60 FPS standard (16.667 ms)
 
     function gameLoop(timestamp) {
       if (gameState !== 'playing' && gameState !== 'revive_countdown') return;
@@ -2634,16 +2640,14 @@
       let elapsed = now - lastFrameTime;
       lastFrameTime = now;
 
-      // Cap max delta to prevent spiral of death on lag / tab switch
-      if (elapsed > 100) elapsed = 100;
-      frameAccumulator += elapsed;
+      // Clamp elapsed time between 2ms and 66ms (prevents large jumps on tab switch/lag spikes)
+      if (elapsed > 66) elapsed = 66;
+      if (elapsed < 2) elapsed = 16.667;
 
-      // Execute updates at strict 60Hz rate
-      while (frameAccumulator >= TIME_STEP) {
-        update();
-        frameAccumulator -= TIME_STEP;
-      }
+      // Smooth normalized delta-time: 1.0 at 60 FPS, 0.5 at 120 FPS
+      const dt = elapsed / 16.6667;
 
+      update(dt);
       draw();
       animationFrameId = requestAnimationFrame(gameLoop);
     }
@@ -2853,8 +2857,17 @@
         player.hopTimer = 0;
         player.shieldTime = 300;
 
-        // Convert current row into a safe GrassRow so player does not respawn on a car/river
-        rows[player.row] = new GrassRow(player.row);
+        // Convert player row and neighboring rows into guaranteed safe grass zones
+        for (let r = player.row - 1; r <= player.row + 1; r++) {
+          if (r >= 0) {
+            const safeRow = new Row(r);
+            safeRow.type = 'safe';
+            safeRow.obstacles = [];
+            safeRow.trainActive = false;
+            safeRow.warningActive = false;
+            rows[r] = safeRow;
+          }
+        }
 
         // 2. 3-second safe countdown & invulnerability shield
         reviveShieldTimer = 240; // 4 seconds of protective shield
@@ -2882,6 +2895,7 @@
         }, 1000);
 
         lastFrameTime = performance.now();
+        cancelAnimationFrame(animationFrameId);
         animationFrameId = requestAnimationFrame(gameLoop);
       }
     });
