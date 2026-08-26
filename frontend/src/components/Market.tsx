@@ -271,7 +271,7 @@ export function Market({ initData, backendUrl, onBalanceUpdate }: MarketProps) {
       if (marketIntervalId) clearInterval(marketIntervalId);
       if (newsIntervalId) clearInterval(newsIntervalId);
 
-      // Fast ticker for AMM price & chart updates (3s)
+      // Realistic continuous ticker for AMM price & chart updates (10s)
       marketIntervalId = setInterval(() => {
         if (document.visibilityState === 'visible') {
           fetchMarket(true);
@@ -279,14 +279,14 @@ export function Market({ initData, backendUrl, onBalanceUpdate }: MarketProps) {
             fetchChart(selectedSymbolRef.current, timeframeRef.current);
           }
         }
-      }, 3000);
+      }, 10000);
 
-      // Relaxed polling for news ticker updates (20s)
+      // Relaxed polling for news ticker updates (60s)
       newsIntervalId = setInterval(() => {
         if (document.visibilityState === 'visible') {
           fetchNews();
         }
-      }, 20000);
+      }, 60000);
     };
 
     const handleVisibilityChange = () => {

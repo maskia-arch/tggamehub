@@ -31,8 +31,8 @@ export const MARKET_CONFIG = {
   // Whale & Trader Settings
   WHALE_COOLDOWN_MS: 45 * 60 * 1000, // 45 minutes minimum cooldown between whale events per coin
 
-  // Ticker Interval
-  TICK_INTERVAL_MS: 5000, // 5-second continuous market tick loop
+  // Ticker Interval (10 seconds for realistic, smooth market drift)
+  TICK_INTERVAL_MS: 10000, // 10-second continuous market tick loop
 };
 
 // ============================================================================
@@ -1199,8 +1199,8 @@ async function evaluateDynamicMarketEvent(coin: any, momentum: CoinMomentumState
     const secondsSinceActivity = (now - momentum.lastActivityTime) / 1000;
     const minutesInactive = secondsSinceActivity / 60;
 
-    // Minimum cooldown between random events for this coin (120 seconds = 2 minutes)
-    if (now - (momentum.lastEventTime || 0) < 120_000) {
+    // Realistic cooldown between dynamic market events for this coin (20 minutes)
+    if (now - (momentum.lastEventTime || 0) < 20 * 60 * 1000) {
       return;
     }
 
