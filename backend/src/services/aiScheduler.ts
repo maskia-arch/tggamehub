@@ -142,14 +142,17 @@ export async function getEcosystemSnapshot(): Promise<any> {
 /**
  * Executes a 12-Hour Storyline & Script Generation Cycle
  */
-export async function trigger12HourAiCycle(isManual: boolean = false): Promise<{ success: boolean; script?: any; error?: string }> {
+export async function trigger12HourAiCycle(
+  isManual: boolean = false,
+  forceRegenerate: boolean = false
+): Promise<{ success: boolean; script?: any; error?: string }> {
   if (isGenerating) {
-    return { success: false, error: 'Eine Generierung läuft bereits im Hintergrund.' };
+    return { success: false, error: 'Ein 12-Stunden-Generierungszyklus läuft bereits.' };
   }
 
   const settings = await getAiSettings();
   if (!settings.is_enabled && !isManual) {
-    return { success: false, error: 'AI-Automatisierung ist derzeit in den Einstellungen pausiert.' };
+    return { success: false, error: 'Automatisierung ist derzeit in den Einstellungen pausiert.' };
   }
 
   if (!settings.deepseek_api_key || settings.deepseek_api_key.trim() === '') {
@@ -157,7 +160,7 @@ export async function trigger12HourAiCycle(isManual: boolean = false): Promise<{
   }
 
   isGenerating = true;
-  console.log(`[AI Scheduler]: Starting 12-Hour Storyline Generation (${isManual ? 'MANUAL TRIGGER' : 'AUTO CRON'})...`);
+  console.log(`[AI Scheduler]: Starting 12-Hour Storyline Generation (${isManual ? 'MANUAL / OVERRIDE TRIGGER' : 'AUTO CRON'})...`);
 
   try {
     const snapshot = await getEcosystemSnapshot();
@@ -165,9 +168,24 @@ export async function trigger12HourAiCycle(isManual: boolean = false): Promise<{
 
     const now = new Date();
 
-    // 1. Insert Scheduled Market News Items
-    for (const news of script.market_news) {
-      const scheduledAt = new Date(now.getTime() + (Number(news.scheduled_minutes_from_now) || 15) * 60 * 1000);
+    // ── 0. Purge Old Pending Schedules on Manual Trigger / Override ────────
+    if (isManual || forceRegenerate) {
+      console.log('[AI Scheduler]: Overriding previous cycle: purging old pending schedules...');
+      await db('ai_market_news').where({ is_published: false }).delete();
+      if (forceRegenerate) {
+        await db('ai_market_news').delete();
+      }
+      await db('ai_channel_posts').where({ status: 'SCHEDULED' }).delete();
+      await db('ai_live_events').where({ is_active: false, is_completed: false }).delete();
+    }
+
+    // ── 1. Insert Scheduled Market News (First Item Published Immediately!) ─
+    for (let i = 0; i < script.market_news.length; i++) {
+      const news = script.market_news[i];
+      const isInitial = i === 0;
+      const scheduledMins = isInitial ? 0 : (Number(news.scheduled_minutes_from_now) || (i * 45));
+      const scheduledAt = isInitial ? now : new Date(now.getTime() + scheduledMins * 60 * 1000);
+
       await db('ai_market_news').insert({
         title: news.title_de || news.title_en || 'Markt Update',
         title_de: news.title_de || news.title_en || 'Markt Update',
@@ -182,13 +200,24 @@ export async function trigger12HourAiCycle(isManual: boolean = false): Promise<{
         impact_duration_minutes: Number(news.impact_duration_minutes) || 60,
         story_arc: script.story_arc_de || script.story_arc_en,
         scheduled_at: scheduledAt,
-        is_published: false,
-        created_at: new Date(),
-        updated_at: new Date()
+        is_published: isInitial,
+        published_at: isInitial ? now : null,
+        created_at: now,
+        updated_at: now
       });
+
+      // If initial breaking news item, apply real AMM price impact immediately!
+      if (isInitial) {
+        await applyAiNewsImpact(
+          news.coin_symbol?.toUpperCase() || 'DOODLE',
+          Number(news.price_impact_percent) || 0,
+          news.title_de || news.title_en || 'Markt Update',
+          news.summary_de || news.summary_en || ''
+        );
+      }
     }
 
-    // 2. Insert Scheduled Telegram Channel Posts
+    // ── 2. Insert Scheduled Telegram Channel Posts ──────────────────────────
     for (const post of script.channel_posts) {
       const scheduledAt = new Date(now.getTime() + (Number(post.scheduled_minutes_from_now) || 30) * 60 * 1000);
       const validHours = Number(post.reward_valid_hours) || 6;
@@ -213,12 +242,12 @@ export async function trigger12HourAiCycle(isManual: boolean = false): Promise<{
         community_goal_en: post.community_goal_en || post.community_goal_de || null,
         status: 'SCHEDULED',
         scheduled_at: scheduledAt,
-        created_at: new Date(),
-        updated_at: new Date()
+        created_at: now,
+        updated_at: now
       });
     }
 
-    // 3. Insert Scheduled Live Crypto Events
+    // ── 3. Insert Scheduled Live Crypto Events ──────────────────────────────
     if (Array.isArray(script.crypto_events)) {
       for (const event of script.crypto_events) {
         const scheduledAt = new Date(now.getTime() + (Number(event.scheduled_minutes_from_now) || 45) * 60 * 1000);
@@ -236,21 +265,21 @@ export async function trigger12HourAiCycle(isManual: boolean = false): Promise<{
           is_active: false,
           is_completed: false,
           scheduled_at: scheduledAt,
-          created_at: new Date(),
-          updated_at: new Date()
+          created_at: now,
+          updated_at: now
         });
       }
     }
 
-    // 4. Update Settings Last Run & Next Run Timestamps
+    // ── 4. Update Settings Last Run & Next Run Timestamps ────────────────────
     const nextRun = new Date(now.getTime() + (settings.interval_hours || 12) * 60 * 60 * 1000);
     await db('ai_settings').where({ id: 'global' }).update({
       last_run_at: now,
       next_run_at: nextRun,
-      updated_at: new Date()
+      updated_at: now
     });
 
-    console.log(`[AI Scheduler]: 12-Hour Storyline "${script.story_arc_de}" successfully created with ${script.market_news.length} news, ${script.channel_posts.length} posts, and ${script.crypto_events?.length || 0} live events.`);
+    console.log(`[AI Scheduler]: 12-Hour Storyline "${script.story_arc_de}" successfully created with ${script.market_news.length} news (1st news live immediately), ${script.channel_posts.length} posts, and ${script.crypto_events?.length || 0} live events.`);
     return { success: true, script };
   } catch (err: any) {
     console.error('[AI Scheduler Error]: Failed to generate 12-hour script:', err.message);

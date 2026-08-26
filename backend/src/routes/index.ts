@@ -153,6 +153,7 @@ router.get('/admin/ai/settings', adminAuth, getAdminAiSettingsHandler);
 router.post('/admin/ai/settings', adminAuth, updateAdminAiSettingsHandler);
 router.get('/admin/ai/models', adminAuth, getAdminAiModelsHandler);
 router.post('/admin/ai/generate-now', adminAuth, triggerAdminAiGenerateHandler);
+router.post('/admin/ai/trigger-cycle', adminAuth, triggerAdminAiGenerateHandler);
 router.get('/admin/ai/logs', adminAuth, getAdminAiLogsHandler);
 router.post('/admin/ai/verify-channel', adminAuth, verifyAdminAiChannelHandler);
 router.post('/admin/ai/test-hello', adminAuth, testAdminAiHelloHandler);

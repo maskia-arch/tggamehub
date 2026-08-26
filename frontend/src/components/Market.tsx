@@ -794,41 +794,58 @@ export function Market({ initData, backendUrl, onBalanceUpdate }: MarketProps) {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               
               {/* ── 📰 Live News Ticker (Oberhalb von Live Markt Trigger & Events) ── */}
-              {newsList && newsList.length > 0 && (
-                <div
-                  style={{
-                    background: 'linear-gradient(135deg, rgba(251,191,36,0.08) 0%, rgba(0,242,254,0.04) 100%)',
-                    border: '1px solid rgba(251,191,36,0.3)',
-                    borderRadius: '20px',
-                    padding: '16px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '12px',
-                    boxShadow: '0 0 20px rgba(251,191,36,0.08)',
-                  }}
-                >
-                  {/* Section Header */}
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span style={{ fontSize: '18px' }}>📰</span>
-                      <span style={{ fontSize: '12px', fontWeight: 900, color: '#fbbf24', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
-                        {t.market.newsTickerTitle || 'NEWS TICKER'}
-                      </span>
-                    </div>
-                    <div style={{
-                      display: 'inline-flex', alignItems: 'center', gap: '5px',
-                      background: 'rgba(74, 222, 128, 0.15)',
-                      border: '1px solid rgba(74, 222, 128, 0.35)',
-                      borderRadius: '9999px', padding: '2px 8px',
-                      color: '#4ade80', fontSize: '9px', fontWeight: 900,
-                      letterSpacing: '0.08em', textTransform: 'uppercase',
-                    }}>
-                      <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#4ade80', boxShadow: '0 0 6px #4ade80' }} className="animate-pulse" />
-                      LIVE
-                    </div>
+              <div
+                style={{
+                  background: 'linear-gradient(135deg, rgba(251,191,36,0.08) 0%, rgba(0,242,254,0.04) 100%)',
+                  border: '1px solid rgba(251,191,36,0.3)',
+                  borderRadius: '20px',
+                  padding: '16px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '12px',
+                  boxShadow: '0 0 20px rgba(251,191,36,0.08)',
+                }}
+              >
+                {/* Section Header */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ fontSize: '18px' }}>📰</span>
+                    <span style={{ fontSize: '12px', fontWeight: 900, color: '#fbbf24', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+                      {t.market.newsTickerTitle || 'NEWS TICKER'}
+                    </span>
                   </div>
+                  <div style={{
+                    display: 'inline-flex', alignItems: 'center', gap: '5px',
+                    background: 'rgba(74, 222, 128, 0.15)',
+                    border: '1px solid rgba(74, 222, 128, 0.35)',
+                    borderRadius: '9999px', padding: '2px 8px',
+                    color: '#4ade80', fontSize: '9px', fontWeight: 900,
+                    letterSpacing: '0.08em', textTransform: 'uppercase',
+                  }}>
+                    <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#4ade80', boxShadow: '0 0 6px #4ade80' }} className="animate-pulse" />
+                    LIVE
+                  </div>
+                </div>
 
-                  {/* News Items List */}
+                {/* News Items List or Empty State */}
+                {(!newsList || newsList.length === 0) ? (
+                  <div style={{
+                    background: 'rgba(0, 0, 0, 0.25)',
+                    border: '1px solid rgba(255,255,255,0.06)',
+                    borderRadius: '14px',
+                    padding: '14px',
+                    textAlign: 'center',
+                    color: 'rgba(255,255,255,0.6)',
+                    fontSize: '11px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                  }}>
+                    <span style={{ fontSize: '14px' }}>📡</span>
+                    <span>{t.market.noNewsYet || 'Verbinde mit dem Newsroom... Nächster Marktbericht in Kürze.'}</span>
+                  </div>
+                ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '240px', overflowY: 'auto' }}>
                     {newsList.map((item) => {
                       const isBullish = item.sentiment === 'bullish';
@@ -912,8 +929,8 @@ export function Market({ initData, backendUrl, onBalanceUpdate }: MarketProps) {
                       );
                     })}
                   </div>
-                </div>
-              )}
+                )}
+              </div>
 
               {/* ⚡ Live Markt Triggers Feed */}
               {data?.events && data.events.length > 0 && (

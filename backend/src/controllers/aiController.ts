@@ -241,14 +241,48 @@ export async function startAdminAiModerationHandler(_req: Request, res: Response
 export async function getMarketNewsHandler(req: Request, res: Response) {
   try {
     const limit = Math.min(50, Number(req.query.limit) || 20);
-    const rows = await db('ai_market_news')
+    let rows = await db('ai_market_news')
       .where('is_published', true)
       .orderBy('published_at', 'desc')
       .limit(limit);
 
+    // If no published news exists yet, auto-publish the earliest pending scheduled news item
+    if (!rows || rows.length === 0) {
+      const pending = await db('ai_market_news')
+        .where('is_published', false)
+        .orderBy('scheduled_at', 'asc')
+        .first();
+
+      if (pending) {
+        const now = new Date();
+        await db('ai_market_news').where({ id: pending.id }).update({
+          is_published: true,
+          published_at: now,
+          updated_at: now
+        });
+        const { applyAiNewsImpact } = require('../services/aiScheduler');
+        await applyAiNewsImpact(
+          pending.coin_symbol,
+          Number(pending.price_impact_percent) || 0,
+          pending.title_de || pending.title,
+          pending.summary_de || pending.summary
+        );
+        pending.is_published = true;
+        pending.published_at = now;
+        rows = [pending];
+      } else {
+        // Table completely empty, trigger initial 12h cycle
+        await trigger12HourAiCycle(false, true);
+        rows = await db('ai_market_news')
+          .where('is_published', true)
+          .orderBy('published_at', 'desc')
+          .limit(limit);
+      }
+    }
+
     return res.json({
       success: true,
-      news: rows.map(r => ({
+      news: (rows || []).map(r => ({
         id: r.id,
         title: r.title_de || r.title,
         titleDe: r.title_de || r.title,
@@ -464,11 +498,12 @@ export async function getAdminAiModelsHandler(req: Request, res: Response) {
 }
 
 /**
- * Admin: Trigger Manual 12-Hour AI Script Generation
+ * Admin: Trigger Manual 12-Hour AI Script Generation (with override / purge option)
  */
-export async function triggerAdminAiGenerateHandler(_req: Request, res: Response) {
+export async function triggerAdminAiGenerateHandler(req: Request, res: Response) {
   try {
-    const result = await trigger12HourAiCycle(true);
+    const { force_regenerate } = req.body || {};
+    const result = await trigger12HourAiCycle(true, force_regenerate !== false);
     if (!result.success) {
       return res.status(400).json(result);
     }
