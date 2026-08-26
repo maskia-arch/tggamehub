@@ -6,7 +6,7 @@ import db from '../database/client';
 import { consumeEnergy } from '../services/energy';
 import { recordUserGameActivity } from '../services/seasonService';
 import { recordGameHighscore } from '../services/gameLeaderboardService';
-import { processGameScoreAmmImpact } from '../services/marketEngine';
+import { processGameScoreAmmImpact, ensureAllGameCoinsInitialized } from '../services/marketEngine';
 import { getDynamicGame, getDynamicGamesList, updateGameSettingsInDb, GameStatus } from '../config/games';
 
 interface GameSessionPayload {
@@ -357,6 +357,7 @@ export async function updateGameStatusHandler(req: Request, res: Response) {
     }
 
     const updated = await updateGameSettingsInDb(gameId, status as GameStatus, maintenanceMessage, targetScore);
+    await ensureAllGameCoinsInitialized();
     return res.json({
       success: true,
       game: updated,

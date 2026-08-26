@@ -331,184 +331,246 @@
     <canvas id="gameCanvas" width="360" height="550"></canvas>
   </div>
 
+  <!-- Classical Cyberpunk Synthesis Arrangement: Johann Pachelbel - Canon in D (Relaxed Ambient Flow) -->
   <script>
-    // Procedural Music Array Generator: Rondo Alla Turca by W.A. Mozart
-    // Format: [midiNote, timeInBeats, durationInBeats]
-    function generateRondoNotes() {
+    // Procedural Polyphonic Arrangement of "Canon in D" (Johann Pachelbel)
+    // Relaxed, lyrical ambient tempo (66 BPM) & warm cyber-rhodes/celesta timbre
+    // Format: [midiNote, startSec, durationSec]
+    function generateCanonTrack() {
       const notes = [];
-      const bpm = 128;
-      const beatDur = 60 / bpm; // Beat length in seconds
+      const bpm = 66; // Relaxed, meditative, soothing cyberpunk ambient flow
+      const step = 60 / bpm / 4; // ~0.227s per 16th note step
+      let t = 0;
 
-      // Melody notes (RH)
-      // A-minor main theme
-      const addThemeA = (startBeat) => {
-        // Pickup (sixteenth notes)
-        notes.push([71, startBeat + 0.00, 0.23]); // B4
-        notes.push([69, startBeat + 0.25, 0.23]); // A4
-        notes.push([68, startBeat + 0.50, 0.23]); // G#4
-        notes.push([69, startBeat + 0.75, 0.23]); // A4
-
-        // Measure 1
-        notes.push([72, startBeat + 1.00, 0.48]); // C5
-        notes.push([74, startBeat + 1.50, 0.23]); // D5
-        notes.push([72, startBeat + 1.75, 0.23]); // C5
-        notes.push([71, startBeat + 2.00, 0.23]); // B4
-        notes.push([72, startBeat + 2.25, 0.23]); // C5
-
-        // Measure 2
-        notes.push([76, startBeat + 2.50, 0.48]); // E5
-        notes.push([77, startBeat + 3.00, 0.23]); // F5
-        notes.push([76, startBeat + 3.25, 0.23]); // E5
-        notes.push([75, startBeat + 3.50, 0.23]); // D#5
-        notes.push([76, startBeat + 3.75, 0.23]); // E5
-
-        // Measure 3
-        notes.push([83, startBeat + 4.00, 0.23]); // B5
-        notes.push([81, startBeat + 4.25, 0.23]); // A5
-        notes.push([80, startBeat + 4.50, 0.23]); // G#5
-        notes.push([81, startBeat + 4.75, 0.23]); // A5
-        notes.push([83, startBeat + 5.00, 0.23]); // B5
-        notes.push([81, startBeat + 5.25, 0.23]); // A5
-
-        // Measure 4
-        notes.push([80, startBeat + 5.50, 0.23]); // G#5
-        notes.push([81, startBeat + 5.75, 0.23]); // A5
-        notes.push([84, startBeat + 6.00, 0.23]); // C6
-        notes.push([81, startBeat + 6.25, 0.23]); // A5
-
-        // Measure 5
-        notes.push([80, startBeat + 6.50, 0.23]); // G#5
-        notes.push([81, startBeat + 6.75, 0.23]); // A5
-        notes.push([84, startBeat + 7.00, 0.23]); // C6
-        notes.push([81, startBeat + 7.25, 0.23]); // A5
-
-        // Measure 6
-        notes.push([80, startBeat + 7.50, 0.23]); // G#5
-        notes.push([81, startBeat + 7.75, 0.23]); // A5
-        notes.push([84, startBeat + 8.00, 0.23]); // C6
-        notes.push([81, startBeat + 8.25, 0.23]); // A5
-
-        // Measure 7
-        notes.push([83, startBeat + 8.50, 0.23]); // B5
-        notes.push([81, startBeat + 8.75, 0.23]); // A5
-        notes.push([80, startBeat + 9.00, 0.23]); // G#5
-        notes.push([81, startBeat + 9.25, 0.23]); // A5
-        notes.push([83, startBeat + 9.50, 0.23]); // B5
-        notes.push([81, startBeat + 9.75, 0.23]); // A5
-
-        // Measure 8 (Cadence)
-        notes.push([76, startBeat + 10.00, 0.48]); // E5
-        notes.push([74, startBeat + 10.50, 0.23]); // D5
-        notes.push([72, startBeat + 10.75, 0.23]); // C5
-        notes.push([71, startBeat + 11.00, 0.23]); // B4
-        notes.push([69, startBeat + 11.25, 0.23]); // A4
-        notes.push([71, startBeat + 11.50, 0.48]); // B4
-        notes.push([69, startBeat + 12.00, 0.98]); // A4
+      const n = (midi, startStep, durStep) => {
+        notes.push([midi, startStep * step, durStep * step]);
       };
 
-      // A-major Turkish March main chorus
-      const addThemeB = (startBeat) => {
-        // Pickup (sixteenths)
-        notes.push([73, startBeat + 0.00, 0.23]); // C#5
-        notes.push([74, startBeat + 0.25, 0.23]); // D5
-        notes.push([76, startBeat + 0.50, 0.23]); // E5
+      // 8-measure chord accompaniment helper (Bass + warm arpeggiated harmonic chords)
+      const addCycleAccompaniment = (startT) => {
+        // Measure 1: D Major (D)
+        n(38, startT + 0, 14.0);  // D2 Bass
+        n(50, startT + 0, 14.0);  // D3 Bass
+        n(66, startT + 4, 10.0);  // F#4
+        n(69, startT + 8, 7.0);   // A4
+        n(74, startT + 12, 3.5);  // D5
 
+        // Measure 2: A Major (A)
+        n(33, startT + 16, 14.0); // A1 Bass
+        n(45, startT + 16, 14.0); // A2 Bass
+        n(64, startT + 20, 10.0); // E4
+        n(69, startT + 24, 7.0);  // A4
+        n(73, startT + 28, 3.5);  // C#5
+
+        // Measure 3: B Minor (Bm)
+        n(35, startT + 32, 14.0); // B1 Bass
+        n(47, startT + 32, 14.0); // B2 Bass
+        n(62, startT + 36, 10.0); // D4
+        n(66, startT + 40, 7.0);  // F#4
+        n(71, startT + 44, 3.5);  // B4
+
+        // Measure 4: F# Minor (F#m)
+        n(30, startT + 48, 14.0); // F#1 Bass
+        n(42, startT + 48, 14.0); // F#2 Bass
+        n(61, startT + 52, 10.0); // C#4
+        n(66, startT + 56, 7.0);  // F#4
+        n(69, startT + 60, 3.5);  // A4
+
+        // Measure 5: G Major (G)
+        n(31, startT + 64, 14.0); // G1 Bass
+        n(43, startT + 64, 14.0); // G2 Bass
+        n(62, startT + 68, 10.0); // D4
+        n(67, startT + 72, 7.0);  // G4
+        n(71, startT + 76, 3.5);  // B4
+
+        // Measure 6: D Major (D)
+        n(38, startT + 80, 14.0); // D2 Bass
+        n(50, startT + 80, 14.0); // D3 Bass
+        n(62, startT + 84, 10.0); // D4
+        n(66, startT + 88, 7.0);  // F#4
+        n(69, startT + 92, 3.5);  // A4
+
+        // Measure 7: G Major (G)
+        n(31, startT + 96, 14.0); // G1 Bass
+        n(43, startT + 96, 14.0); // G2 Bass
+        n(62, startT + 100, 10.0);// D4
+        n(67, startT + 104, 7.0); // G4
+        n(71, startT + 108, 3.5); // B4
+
+        // Measure 8: A Major (A)
+        n(33, startT + 112, 14.0);// A1 Bass
+        n(45, startT + 112, 14.0);// A2 Bass
+        n(61, startT + 116, 10.0);// C#4
+        n(64, startT + 120, 7.0); // E4
+        n(69, startT + 124, 3.5); // A4
+      };
+
+      // Variation 1: Iconic Main Canon Theme (Gentle, sustained lead)
+      const addTheme1 = () => {
+        addCycleAccompaniment(t);
+        n(78, t + 0, 14.0);   // F#5
+        n(76, t + 16, 14.0);  // E5
+        n(74, t + 32, 14.0);  // D5
+        n(73, t + 48, 14.0);  // C#5
+        n(71, t + 64, 14.0);  // B4
+        n(69, t + 80, 14.0);  // A4
+        n(71, t + 96, 14.0);  // B4
+        n(73, t + 112, 14.0); // C#5
+        t += 128;
+      };
+
+      // Variation 2: Flowing Quarter-note Melodic Progression
+      const addTheme2 = () => {
+        addCycleAccompaniment(t);
         // Measure 1
-        notes.push([78, startBeat + 0.75, 0.23]); // F#5
-        notes.push([76, startBeat + 1.00, 0.48]); // E5
-        notes.push([74, startBeat + 1.50, 0.23]); // D5
-        notes.push([73, startBeat + 1.75, 0.23]); // C#5
-        notes.push([74, startBeat + 2.00, 0.23]); // D5
+        n(74, t + 0, 7.0);   // D5
+        n(78, t + 8, 7.0);   // F#5
+        // Measure 2
+        n(76, t + 16, 7.0);  // E5
+        n(73, t + 24, 7.0);  // C#5
+        // Measure 3
+        n(74, t + 32, 7.0);  // D5
+        n(71, t + 40, 7.0);  // B4
+        // Measure 4
+        n(69, t + 48, 7.0);  // A4
+        n(73, t + 56, 7.0);  // C#5
+        // Measure 5
+        n(74, t + 64, 7.0);  // D5
+        n(67, t + 72, 7.0);  // G4
+        // Measure 6
+        n(66, t + 80, 7.0);  // F#4
+        n(69, t + 88, 7.0);  // A4
+        // Measure 7
+        n(67, t + 96, 7.0);  // G4
+        n(71, t + 104, 7.0); // B4
+        // Measure 8
+        n(69, t + 112, 7.0); // A4
+        n(73, t + 120, 7.0); // C#5
+        t += 128;
+      };
+
+      // Variation 3: Lyrical Classical 8th-note Counterpoint
+      const addTheme3 = () => {
+        addCycleAccompaniment(t);
+        // Measure 1
+        n(78, t + 0, 2.5);  // F#5
+        n(76, t + 2, 2.5);  // E5
+        n(78, t + 4, 2.5);  // F#5
+        n(79, t + 6, 2.5);  // G5
+        n(81, t + 8, 4.5);  // A5
+        n(83, t + 12, 3.5); // B5
 
         // Measure 2
-        notes.push([76, startBeat + 2.25, 0.23]); // E5
-        notes.push([73, startBeat + 2.50, 0.48]); // C#5
-        notes.push([71, startBeat + 3.00, 0.23]); // B4
-        notes.push([69, startBeat + 3.25, 0.23]); // A4
-        notes.push([71, startBeat + 3.50, 0.23]); // B4
+        n(81, t + 16, 2.5); // A5
+        n(79, t + 18, 2.5); // G5
+        n(81, t + 20, 2.5); // A5
+        n(78, t + 22, 2.5); // F#5
+        n(79, t + 24, 2.5); // G5
+        n(81, t + 26, 2.5); // A5
+        n(79, t + 28, 2.5); // G5
+        n(78, t + 30, 2.5); // F#5
 
         // Measure 3
-        notes.push([73, startBeat + 3.75, 0.23]); // C#5
-        notes.push([69, startBeat + 4.00, 0.48]); // A4
-        notes.push([68, startBeat + 4.50, 0.23]); // G#4
-        notes.push([66, startBeat + 4.75, 0.23]); // F#4
-        notes.push([68, startBeat + 5.00, 0.23]); // G#4
+        n(79, t + 32, 2.5); // G5
+        n(78, t + 34, 2.5); // F#5
+        n(76, t + 36, 2.5); // E5
+        n(74, t + 38, 2.5); // D5
+        n(76, t + 40, 2.5); // E5
+        n(78, t + 42, 2.5); // F#5
+        n(79, t + 44, 2.5); // G5
+        n(76, t + 46, 2.5); // E5
 
         // Measure 4
-        notes.push([69, startBeat + 5.25, 0.23]); // A4
-        notes.push([64, startBeat + 5.50, 0.48]); // E4
-        notes.push([73, startBeat + 6.00, 0.23]); // C#5
-        notes.push([74, startBeat + 6.25, 0.23]); // D5
-        notes.push([76, startBeat + 6.50, 0.23]); // E5
+        n(78, t + 48, 2.5); // F#5
+        n(76, t + 50, 2.5); // E5
+        n(74, t + 52, 2.5); // D5
+        n(73, t + 54, 2.5); // C#5
+        n(74, t + 56, 2.5); // D5
+        n(76, t + 58, 2.5); // E5
+        n(78, t + 60, 2.5); // F#5
+        n(74, t + 62, 2.5); // D5
 
-        // Repeat phrase with alternative ending
         // Measure 5
-        notes.push([78, startBeat + 6.75, 0.23]); // F#5
-        notes.push([76, startBeat + 7.00, 0.48]); // E5
-        notes.push([74, startBeat + 7.50, 0.23]); // D5
-        notes.push([73, startBeat + 7.75, 0.23]); // C#5
-        notes.push([74, startBeat + 8.00, 0.23]); // D5
+        n(71, t + 64, 2.5); // B4
+        n(73, t + 66, 2.5); // C#5
+        n(74, t + 68, 2.5); // D5
+        n(71, t + 70, 2.5); // B4
+        n(73, t + 72, 2.5); // C#5
+        n(74, t + 74, 2.5); // D5
+        n(76, t + 76, 2.5); // E5
+        n(73, t + 78, 2.5); // C#5
 
         // Measure 6
-        notes.push([76, startBeat + 8.25, 0.23]); // E5
-        notes.push([73, startBeat + 8.50, 0.48]); // C#5
-        notes.push([71, startBeat + 9.00, 0.23]); // B4
-        notes.push([69, startBeat + 9.25, 0.23]); // A4
-        notes.push([71, startBeat + 9.50, 0.23]); // B4
+        n(74, t + 80, 2.5); // D5
+        n(73, t + 82, 2.5); // C#5
+        n(71, t + 84, 2.5); // B4
+        n(69, t + 86, 2.5); // A4
+        n(71, t + 88, 2.5); // B4
+        n(73, t + 90, 2.5); // C#5
+        n(74, t + 92, 2.5); // D5
+        n(71, t + 94, 2.5); // B4
 
         // Measure 7
-        notes.push([73, startBeat + 9.75, 0.23]); // C#5
-        notes.push([71, startBeat + 10.00, 0.48]); // B4
-        notes.push([69, startBeat + 10.50, 0.23]); // A4
-        notes.push([68, startBeat + 10.75, 0.23]); // G#4
-        notes.push([69, startBeat + 11.00, 0.23]); // A4
+        n(67, t + 96, 2.5); // G4
+        n(69, t + 98, 2.5); // A4
+        n(71, t + 100, 2.5);// B4
+        n(67, t + 102, 2.5);// G4
+        n(69, t + 104, 2.5);// A4
+        n(71, t + 106, 2.5);// B4
+        n(73, t + 108, 2.5);// C#5
+        n(69, t + 110, 2.5);// A4
 
         // Measure 8
-        notes.push([71, startBeat + 11.25, 0.23]); // B4
-        notes.push([69, startBeat + 11.50, 0.48]); // A4
-        notes.push([69, startBeat + 12.00, 0.98]); // A4
+        n(71, t + 112, 2.5);// B4
+        n(73, t + 114, 2.5);// C#5
+        n(74, t + 116, 2.5);// D5
+        n(76, t + 118, 2.5);// E5
+        n(73, t + 120, 2.5);// C#5
+        n(74, t + 122, 2.5);// D5
+        n(76, t + 124, 2.5);// E5
+        n(73, t + 126, 2.5);// C#5
+        t += 128;
       };
 
-      // Generate left-hand bass/chord march accompaniment
-      const addBassMarch = (startBeat, chordType, durationBeats) => {
-        // Alternating Bass / Chord on beats
-        for (let b = 1; b < durationBeats; b++) {
-          const t = startBeat + b;
-          if (b % 2 === 1) {
-            // Bass Note
-            const root = chordType === 'Am' ? 45 : 45; // A2
-            notes.push([root, t, 0.48]);
-          } else {
-            // Chord
-            if (chordType === 'Am') {
-              notes.push([57, t, 0.48]); // A3
-              notes.push([60, t, 0.48]); // C4
-              notes.push([64, t, 0.48]); // E4
-            } else if (chordType === 'A') {
-              notes.push([57, t, 0.48]); // A3
-              notes.push([61, t, 0.48]); // C#4
-              notes.push([64, t, 0.48]); // E4
-            } else if (chordType === 'E') {
-              notes.push([52, t, 0.48]); // E2
-              notes.push([59, t, 0.48]); // B3
-              notes.push([64, t, 0.48]); // E4
-            }
-          }
-        }
+      // Variation 4: High Celestial Cascades & Cadence Resolution
+      const addTheme4 = () => {
+        addCycleAccompaniment(t);
+        // Measure 1
+        n(86, t + 0, 7.0);   // D6
+        n(85, t + 8, 7.0);   // C#6
+        // Measure 2
+        n(83, t + 16, 7.0);  // B5
+        n(81, t + 24, 7.0);  // A5
+        // Measure 3
+        n(79, t + 32, 7.0);  // G5
+        n(78, t + 40, 7.0);  // F#5
+        // Measure 4
+        n(76, t + 48, 7.0);  // E5
+        n(74, t + 56, 7.0);  // D5
+        // Measure 5
+        n(79, t + 64, 7.0);  // G5
+        n(78, t + 72, 7.0);  // F#5
+        // Measure 6
+        n(76, t + 80, 7.0);  // E5
+        n(74, t + 88, 7.0);  // D5
+        // Measure 7
+        n(71, t + 96, 7.0);  // B4
+        n(74, t + 104, 7.0); // D5
+        // Measure 8
+        n(73, t + 112, 10.0);// C#5
+        n(74, t + 122, 5.0); // D5
+        t += 128;
       };
 
-      // Sequence Structure: Section A (13 beats) + Section B (13 beats)
-      addThemeA(0);
-      addBassMarch(0, 'Am', 13);
+      addTheme1();
+      addTheme2();
+      addTheme3();
+      addTheme4();
 
-      addThemeB(13);
-      addBassMarch(13, 'A', 13);
-
-      // Convert all beat times and durations into absolute seconds based on BPM
-      return notes.map(n => [n[0], n[1] * beatDur, n[2] * beatDur]);
+      return notes;
     }
 
-    const RONDO_NOTES = generateRondoNotes();
+    const CANON_NOTES = generateCanonTrack();
   </script>
 
   <script>
@@ -527,7 +589,7 @@
         ctrlTouch: 'Steuerung (Touch/Mobile)',
         startBtn: 'Hopfen starten',
         crashed: 'Überfahren',
-        scoreLabel: 'Zurückgelegte Meter:',
+        scoreLabel: 'Punkte:',
         reviveBtn: '💚 Wiederbeleben (1x Ad)',
         retryBtn: 'Nochmal spielen',
         exitBtn: 'Spiel verlassen',
@@ -535,6 +597,17 @@
         newRecordPrefix: '🔥 Rekord: ',
         countdownReady: 'BEREIT MACHEN',
         countdownGo: 'LOS!',
+        sfxOn: 'Soundeffekte einschalten (S)',
+        sfxOff: 'Soundeffekte stummschalten (S)',
+        musicOn: 'Musik einschalten (M)',
+        musicOff: 'Musik stummschalten (M)',
+        stages: {
+          1: { name: 'EBENE 1', sector: 'CYBER VORSTADT' },
+          2: { name: 'EBENE 2', sector: 'METRO KREUZUNG' },
+          3: { name: 'EBENE 3', sector: 'NEON FLUSS' },
+          4: { name: 'EBENE 4', sector: 'CYBER AUTOBAHN' },
+          5: { name: 'EBENE 5 (HARDCORE)', sector: 'HYPER OVERDRIVE' },
+        }
       },
       en: {
         title: 'Crossy Neon Road',
@@ -543,7 +616,7 @@
         ctrlTouch: 'Controls (Touch/Mobile)',
         startBtn: 'Start Hopping',
         crashed: 'Run Over',
-        scoreLabel: 'Meters Crossed:',
+        scoreLabel: 'Score:',
         reviveBtn: '💚 Revive (1x Ad)',
         retryBtn: 'Play Again',
         exitBtn: 'Exit Game',
@@ -551,6 +624,17 @@
         newRecordPrefix: '🔥 Record: ',
         countdownReady: 'GET READY',
         countdownGo: 'GO!',
+        sfxOn: 'Unmute SFX (S)',
+        sfxOff: 'Mute SFX (S)',
+        musicOn: 'Unmute Music (M)',
+        musicOff: 'Mute Music (M)',
+        stages: {
+          1: { name: 'STAGE 1', sector: 'CYBER SUBURB' },
+          2: { name: 'STAGE 2', sector: 'METRO JUNCTION' },
+          3: { name: 'STAGE 3', sector: 'NEON RIVERWAYS' },
+          4: { name: 'STAGE 4', sector: 'CYBER HIGHWAY' },
+          5: { name: 'STAGE 5 (HARDCORE)', sector: 'HYPER OVERDRIVE' },
+        }
       }
     };
     const t = I18N[currentLang] || I18N.de;
@@ -597,6 +681,8 @@
     let rows = {}; // Key: row index, Value: Row object
     let particles = [];
     let score = 0;
+    let maxRowReached = 0;
+    let bonusPoints = 0;
     let lives = 3;
     let gameState = 'start'; // 'start', 'playing', 'revive_countdown', 'gameover'
     let animationFrameId;
@@ -604,7 +690,34 @@
     let roundStartTime = 0;
     let roundDuration = 0;
     let cameraY = 0;
-    let maxRowReached = 0;
+    let levelGlowTimer = 0;
+
+    // Authoritative Server-Synced Highscore (Resets immediately to 0 if server highscore is wiped)
+    const serverHsParam = urlParams.get('highscore');
+    let savedHighscore = 0;
+    if (serverHsParam !== null && serverHsParam !== undefined) {
+      savedHighscore = parseInt(serverHsParam, 10) || 0;
+      try {
+        localStorage.setItem('tggamehub_crossyneonroad_highscore', savedHighscore.toString());
+      } catch(e) {}
+    } else {
+      try {
+        savedHighscore = parseInt(localStorage.getItem('tggamehub_crossyneonroad_highscore') || '0', 10);
+      } catch(e) {
+        savedHighscore = 0;
+      }
+    }
+
+    // Message listener for live highscore resets/sync from parent app
+    window.addEventListener('message', (event) => {
+      if (!event.data) return;
+      if (event.data.type === 'SET_SERVER_HIGHSCORE' || event.data.type === 'RESET_HIGHSCORE') {
+        savedHighscore = parseInt(event.data.highscore || 0, 10) || 0;
+        try {
+          localStorage.setItem('tggamehub_crossyneonroad_highscore', savedHighscore.toString());
+        } catch(e) {}
+      }
+    });
 
     // Revive Variables
     let hasRevived = false; // Strictly 1x revive per round!
@@ -652,12 +765,12 @@
         if (sfxBtn) {
           sfxBtn.innerHTML = this.isSfxMuted ? '🔇' : '🔊';
           sfxBtn.className = 'audio-btn' + (this.isSfxMuted ? ' muted' : '');
-          sfxBtn.title = this.isSfxMuted ? 'Soundeffekte einschalten (S)' : 'Soundeffekte stummschalten (S)';
+          sfxBtn.title = this.isSfxMuted ? (t.sfxOn || 'Soundeffekte einschalten (S)') : (t.sfxOff || 'Soundeffekte stummschalten (S)');
         }
         if (musicBtn) {
           musicBtn.innerHTML = '🎵';
           musicBtn.className = 'audio-btn' + (this.isMusicMuted ? ' muted' : '');
-          musicBtn.title = this.isMusicMuted ? 'Musik einschalten (M)' : 'Musik stummschalten (M)';
+          musicBtn.title = this.isMusicMuted ? (t.musicOn || 'Musik einschalten (M)') : (t.musicOff || 'Musik stummschalten (M)');
         }
       }
 
@@ -793,21 +906,49 @@
         if (!this.ctx || this.isSfxMuted) return;
         if (this.ctx.state === 'suspended') this.ctx.resume();
 
-        const playBeep = (freq, delay) => {
-          const osc = this.ctx.createOscillator();
+        const now = this.ctx.currentTime;
+
+        // Authentic railway crossing signal bell synthesis ("ding ding-ding")
+        const playBellDing = (freq, delay, volume = 0.08) => {
+          const startTime = now + delay;
+          const osc1 = this.ctx.createOscillator(); // Fundamental bell strike
+          const osc2 = this.ctx.createOscillator(); // Metallic harmonic overtone
           const gain = this.ctx.createGain();
-          osc.connect(gain);
-          gain.connect(this.ctx.destination);
-          osc.type = 'sine';
-          osc.frequency.setValueAtTime(freq, this.ctx.currentTime + delay);
-          gain.gain.setValueAtTime(0.05, this.ctx.currentTime + delay);
-          gain.gain.setValueAtTime(0.001, this.ctx.currentTime + delay + 0.12);
-          osc.start(this.ctx.currentTime + delay);
-          osc.stop(this.ctx.currentTime + delay + 0.15);
+          const filter = this.ctx.createBiquadFilter();
+
+          osc1.type = 'sine';
+          osc1.frequency.setValueAtTime(freq, startTime);
+
+          // Metallic brass overtone (2.76x physical bell ratio)
+          osc2.type = 'triangle';
+          osc2.frequency.setValueAtTime(freq * 2.76, startTime);
+
+          // Acoustic bell decay envelope: instant metallic attack & warm ringing tail
+          gain.gain.setValueAtTime(0.0001, startTime);
+          gain.gain.linearRampToValueAtTime(volume, startTime + 0.003);
+          gain.gain.exponentialRampToValueAtTime(volume * 0.45, startTime + 0.05);
+          gain.gain.exponentialRampToValueAtTime(0.0001, startTime + 0.22);
+
+          // Bandpass filter for bright, realistic railway chime
+          filter.type = 'bandpass';
+          filter.frequency.setValueAtTime(freq * 1.15, startTime);
+          filter.Q.setValueAtTime(2.8, startTime);
+
+          osc1.connect(gain);
+          osc2.connect(gain);
+          gain.connect(filter);
+          filter.connect(this.ctx.destination);
+
+          osc1.start(startTime);
+          osc2.start(startTime);
+          osc1.stop(startTime + 0.25);
+          osc2.stop(startTime + 0.25);
         };
 
-        playBeep(987.77, 0);
-        playBeep(987.77, 0.22);
+        // Signature train signal rhythm: "Ding... Ding-Ding"
+        playBellDing(1046.50, 0.00, 0.08); // C6 "Ding"
+        playBellDing(1046.50, 0.16, 0.075); // C6 "Ding"
+        playBellDing(1174.66, 0.28, 0.085); // D6 "Ding!"
       }
 
       playGameOver() {
@@ -849,32 +990,57 @@
 
         const freq = 440 * Math.pow(2, (midiNote - 69) / 12);
         
-        if (midiNote < 60) {
+        if (midiNote < 55) {
+          // Warm deep ambient bass
           osc.type = 'triangle';
           osc.frequency.setValueAtTime(freq, time);
-          filter.type = 'lowpass';
-          filter.frequency.setValueAtTime(250, time);
-          const bassVol = 0.018;
-          gainNode.gain.setValueAtTime(0, time);
-          gainNode.gain.linearRampToValueAtTime(bassVol, time + 0.03);
-          gainNode.gain.exponentialRampToValueAtTime(0.0001, time + duration - 0.01);
-        } else {
-          osc.type = 'square';
-          osc.frequency.setValueAtTime(freq, time);
+
           subOsc.type = 'sine';
-          subOsc.frequency.setValueAtTime(freq / 2, time);
+          subOsc.frequency.setValueAtTime(freq, time);
+
           filter.type = 'lowpass';
-          filter.frequency.setValueAtTime(1000, time);
+          filter.frequency.setValueAtTime(260, time);
+
+          const bassVol = 0.016;
+          gainNode.gain.setValueAtTime(0, time);
+          gainNode.gain.linearRampToValueAtTime(bassVol, time + 0.04);
+          gainNode.gain.exponentialRampToValueAtTime(0.0001, time + duration + 1.6);
+        } else if (midiNote < 71) {
+          // Warm polyphonic harmonic chords / pads
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(freq, time);
+
+          subOsc.type = 'sine';
+          subOsc.frequency.setValueAtTime(freq, time);
+
+          filter.type = 'lowpass';
+          filter.frequency.setValueAtTime(600, time);
+
+          const chordVol = 0.013;
+          gainNode.gain.setValueAtTime(0, time);
+          gainNode.gain.linearRampToValueAtTime(chordVol, time + 0.03);
+          gainNode.gain.exponentialRampToValueAtTime(0.0001, time + duration + 1.2);
+        } else {
+          // Warm crystal celesta / cyber lead melody
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(freq, time);
+
+          subOsc.type = 'sine';
+          subOsc.frequency.setValueAtTime(freq * 2, time); // Soft celestial octave sparkle
+
+          filter.type = 'lowpass';
+          filter.frequency.setValueAtTime(1250, time); // Softened to eliminate harshness
+
           const melodyVol = 0.018;
           gainNode.gain.setValueAtTime(0, time);
-          gainNode.gain.linearRampToValueAtTime(melodyVol, time + 0.01);
-          gainNode.gain.exponentialRampToValueAtTime(0.0001, time + duration - 0.01);
+          gainNode.gain.linearRampToValueAtTime(melodyVol, time + 0.03);
+          gainNode.gain.exponentialRampToValueAtTime(0.0001, time + duration + 1.0);
         }
 
         osc.start(time);
-        osc.stop(time + duration + 0.05);
+        osc.stop(time + duration + 2.0);
         subOsc.start(time);
-        subOsc.stop(time + duration + 0.05);
+        subOsc.stop(time + duration + 2.0);
         this.activeOscillators.push(osc, subOsc);
       }
 
@@ -889,8 +1055,8 @@
         const scheduler = () => {
           if (!this.musicPlaying || this.isMusicMuted) return;
           const now = this.ctx.currentTime - this.startTime;
-          while (this.notePointer < RONDO_NOTES.length) {
-            const note = RONDO_NOTES[this.notePointer];
+          while (this.notePointer < CANON_NOTES.length) {
+            const note = CANON_NOTES[this.notePointer];
             const noteStart = note[1];
             if (noteStart < now + this.lookAhead) {
               this.playSynthNote(note[0], this.startTime + noteStart, note[2]);
@@ -899,8 +1065,8 @@
               break;
             }
           }
-          if (this.notePointer >= RONDO_NOTES.length) {
-            const lastNote = RONDO_NOTES[RONDO_NOTES.length - 1];
+          if (this.notePointer >= CANON_NOTES.length) {
+            const lastNote = CANON_NOTES[CANON_NOTES.length - 1];
             const pieceEnd = lastNote[1] + lastNote[2] + 1.5;
             if (now > pieceEnd) {
               this.notePointer = 0;
@@ -962,6 +1128,41 @@
       }
     }
 
+    // Progressive Difficulty & Stage Calculator
+    // Stage 1: 0-50m (Low traffic, no rivers, rare trains)
+    // Stage 2: 51-100m (More trains, moderate traffic, no rivers)
+    // Stage 3: 101-200m (Rivers & floating logs introduced, trains & roads)
+    // Stage 4: 201-300m (Heavy traffic, faster currents & bullet trains)
+    // Stage 5: 301m+ (HARDCORE Overdrive until game over)
+    function getDifficulty(currentScore) {
+      const s = Math.max(0, currentScore || 0);
+      let level = 1;
+      let badgeColor = '#4ade80';
+
+      if (s > 300) {
+        level = 5;
+        badgeColor = '#ffd358'; // Hardcore Gold
+      } else if (s > 200) {
+        level = 4;
+        badgeColor = '#ff007f'; // Neon Pink
+      } else if (s > 100) {
+        level = 3;
+        badgeColor = '#a78bfa'; // Neon Purple
+      } else if (s > 50) {
+        level = 2;
+        badgeColor = '#00f2fe'; // Neon Cyan
+      } else {
+        level = 1;
+        badgeColor = '#4ade80'; // Neon Green
+      }
+
+      const stageInfo = (t.stages && t.stages[level]) ? t.stages[level] : { name: `EBENE ${level}`, sector: '' };
+      const levelName = stageInfo.name;
+      const sectorName = stageInfo.sector;
+
+      return { level, levelName, sectorName, badgeColor };
+    }
+
     // Dynamic Road/River lanes obstacle generator
     class Obstacle {
       constructor(rowIdx, type, isLeftToRight, speed, index = 0, total = 1) {
@@ -979,8 +1180,10 @@
           const carColors = ['#ff00ff', '#ff5e00', '#00f2fe', '#39ff14', '#ffff00'];
           this.color = carColors[Math.floor(Math.random() * carColors.length)];
         } else {
-          // Log
-          this.width = 65 + Math.random() * 50; // width 65-115
+          // Log (width adapts based on stage)
+          const stage = getDifficulty(rowIdx).level;
+          const baseLogWidth = stage >= 5 ? 55 : (stage === 4 ? 65 : 75);
+          this.width = baseLogWidth + Math.random() * (stage >= 5 ? 30 : 45); // width 55-120
           this.height = 22;
           this.color = '#bf8a3d'; // glowing neon light brown/gold
         }
@@ -1109,68 +1312,177 @@
         this.obstacles = [];
         this.item = null; // { col, type: 'heart'/'star'/'shield', collected: false, rot: 0 }
         
+        const diff = getDifficulty(idx);
+        const stage = diff.level;
+
         // Alert states for rail
         this.trainActive = false;
         this.trainX = -400;
         this.trainDirection = Math.random() < 0.5 ? 1 : -1;
-        this.trainSpeed = 16.5;
         this.warningTimer = 0;
         this.warningActive = false;
-        this.timeToTrain = 180 + Math.random() * 200; // frames
+
+        // Configure train speeds & intervals based on stage
+        if (stage === 1) {
+          this.trainSpeed = 13.0;
+          this.timeToTrain = 360 + Math.random() * 240; // Very rare trains in Stage 1
+        } else if (stage === 2) {
+          this.trainSpeed = 16.5;
+          this.timeToTrain = 180 + Math.random() * 160; // More trains in Stage 2
+        } else if (stage === 3) {
+          this.trainSpeed = 18.0;
+          this.timeToTrain = 160 + Math.random() * 140;
+        } else if (stage === 4) {
+          this.trainSpeed = 20.5;
+          this.timeToTrain = 130 + Math.random() * 110;
+        } else {
+          // Hardcore (Stage 5)
+          this.trainSpeed = 24.0;
+          this.timeToTrain = 85 + Math.random() * 90;
+        }
         
-        // Randomize row type (avoid index 0,1,2 for safety at start)
+        // Randomize row type based on stage specifications:
+        // Ebene 1 (0-50m): Wenig Verkehr, KEIN Fluss, ganz selten ein Zug
+        // Ebene 2 (51-100m): Mehr Züge, KEIN Fluss
+        // Ebene 3 (101-200m): Flüsse eingeführt, Züge, Straßen
+        // Ebene 4 (201-300m): Viel mehr Verkehr, Flüsse, Züge
+        // Ebene 5 (301m+): Hardcore bis zum Ausscheiden
         if (idx > 2) {
           const r = Math.random();
-          // Adjust probability based on index (difficulty scale)
-          if (r < 0.3) {
-            this.type = 'safe';
-          } else if (r < 0.65) {
-            this.type = 'road';
-          } else if (r < 0.88) {
-            this.type = 'river';
+
+          if (stage === 1) {
+            // Stage 1: Safe 45%, Road 48%, Rail 7%, River 0%
+            if (r < 0.45) {
+              this.type = 'safe';
+            } else if (r < 0.93) {
+              this.type = 'road';
+            } else {
+              this.type = 'rail';
+            }
+          } else if (stage === 2) {
+            // Stage 2: Safe 35%, Road 40%, Rail 25%, River 0%
+            if (r < 0.35) {
+              this.type = 'safe';
+            } else if (r < 0.75) {
+              this.type = 'road';
+            } else {
+              this.type = 'rail';
+            }
+          } else if (stage === 3) {
+            // Stage 3: Safe 28%, Road 34%, River 24%, Rail 14%
+            if (r < 0.28) {
+              this.type = 'safe';
+            } else if (r < 0.62) {
+              this.type = 'road';
+            } else if (r < 0.86) {
+              this.type = 'river';
+            } else {
+              this.type = 'rail';
+            }
+          } else if (stage === 4) {
+            // Stage 4: Safe 20%, Road 45%, River 20%, Rail 15%
+            if (r < 0.20) {
+              this.type = 'safe';
+            } else if (r < 0.65) {
+              this.type = 'road';
+            } else if (r < 0.85) {
+              this.type = 'river';
+            } else {
+              this.type = 'rail';
+            }
           } else {
-            this.type = 'rail';
+            // Stage 5 (Hardcore): Safe 15%, Road 48%, River 22%, Rail 15%
+            if (r < 0.15) {
+              this.type = 'safe';
+            } else if (r < 0.63) {
+              this.type = 'road';
+            } else if (r < 0.85) {
+              this.type = 'river';
+            } else {
+              this.type = 'rail';
+            }
           }
         }
 
-        // Enforce alternating rules/safety
-        // (Prevent placing too many rivers or train tracks together)
+        // Safety rules:
+        // 1. Prevent back-to-back train tracks
+        if (this.type === 'rail' && rows[idx - 1] && rows[idx - 1].type === 'rail') {
+          this.type = (stage >= 3 && Math.random() < 0.3) ? 'river' : 'safe';
+        }
+
+        // 2. Prevent too many consecutive rivers (max 2 in a row)
         if (this.type === 'river') {
-          // If previous was river, don't allow too many consecutive rivers
           let consecutiveRivers = 0;
-          for (let prevIdx = idx - 1; prevIdx >= idx - 3; prevIdx--) {
+          for (let prevIdx = idx - 1; prevIdx >= idx - 2; prevIdx--) {
             if (rows[prevIdx] && rows[prevIdx].type === 'river') {
               consecutiveRivers++;
             }
           }
-          if (consecutiveRivers >= 3) {
+          if (consecutiveRivers >= 2) {
             this.type = 'safe';
-          }
-        } else if (this.type === 'rail') {
-          // No consecutive rails
-          if (rows[idx - 1] && rows[idx - 1].type === 'rail') {
-            this.type = 'road';
           }
         }
 
-        // Initialize obstacles for road/river
+        // 3. Prevent too many consecutive roads without rest
+        const maxConsecutiveRoads = stage <= 3 ? 3 : 4;
+        if (this.type === 'road') {
+          let consecutiveRoads = 0;
+          for (let prevIdx = idx - 1; prevIdx >= idx - maxConsecutiveRoads; prevIdx--) {
+            if (rows[prevIdx] && rows[prevIdx].type === 'road') {
+              consecutiveRoads++;
+            }
+          }
+          if (consecutiveRoads >= maxConsecutiveRoads) {
+            this.type = 'safe';
+          }
+        }
+
+        // Initialize obstacles for road/river based on Stage
         if (this.type === 'road') {
           const isLeftToRight = Math.random() < 0.5;
-          // Scale speed based on row index (difficulty)
-          const baseSpeed = 1.0 + Math.min(2.5, idx * 0.03);
-          const laneSpeed = baseSpeed + Math.random() * 0.8;
-          // Spawn 2-3 cars
-          const carCount = Math.random() < 0.6 ? 2 : 3;
+          let laneSpeed = 1.0;
+          let carCount = 2;
+
+          if (stage === 1) {
+            laneSpeed = 0.95 + Math.random() * 0.45;
+            carCount = Math.random() < 0.7 ? 1 : 2; // 1-2 slow cars
+          } else if (stage === 2) {
+            laneSpeed = 1.35 + Math.random() * 0.6;
+            carCount = 2;
+          } else if (stage === 3) {
+            laneSpeed = 1.65 + Math.random() * 0.7;
+            carCount = Math.random() < 0.5 ? 2 : 3;
+          } else if (stage === 4) {
+            laneSpeed = 2.25 + Math.random() * 0.9;
+            carCount = Math.random() < 0.35 ? 2 : 3;
+          } else {
+            // Stage 5 Hardcore
+            laneSpeed = 2.85 + Math.random() * 1.35;
+            carCount = 3;
+          }
+
           for (let i = 0; i < carCount; i++) {
             this.obstacles.push(new Obstacle(idx, 'car', isLeftToRight, laneSpeed, i, carCount));
           }
         } else if (this.type === 'river') {
           const isLeftToRight = Math.random() < 0.5;
-          const baseSpeed = 0.7 + Math.min(1.5, idx * 0.02);
-          const laneSpeed = baseSpeed + Math.random() * 0.5;
-          // Spawn 3 logs
-          for (let i = 0; i < 3; i++) {
-            this.obstacles.push(new Obstacle(idx, 'log', isLeftToRight, laneSpeed, i, 3));
+          let laneSpeed = 0.85;
+          let logCount = 3;
+
+          if (stage <= 3) {
+            laneSpeed = 0.85 + Math.random() * 0.5;
+            logCount = 3;
+          } else if (stage === 4) {
+            laneSpeed = 1.25 + Math.random() * 0.7;
+            logCount = 3;
+          } else {
+            // Stage 5 Hardcore
+            laneSpeed = 1.75 + Math.random() * 0.9;
+            logCount = Math.random() < 0.5 ? 3 : 2;
+          }
+
+          for (let i = 0; i < logCount; i++) {
+            this.obstacles.push(new Obstacle(idx, 'log', isLeftToRight, laneSpeed, i, logCount));
           }
         }
 
@@ -1200,11 +1512,11 @@
         if (this.type === 'rail') {
           if (!this.trainActive) {
             this.timeToTrain--;
-            if (this.timeToTrain <= 75) {
+            if (this.timeToTrain <= 85) {
               this.warningActive = true;
               this.warningTimer++;
-              // Play warning beep periodically
-              if (this.warningTimer % 35 === 0) {
+              // Play authentic railroad signal "ding ding-ding" bell
+              if (this.warningTimer === 1 || this.warningTimer === 42) {
                 soundManager.playTrainWarning();
               }
             }
@@ -1486,17 +1798,56 @@
             ctx.fill();
             ctx.stroke();
           } else if (this.item.type === 'shield') {
-            ctx.strokeStyle = '#00ffff';
-            ctx.fillStyle = 'rgba(0, 255, 255, 0.15)';
-            ctx.shadowColor = '#00ffff';
-            ctx.shadowBlur = 12;
-            ctx.lineWidth = 2;
-            
+            const pulse = 1.0 + Math.sin(Date.now() * 0.008) * 0.12;
+            ctx.scale(pulse, pulse);
+
+            // Outer spinning cyber aura (hexagonal ring)
+            ctx.save();
+            ctx.rotate(-this.item.rot * 1.5);
+            ctx.strokeStyle = 'rgba(0, 242, 254, 0.45)';
+            ctx.lineWidth = 1.2;
             ctx.beginPath();
             for (let i = 0; i < 6; i++) {
-              const angle = (i * 60) * Math.PI / 180;
-              ctx.lineTo(Math.cos(angle) * 9, Math.sin(angle) * 9);
+              const a = (i * 60) * Math.PI / 180;
+              const hx = Math.cos(a) * 14;
+              const hy = Math.sin(a) * 14;
+              if (i === 0) ctx.moveTo(hx, hy);
+              else ctx.lineTo(hx, hy);
             }
+            ctx.closePath();
+            ctx.stroke();
+            ctx.restore();
+
+            // Main Shield Crest Silhouette
+            ctx.strokeStyle = '#00ffff';
+            ctx.fillStyle = 'rgba(0, 255, 255, 0.25)';
+            ctx.shadowColor = '#00ffff';
+            ctx.shadowBlur = 15;
+            ctx.lineWidth = 2.4;
+
+            ctx.beginPath();
+            ctx.moveTo(-9, -9);
+            ctx.quadraticCurveTo(0, -12, 9, -9); // Top curved arch
+            ctx.lineTo(9, 1);
+            ctx.quadraticCurveTo(9, 10, 0, 14);  // Right downward curve to point
+            ctx.quadraticCurveTo(-9, 10, -9, 1); // Left downward curve to point
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+
+            // Inner Shield Core (Glowing white emblem)
+            ctx.strokeStyle = '#ffffff';
+            ctx.shadowColor = '#ffffff';
+            ctx.shadowBlur = 10;
+            ctx.lineWidth = 1.8;
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+
+            ctx.beginPath();
+            ctx.moveTo(-4, -4);
+            ctx.lineTo(4, -4);
+            ctx.lineTo(4, 0);
+            ctx.lineTo(0, 7);
+            ctx.lineTo(-4, 0);
             ctx.closePath();
             ctx.fill();
             ctx.stroke();
@@ -1521,6 +1872,8 @@
         this.hopTimer = 0;
         this.hopMaxFrames = 10;
         this.facing = 'up'; // 'up', 'down', 'left', 'right'
+        this.angle = 0; // Current rendered rotation angle
+        this.targetAngle = 0; // Target facing rotation angle
         
         // Invincibility state
         this.shieldTime = 0; // frames
@@ -1541,10 +1894,19 @@
         let newRow = this.row;
         this.facing = dir;
 
-        if (dir === 'up') newRow++;
-        else if (dir === 'down') newRow--;
-        else if (dir === 'left') newCol--;
-        else if (dir === 'right') newCol++;
+        if (dir === 'up') {
+          newRow++;
+          this.targetAngle = 0;
+        } else if (dir === 'down') {
+          newRow--;
+          this.targetAngle = Math.PI;
+        } else if (dir === 'left') {
+          newCol--;
+          this.targetAngle = -Math.PI / 2;
+        } else if (dir === 'right') {
+          newCol++;
+          this.targetAngle = Math.PI / 2;
+        }
 
         // Left-Right clamps
         if (newCol < 0 || newCol >= GRID_COLS) return;
@@ -1568,9 +1930,22 @@
           particles.push(new SparkParticle(this.x, this.y, '#ffff00'));
         }
 
-        // Keep track of score metrics
-        if (this.row - 1 > score) {
-          score = this.row - 1;
+        // Keep track of score metrics & stage progression
+        const distanceForward = Math.max(0, this.row - 1);
+        if (distanceForward > maxRowReached) {
+          const oldDiff = getDifficulty(score);
+          maxRowReached = distanceForward;
+          score = maxRowReached + bonusPoints;
+          const newDiff = getDifficulty(score);
+
+          // Celebration when advancing to next stage
+          if (newDiff.level > oldDiff.level) {
+            levelGlowTimer = 90;
+            soundManager.playCoin();
+            for (let i = 0; i < 20; i++) {
+              particles.push(new SparkParticle(this.x, this.y, newDiff.badgeColor));
+            }
+          }
         }
       }
 
@@ -1583,6 +1958,12 @@
         // Smooth lerp positions
         this.x += (this.targetX - this.x) * 0.28;
         this.y += (this.targetY - this.y) * 0.28;
+
+        // Smooth rotation angle interpolation (shortest angular distance)
+        let diff = this.targetAngle - this.angle;
+        while (diff < -Math.PI) diff += Math.PI * 2;
+        while (diff > Math.PI) diff -= Math.PI * 2;
+        this.angle += diff * 0.4;
 
         // Timers
         if (this.shieldTime > 0) this.shieldTime--;
@@ -1683,84 +2064,211 @@
         const screenYGround = canvas.height - (this.y - cameraY);
         const screenYChicken = canvas.height - (this.y + jumpHeight - cameraY);
 
-        // Draw shadow under chicken
-        ctx.fillStyle = 'rgba(0,0,0,0.35)';
+        // Draw shadow under chicken (centered circular shadow)
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
         ctx.beginPath();
-        // Shadow shrinks at peak height
-        const shadowRadius = Math.max(4, this.radius - jumpHeight * 0.4);
-        ctx.arc(this.x, screenYGround, shadowRadius, 0, Math.PI*2);
+        const shadowRadius = Math.max(5, this.radius - jumpHeight * 0.35);
+        ctx.arc(this.x, screenYGround, shadowRadius, 0, Math.PI * 2);
         ctx.fill();
 
         // Translate to animated position
         ctx.translate(this.x, screenYChicken);
 
-        // Rotation based on facing
-        if (this.facing === 'down') ctx.rotate(Math.PI);
-        else if (this.facing === 'left') ctx.rotate(-Math.PI / 2);
-        else if (this.facing === 'right') ctx.rotate(Math.PI / 2);
+        // Smooth rotation angle around center axis
+        ctx.rotate(this.angle);
 
-        // Glowing shield ring if active
+        // Hop squash & stretch in movement direction
+        if (this.hopTimer > 0) {
+          const hopP = 1.0 - (this.hopTimer / this.hopMaxFrames);
+          const stretchY = 1.0 + Math.sin(hopP * Math.PI) * 0.16;
+          const stretchX = 1.0 - Math.sin(hopP * Math.PI) * 0.10;
+          ctx.scale(stretchX, stretchY);
+        }
+
+        // Glowing animated forcefield shield bubble if active
         if (this.shieldTime > 0) {
           ctx.save();
-          ctx.strokeStyle = '#00ffff';
+          const shieldPulse = Math.sin(Date.now() * 0.012) * 1.5;
+          ctx.strokeStyle = '#00f2fe';
+          ctx.fillStyle = 'rgba(0, 242, 254, 0.2)';
           ctx.shadowBlur = 18;
-          ctx.shadowColor = '#00ffff';
-          ctx.lineWidth = 3;
+          ctx.shadowColor = '#00f2fe';
+          ctx.lineWidth = 2.5;
           ctx.beginPath();
-          ctx.arc(0, 0, this.radius + 6, 0, Math.PI*2);
+          ctx.arc(0, 0, this.radius + 8 + shieldPulse, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+
+          // Hexagonal forcefield outline
+          ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
+          ctx.lineWidth = 1.2;
+          ctx.shadowBlur = 8;
+          ctx.shadowColor = '#fff';
+          ctx.beginPath();
+          for (let i = 0; i < 6; i++) {
+            const a = (i * 60 + (Date.now() * 0.04)) * Math.PI / 180;
+            const hx = Math.cos(a) * (this.radius + 9);
+            const hy = Math.sin(a) * (this.radius + 9);
+            if (i === 0) ctx.moveTo(hx, hy);
+            else ctx.lineTo(hx, hy);
+          }
+          ctx.closePath();
           ctx.stroke();
           ctx.restore();
         }
 
-        // DRAW CHICKEN VECTOR BODY
-        ctx.strokeStyle = '#ffff00'; // neon yellow
-        ctx.lineWidth = 3.0;
+        // ==========================================
+        // TOP-DOWN CYBER NEON CHICKEN (PERFECTLY CENTERED ROTATION)
+        // ==========================================
+        const isHopping = jumpHeight > 0;
+        const wingSpread = isHopping ? 2.5 : 0;
+
+        ctx.save();
+
+        // 1. NEON FEET (Visible when hopping or at rear)
+        if (isHopping) {
+          ctx.save();
+          ctx.strokeStyle = '#ff7700';
+          ctx.fillStyle = 'rgba(255, 119, 0, 0.35)';
+          ctx.shadowBlur = 10;
+          ctx.shadowColor = '#ff7700';
+          ctx.lineWidth = 1.6;
+
+          // Left Foot
+          ctx.strokeRect(-7, 7, 4.5, 4.5);
+          ctx.fillRect(-7, 7, 4.5, 4.5);
+
+          // Right Foot
+          ctx.strokeRect(2.5, 7, 4.5, 4.5);
+          ctx.fillRect(2.5, 7, 4.5, 4.5);
+          ctx.restore();
+        }
+
+        // 2. NEON WINGS (Symmetrical Cyan Side Rectangles)
+        ctx.save();
+        ctx.strokeStyle = '#00f2fe';
+        ctx.fillStyle = 'rgba(0, 242, 254, 0.22)';
         ctx.shadowBlur = 12;
-        ctx.shadowColor = '#ffff00';
-        
-        // Body (Circle)
-        ctx.fillStyle = '#05070f';
-        ctx.beginPath();
-        ctx.arc(0, 0, this.radius, 0, Math.PI*2);
-        ctx.fill();
-        ctx.stroke();
+        ctx.shadowColor = '#00f2fe';
+        ctx.lineWidth = 2.0;
 
-        // Wings Outline (glowing side ellipses)
-        ctx.strokeStyle = '#00ffff'; // neon cyan
-        ctx.shadowColor = '#00ffff';
-        ctx.beginPath();
         // Left Wing
-        ctx.ellipse(-this.radius, 0, 3.5, 6, 0, 0, Math.PI*2);
+        if (ctx.roundRect) {
+          ctx.beginPath();
+          ctx.roundRect(-12.5 - wingSpread, -4, 4, 8, 2);
+          ctx.fill();
+          ctx.stroke();
+        } else {
+          ctx.fillRect(-12.5 - wingSpread, -4, 4, 8);
+          ctx.strokeRect(-12.5 - wingSpread, -4, 4, 8);
+        }
+
         // Right Wing
-        ctx.ellipse(this.radius, 0, 3.5, 6, 0, 0, Math.PI*2);
-        ctx.stroke();
+        if (ctx.roundRect) {
+          ctx.beginPath();
+          ctx.roundRect(8.5 + wingSpread, -4, 4, 8, 2);
+          ctx.fill();
+          ctx.stroke();
+        } else {
+          ctx.fillRect(8.5 + wingSpread, -4, 4, 8);
+          ctx.strokeRect(8.5 + wingSpread, -4, 4, 8);
+        }
+        ctx.restore();
 
-        // Red Comb (glowing top crest)
-        ctx.strokeStyle = '#ff003c';
-        ctx.shadowColor = '#ff003c';
-        ctx.beginPath();
-        ctx.moveTo(-4, -this.radius);
-        ctx.lineTo(0, -this.radius - 6);
-        ctx.lineTo(4, -this.radius);
-        ctx.stroke();
+        // 3. MAIN BODY (Symmetrical Blocky Cyber Silhouette in Glowing Neon Yellow)
+        ctx.save();
+        ctx.strokeStyle = '#ffff00'; // Neon Yellow
+        ctx.fillStyle = '#060a17';   // Deep Cyber Dark Core
+        ctx.shadowBlur = 14;
+        ctx.shadowColor = '#ffff00';
+        ctx.lineWidth = 2.4;
 
-        // Orange Beak (facing front / top of head)
-        ctx.strokeStyle = '#ff6c00';
-        ctx.shadowColor = '#ff6c00';
-        ctx.beginPath();
-        ctx.moveTo(-3.5, -this.radius + 2);
-        ctx.lineTo(0, -this.radius - 3.5);
-        ctx.lineTo(3.5, -this.radius + 2);
-        ctx.stroke();
+        if (ctx.roundRect) {
+          ctx.beginPath();
+          ctx.roundRect(-8.5, -8.5, 17, 17, 4);
+          ctx.fill();
+          ctx.stroke();
+        } else {
+          ctx.fillRect(-8.5, -8.5, 17, 17);
+          ctx.strokeRect(-8.5, -8.5, 17, 17);
+        }
 
-        // Eyes
-        ctx.fillStyle = '#fff';
-        ctx.shadowBlur = 0;
-        ctx.beginPath();
-        ctx.arc(-4, -4, 1.8, 0, Math.PI*2);
-        ctx.arc(4, -4, 1.8, 0, Math.PI*2);
-        ctx.fill();
+        // Inner glowing cyber circuit accent
+        ctx.strokeStyle = 'rgba(255, 255, 0, 0.4)';
+        ctx.lineWidth = 1.0;
+        ctx.shadowBlur = 4;
+        if (ctx.roundRect) {
+          ctx.beginPath();
+          ctx.roundRect(-5.5, -5.5, 11, 11, 2);
+          ctx.stroke();
+        }
+        ctx.restore();
 
+        // 4. NEON PINK HEAD COMB (Kamm on top edge)
+        ctx.save();
+        ctx.strokeStyle = '#ff007f';
+        ctx.fillStyle = 'rgba(255, 0, 127, 0.4)';
+        ctx.shadowBlur = 14;
+        ctx.shadowColor = '#ff007f';
+        ctx.lineWidth = 2.0;
+
+        if (ctx.roundRect) {
+          ctx.beginPath();
+          ctx.roundRect(-3, -8.5, 6, 6, 2);
+          ctx.fill();
+          ctx.stroke();
+        } else {
+          ctx.fillRect(-3, -8.5, 6, 6);
+          ctx.strokeRect(-3, -8.5, 6, 6);
+        }
+        ctx.restore();
+
+        // 5. NEON ORANGE BEAK & PINK WATTLE (Front Schnabel)
+        ctx.save();
+        // Pink Wattle under beak
+        ctx.strokeStyle = '#ff007f';
+        ctx.fillStyle = 'rgba(255, 0, 127, 0.5)';
+        ctx.shadowBlur = 10;
+        ctx.shadowColor = '#ff007f';
+        ctx.lineWidth = 1.6;
+        if (ctx.roundRect) {
+          ctx.beginPath();
+          ctx.roundRect(-2.5, -11.5, 5, 3, 1.5);
+          ctx.fill();
+          ctx.stroke();
+        } else {
+          ctx.fillRect(-2.5, -11.5, 5, 3);
+          ctx.strokeRect(-2.5, -11.5, 5, 3);
+        }
+
+        // Orange Beak Block
+        ctx.strokeStyle = '#ff7700';
+        ctx.fillStyle = 'rgba(255, 119, 0, 0.45)';
+        ctx.shadowBlur = 12;
+        ctx.shadowColor = '#ff7700';
+        ctx.lineWidth = 2.0;
+        if (ctx.roundRect) {
+          ctx.beginPath();
+          ctx.roundRect(-3.5, -14.5, 7, 5, 1.5);
+          ctx.fill();
+          ctx.stroke();
+        } else {
+          ctx.fillRect(-3.5, -14.5, 7, 5);
+          ctx.strokeRect(-3.5, -14.5, 7, 5);
+        }
+        ctx.restore();
+
+        // 6. NEON EYES (Twin glowing cyber dots)
+        ctx.save();
+        ctx.fillStyle = '#ffffff';
+        ctx.shadowBlur = 8;
+        ctx.shadowColor = '#00f2fe';
+        ctx.fillRect(-6, -5.5, 2.5, 2.5);
+        ctx.fillRect(3.5, -5.5, 2.5, 2.5);
+        ctx.restore();
+
+        ctx.restore();
+        ctx.restore();
         ctx.restore();
       }
     }
@@ -1795,10 +2303,12 @@
       initRows();
       particles = [];
       score = 0;
+      maxRowReached = 0;
+      bonusPoints = 0;
       lives = 3;
       cameraY = 0;
-      maxRowReached = 0;
       totalHops = 0;
+      levelGlowTimer = 0;
       roundStartTime = Date.now();
       hasRevived = false;
       reviveCountdown = 0;
@@ -1870,10 +2380,21 @@
           const type = currentRow.item.type;
           
           if (type === 'star') {
-            score += 15; // Star coin gives +15 score points
+            bonusPoints += 5; // Each star grants +5 bonus points
+            const oldDiff = getDifficulty(score);
+            score = maxRowReached + bonusPoints;
+            const newDiff = getDifficulty(score);
+
+            if (newDiff.level > oldDiff.level) {
+              levelGlowTimer = 90;
+              for (let i = 0; i < 20; i++) {
+                particles.push(new SparkParticle(player.x, player.y, newDiff.badgeColor));
+              }
+            }
+
             soundManager.playCoin();
             // Golden spark explosion
-            for (let i = 0; i < 10; i++) {
+            for (let i = 0; i < 14; i++) {
               particles.push(new SparkParticle(player.x, player.y, '#ffff00'));
             }
           } else if (type === 'heart') {
@@ -1887,7 +2408,7 @@
             player.shieldTime = 300; // 5 seconds at 60fps
             soundManager.playShield();
             // Cyan shield sparks
-            for (let i = 0; i < 15; i++) {
+            for (let i = 0; i < 18; i++) {
               particles.push(new SparkParticle(player.x, player.y, '#00ffff'));
             }
           }
@@ -1950,46 +2471,106 @@
       particles.forEach(p => p.draw());
 
       // DRAW IN-GAME HEADS-UP DISPLAY (HUD)
-      // Background glow bar
+      // 1. Draw Lives (Neon Red hearts on top LEFT, away from audio controls)
       ctx.save();
-      ctx.fillStyle = 'rgba(5, 7, 15, 0.75)';
-      ctx.fillRect(0, 0, canvas.width, 50);
-      
-      // Bottom border for HUD
-      ctx.strokeStyle = 'rgba(0, 242, 254, 0.15)';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(0, 50);
-      ctx.lineTo(canvas.width, 50);
-      ctx.stroke();
-
-      // Draw Score (Neon Pink glow)
-      ctx.fillStyle = '#ff007f';
-      ctx.font = '900 20px "Outfit", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
       ctx.textAlign = 'left';
+      ctx.shadowColor = 'rgba(255, 0, 85, 0.7)';
       ctx.shadowBlur = 10;
-      ctx.shadowColor = 'rgba(255, 0, 127, 0.4)';
-      ctx.fillText(`${score.toLocaleString()} m`, 16, 32);
-
-      // Draw Lives (Neon Red hearts)
-      ctx.shadowColor = '#ff0044';
-      ctx.fillStyle = '#ff0044';
-      ctx.shadowBlur = 10;
-      ctx.font = '16px "Outfit"';
-      ctx.textAlign = 'right';
+      ctx.fillStyle = '#ff0055';
+      ctx.font = '16px "Outfit", sans-serif';
       let heartsStr = '';
       for (let i = 0; i < lives; i++) {
         heartsStr += '❤️ ';
       }
-      ctx.fillText(heartsStr, canvas.width - 16, 31);
+      ctx.fillText(heartsStr, 14, 26);
+      ctx.restore();
 
-      // Draw Shield duration bar if active
-      if (player && player.shieldTime > 0) {
-        ctx.shadowColor = '#00ffff';
-        ctx.fillStyle = '#00ffff';
+      // 2. Top Centered Glowing Score & Highscore HUD (matching Neon Bird & Doodle Jump)
+      const displayHighscore = Math.max(savedHighscore, score);
+      const isNewRecord = score > savedHighscore && savedHighscore > 0;
+
+      ctx.save();
+      ctx.textAlign = 'center';
+
+      // Highscore Display (Positioned ABOVE current score, in Gold)
+      if (displayHighscore > 0) {
         ctx.shadowBlur = 8;
-        const width = (player.shieldTime / 300) * 80;
-        ctx.fillRect(16, 40, width, 4);
+        ctx.shadowColor = 'rgba(251, 191, 36, 0.4)';
+        ctx.fillStyle = '#fbbf24'; // Gold
+        ctx.font = isNewRecord ? '800 11px "Outfit", monospace' : '700 10px "Outfit", monospace';
+        ctx.letterSpacing = '0.5px';
+        const hsPrefix = isNewRecord ? (t.newRecordPrefix || '🔥 Rekord: ') : (t.highscorePrefix || '🏆 Highscore: ');
+        ctx.fillText(`${hsPrefix}${displayHighscore.toLocaleString()}`, canvas.width / 2, 20);
+      }
+
+      // Live Points Score
+      ctx.fillStyle = '#00f2fe';
+      ctx.font = '900 28px "Outfit", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+      ctx.shadowBlur = 12;
+      ctx.shadowColor = 'rgba(0, 242, 254, 0.5)';
+      ctx.fillText(score.toLocaleString(), canvas.width / 2, 48);
+
+      // 3. Stage Level Badge (matching Neon Bird & Doodle Jump)
+      const diff = getDifficulty(score);
+      if (levelGlowTimer > 0) {
+        levelGlowTimer--;
+        ctx.shadowBlur = 14;
+        ctx.shadowColor = diff.badgeColor;
+      } else {
+        ctx.shadowBlur = 0;
+      }
+      ctx.fillStyle = diff.badgeColor;
+      ctx.font = '700 9.5px "Outfit", monospace';
+      ctx.letterSpacing = '1px';
+      ctx.fillText(`${diff.levelName} • ${diff.sectorName}`, canvas.width / 2, 63);
+      ctx.restore();
+
+      // 4. Shield Invulnerability Timeline Bar (Floating Top Countdown)
+      if (player && player.shieldTime > 0) {
+        const shieldRatio = player.shieldTime / 300; // 0.0 to 1.0 (5.0 seconds)
+        const secondsLeft = (player.shieldTime / 60).toFixed(1);
+        const barWidth = 140;
+        const barHeight = 8;
+        const barX = (canvas.width - barWidth) / 2;
+        const barY = 78;
+
+        ctx.save();
+        // Pulsing warning if less than 1.2s remaining
+        const isExpiring = player.shieldTime < 72;
+        const shieldColor = (isExpiring && Math.floor(player.shieldTime / 6) % 2 === 0) ? '#ffea00' : '#00f2fe';
+
+        // Outer glow & container
+        ctx.shadowBlur = 12;
+        ctx.shadowColor = shieldColor;
+
+        // Background track pill
+        ctx.fillStyle = 'rgba(5, 15, 25, 0.85)';
+        ctx.strokeStyle = 'rgba(0, 242, 254, 0.4)';
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        if (ctx.roundRect) ctx.roundRect(barX - 20, barY - 2, barWidth + 40, barHeight + 4, 6);
+        else ctx.rect(barX - 20, barY - 2, barWidth + 40, barHeight + 4);
+        ctx.fill();
+        ctx.stroke();
+
+        // Fill Progress Bar
+        const fillW = Math.max(0, barWidth * shieldRatio);
+        ctx.fillStyle = shieldColor;
+        ctx.beginPath();
+        if (ctx.roundRect) ctx.roundRect(barX, barY, fillW, barHeight, 3);
+        else ctx.rect(barX, barY, fillW, barHeight);
+        ctx.fill();
+
+        // Shield Icon & Timer Text
+        ctx.font = '800 10px "Outfit", monospace';
+        ctx.fillStyle = '#ffffff';
+        ctx.textAlign = 'right';
+        ctx.fillText('🛡️', barX - 4, barY + 7.5);
+        ctx.textAlign = 'left';
+        ctx.fillStyle = shieldColor;
+        ctx.fillText(`${secondsLeft}s`, barX + barWidth + 4, barY + 7.5);
+
+        ctx.restore();
       }
 
       // Invulnerability Energy Shield Bubble (during/after revive)
@@ -2092,6 +2673,14 @@
       
       // Hide virtual D-pad
       dpad.style.display = 'none';
+
+      // Persist new personal highscore if beaten
+      if (score > savedHighscore) {
+        savedHighscore = score;
+        try {
+          localStorage.setItem('tggamehub_crossyneonroad_highscore', savedHighscore.toString());
+        } catch(e) {}
+      }
 
       finalScoreEl.innerText = score.toLocaleString();
 

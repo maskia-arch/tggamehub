@@ -55,7 +55,7 @@ export const BASE_HUB_GAMES: Omit<HubGameConfig, 'status' | 'maintenanceMessage'
     path: '/games/crossyneonroad/index.html',
     preview: '/images/crossy_neon_road_preview.png',
     description: 'Hilf dem Neon-Huhn, die Strassen und Fluesse zu ueberqueren. Sammle Leben & weiche Hindernissen aus!',
-    scoreUnit: 'm',
+    scoreUnit: 'pts',
     targetScore: 40,
     coinSymbol: 'CROSSY',
     hidden: true,

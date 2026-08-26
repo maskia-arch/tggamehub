@@ -568,13 +568,13 @@ export function GameWrapper({
                     marginBottom: '8px',
                   }}
                 >
-                  In Entwicklung • Coming Soon
+                  {t.games.comingSoonBadge || 'In Entwicklung • Coming Soon'}
                 </span>
                 <h3 style={{ fontSize: '16px', fontWeight: 900, color: '#fff', margin: 0 }}>
-                  Weitere Minigames in Arbeit
+                  {t.games.comingSoonTitle || 'Weitere Minigames in Arbeit'}
                 </h3>
                 <p style={{ margin: '6px 0 0', fontSize: '12px', color: 'rgba(255,255,255,0.4)', lineHeight: 1.5, maxWidth: '280px' }}>
-                  Crossy Neon Road 🐔, Neon Stacking 🧱 und weitere Arcade-Hits folgen in Kürze mit eigenen Token & Highscores!
+                  {t.games.comingSoonDesc || 'Weitere spannende Arcade-Hits folgen in Kürze mit eigenen Token & Highscores!'}
                 </p>
               </div>
 
@@ -592,7 +592,7 @@ export function GameWrapper({
                   letterSpacing: '0.06em',
                 }}
               >
-                🔒 Bald verfügbar
+                {t.games.comingSoonLocked || '🔒 Bald verfügbar'}
               </div>
             </div>
           </div>

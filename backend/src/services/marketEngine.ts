@@ -144,9 +144,11 @@ export interface AmmTradeCalculation {
 export const GAME_COIN_MAP: Record<string, { symbol: string; name: string }> = {
   doodlejump: { symbol: 'DOODLE', name: 'Neon Jump Coin' },
   neonbird: { symbol: 'FLAPPY', name: 'Neon Bird Coin' },
+  crossyneonroad: { symbol: 'CROSSY', name: 'Crossy Neon Road Coin' },
 };
 
 // Internal momentum & activity state
+// Internal momentum & activity state with Dynamic Score Battery
 interface CoinMomentumState {
   consecutiveBuys: number;
   consecutiveSells: number;
@@ -154,6 +156,11 @@ interface CoinMomentumState {
   lastActivityTime: number;
   lastWhaleEventTime: number;
   peak24hPrice: number;
+  // Community Score Energy
+  accumulatedPoints: number;
+  accumulatedRounds: number;
+  positiveEventCharge: number; // 0 to 100% battery fueled by player scores
+  lastEventTime: number;
 }
 
 const momentumTracker: Record<string, CoinMomentumState> = {};
@@ -169,14 +176,27 @@ function getCoinMomentum(symbol: string): CoinMomentumState {
       lastActivityTime: Date.now(),
       lastWhaleEventTime: 0,
       peak24hPrice: MARKET_CONFIG.BASE_PRICE,
+      accumulatedPoints: 0,
+      accumulatedRounds: 0,
+      positiveEventCharge: 15, // healthy baseline charge
+      lastEventTime: 0,
     };
   }
   return momentumTracker[sym];
 }
 
-export function markCoinActivity(coinSymbol: string) {
+export function markCoinActivity(coinSymbol: string, addedScore: number = 0) {
   const momentum = getCoinMomentum(coinSymbol);
-  momentum.lastActivityTime = Date.now();
+  const now = Date.now();
+  momentum.lastActivityTime = now;
+
+  if (addedScore > 0) {
+    momentum.accumulatedPoints += addedScore;
+    momentum.accumulatedRounds += 1;
+    // Each score charges the positive event probability battery (higher scores give more charge)
+    const scoreCharge = Math.min(25, Math.max(2, Math.round(addedScore / 15)));
+    momentum.positiveEventCharge = Math.min(100, momentum.positiveEventCharge + scoreCharge);
+  }
 }
 
 /**
@@ -597,7 +617,7 @@ export async function processGameScoreAmmImpact(
   }
 
   const coinSymbol = coinMapping.symbol;
-  markCoinActivity(coinSymbol);
+  markCoinActivity(coinSymbol, score);
 
   try {
     let coin = await db('market_coins').where({ symbol: coinSymbol }).first();
@@ -1053,14 +1073,14 @@ export async function executeAmmTrade(
 }
 
 // ============================================================================
-// 4. TICK-BASED MARKET ENGINE (STRICTLY GAMEPLAY & AMM BACKED)
+// 4. TICK-BASED MARKET ENGINE & DYNAMIC GAMEPLAY EVENT ENGINE
 // ============================================================================
 
 /**
  * Composite Market Update Tick:
- * - When there is active trading/gameplay: maintains realistic micro-spread orderbook noise.
- * - When there is no activity for extended periods: allows gentle, realistic cooling towards baseline.
- * - NEVER artificially pumps or compounds prices without real player scores or trades.
+ * - Active trading/gameplay: maintains realistic micro-spread orderbook noise.
+ * - Inactive periods: allows gentle cooling towards baseline.
+ * - Points scored directly charge the positive event battery; inactivity triggers cooling events.
  */
 export async function processMarketTick() {
   try {
@@ -1080,6 +1100,7 @@ export async function processMarketTick() {
 
       const momentum = getCoinMomentum(symbol);
       const secondsSinceActivity = (now - momentum.lastActivityTime) / 1000;
+      const minutesInactive = secondsSinceActivity / 60;
 
       let totalShift = 0.0;
 
@@ -1087,11 +1108,13 @@ export async function processMarketTick() {
         // Active Market: Orderbook Micro-Spread Noise (±0.005% max)
         const microNoise = (Math.random() * 2 - 1) * 0.00005;
         totalShift += microNoise;
-      } else if (secondsSinceActivity > 900 && currentPrice > basePrice) {
+      } else if (minutesInactive > 15 && currentPrice > basePrice) {
         // Inactive Market (> 15 min without games/trades): Very gentle cooling drift towards base price
         const elevationRatio = (currentPrice - basePrice) / basePrice;
         const gentleDrift = -0.000005 * Math.min(1.0, elevationRatio);
         totalShift += gentleDrift;
+        // Slowly drain positive charge on extended inactivity
+        momentum.positiveEventCharge = Math.max(0, momentum.positiveEventCharge - 0.2);
       }
 
       if (Math.abs(totalShift) > 1e-7) {
@@ -1121,11 +1144,9 @@ export async function processMarketTick() {
           momentum.lastTickPrice = newPrice;
         }
       }
-    }
 
-    // Rare narrative news logger (Purely informational in event feed, NO price pump)
-    if (Math.random() < 0.002) {
-      await triggerRandomMarketEvent(coins);
+      // Evaluate Dynamic Random Events (Gameplay Score Fuel vs. Inactivity Drag)
+      await evaluateDynamicMarketEvent(coin, momentum, now);
     }
   } catch (err) {
     // Silent catch
@@ -1151,53 +1172,308 @@ export function startMarketTicker() {
 }
 
 // ============================================================================
-// 5. NARRATIVE MARKET NEWS FEED (INFORMATIONAL ONLY)
+// 5. DYNAMIC GAMEPLAY-DRIVEN EVENT ENGINE
 // ============================================================================
 
 /**
- * Generates community news items for the market events feed.
- * Purely informative — does not artificially inflate prices or send notification spam.
+ * Evaluates and triggers dynamic random events:
+ * - High gameplay scores fuel positive / bullish community events.
+ * - Inactivity increases the chance for cooling / bearish events.
+ * - Cooldown protected (min 120s between events per coin) with balanced realistic price shifts.
  */
-async function triggerRandomMarketEvent(coins: any[]) {
+async function evaluateDynamicMarketEvent(coin: any, momentum: CoinMomentumState, now: number) {
   try {
+    const symbol = coin.symbol;
+    const currentPrice = Number(coin.current_price || MARKET_CONFIG.BASE_PRICE);
+    const basePrice = Number(coin.base_price || MARKET_CONFIG.BASE_PRICE);
+    const constantK = Number(coin.constant_product_k || MARKET_CONFIG.CONSTANT_PRODUCT_K);
+    const secondsSinceActivity = (now - momentum.lastActivityTime) / 1000;
+    const minutesInactive = secondsSinceActivity / 60;
+
+    // Minimum cooldown between random events for this coin (120 seconds = 2 minutes)
+    if (now - (momentum.lastEventTime || 0) < 120_000) {
+      return;
+    }
+
     const hasEventsTable = await db.schema.hasTable('market_events');
-    if (!hasEventsTable || coins.length === 0) return;
+    if (!hasEventsTable) return;
 
-    const randomCoin = coins[Math.floor(Math.random() * coins.length)];
-    const symbol = randomCoin.symbol;
+    // A. Positive Event Chance: Scaled directly by gameplay points / positiveEventCharge (up to ~6% per tick when highly charged!)
+    const positiveChance = (momentum.positiveEventCharge / 100) * 0.05;
+    
+    // B. Negative Event Chance: Scaled by minutes of inactivity (starts after 10 min inactivity, grows to ~4% per tick)
+    const negativeChance = minutesInactive > 10 ? Math.min(0.04, 0.005 + (minutesInactive - 10) * 0.001) : 0.0;
 
-    const narrativeNews = [
-      {
-        type: 'COMMUNITY_REPORT',
-        title: '📊 Community Markt-Bericht',
-        description: `Stabiles Handelsumfeld bei $${symbol}. Spieler nutzen Kursbewegungen für Taktiken.`,
-      },
-      {
-        type: 'NETWORK_UPDATE',
-        title: '⚡ Minigame-Netzwerk Live',
-        description: `Kontinuierliche Punktverbrennung bei $${symbol} hält den Umlaufbestand stabil.`,
-      },
-      {
-        type: 'TOURNAMENT_WATCH',
-        title: '🏆 Ranglisten-Wettstreit',
-        description: `Spannende Runden im Minigame-Hub für $${symbol}! Spieler kämpfen um neue Highscores.`,
-      },
-    ];
+    // Roll for event
+    const roll = Math.random();
 
-    const item = narrativeNews[Math.floor(Math.random() * narrativeNews.length)];
+    if (roll < positiveChance) {
+      // 🟢 POSITIVE / BULLISH EVENT TRIGGERED BY REAL GAMEPLAY POINTS!
+      const positiveEvents = [
+        {
+          type: 'COMMUNITY_RAID',
+          title: '⚡ Community Kaufwelle',
+          description: `Zahlreiche Spieler strömen nach starken Runden an den Markt und sichern sich $${symbol}!`,
+          minImpact: 0.0025,
+          maxImpact: 0.0075,
+        },
+        {
+          type: 'HIGHSCORE_RUSH',
+          title: '🎮 Highscore-Rallye',
+          description: `Eine Serie herausragender Spielrunden verbrennt Rekordmengen an $${symbol} Token!`,
+          minImpact: 0.0035,
+          maxImpact: 0.0095,
+        },
+        {
+          type: 'VIRAL_MEME',
+          title: '🚀 Telegram Hype & Memes',
+          description: `Virale Screenshots von Spitzenplatzierungen sorgen für Begeisterung bei $${symbol}!`,
+          minImpact: 0.0040,
+          maxImpact: 0.0110,
+        },
+        {
+          type: 'HODLER_ACCUMULATION',
+          title: '💎 Diamant-Hände Akkumulation',
+          description: `Erfahrene Arcade-Gamer halten ihre $${symbol} eisern für den Season-Airdrop-Pot!`,
+          minImpact: 0.0020,
+          maxImpact: 0.0065,
+        },
+        {
+          type: 'TOURNAMENT_FEVER',
+          title: '🏆 Turnier-Fieber',
+          description: `Ein packender Kampf um die Top 3 der Bestenliste entfacht die Verbrennung von $${symbol}!`,
+          minImpact: 0.0045,
+          maxImpact: 0.0120,
+        },
+        {
+          type: 'DEFLATION_SURGE',
+          title: '🔥 Massive Deflations-Welle',
+          description: `Kontinuierliche Punktverbrennung verknappt das zirkulierende Angebot von $${symbol} spürbar!`,
+          minImpact: 0.0030,
+          maxImpact: 0.0085,
+        },
+        {
+          type: 'BULLISH_SENTIMENT',
+          title: '🌟 Bullische Arcade-Stimmung',
+          description: `Hohe Spieleraktivität und starke Team-Scores treiben den Optimismus bei $${symbol}!`,
+          minImpact: 0.0020,
+          maxImpact: 0.0060,
+        },
+        {
+          type: 'MOONSHOT_HYPE',
+          title: '🛸 Moonshot-Fieber',
+          description: `Spekulationen auf lukrative Season-Gewinne führen zu reger Nachfrage nach $${symbol}.`,
+          minImpact: 0.0035,
+          maxImpact: 0.0090,
+        },
+        {
+          type: 'COMMUNITY_CHALLENGE',
+          title: '🎯 Community Challenge erreicht',
+          description: `Ein gemeinsamer Meilenstein bei den Gesamtpunkten verleiht $${symbol} frischen Rückenwind!`,
+          minImpact: 0.0040,
+          maxImpact: 0.0100,
+        },
+        {
+          type: 'SPEEDRUN_FRENZY',
+          title: '⚡ Speedrun-Rausch',
+          description: `Schnelle und fehlerfreie Runden im Minigame-Hub lassen die Verbrennungsrate ansteigen!`,
+          minImpact: 0.0030,
+          maxImpact: 0.0075,
+        },
+        {
+          type: 'TOKEN_HOLD_VIBES',
+          title: '🔒 Starke Halte-Quote',
+          description: `Immer mehr Gamer behalten erspielte $${symbol} im Portfolio – Verkaufsdruck sinkt spürbar!`,
+          minImpact: 0.0025,
+          maxImpact: 0.0070,
+        },
+        {
+          type: 'COMMUNITY_TREASURY_BOOST',
+          title: '💠 Arcade Jackpot Anreiz',
+          description: `Ein wachsender Airdrop-Pot motiviert immer mehr Spieler zum Sammeln von $${symbol}.`,
+          minImpact: 0.0030,
+          maxImpact: 0.0080,
+        },
+      ];
 
-    await db('market_events').insert({
-      coin_symbol: symbol,
-      event_type: item.type,
-      title: item.title,
-      description: item.description,
-      price_impact_percent: 0.0,
-      created_at: new Date(),
-    });
+      const template = positiveEvents[Math.floor(Math.random() * positiveEvents.length)];
+      const impactFactor = template.minImpact + Math.random() * (template.maxImpact - template.minImpact);
+      const priceImpactPercent = Math.round(impactFactor * 10000) / 100;
 
-    console.log(`[Market News]: ${item.title} on $${symbol}`);
+      const rawNewPrice = currentPrice * (1 + impactFactor);
+      const newPrice = Math.max(basePrice, Math.round(rawNewPrice * 1e12) / 1e12);
+
+      const newGameReserve = Math.sqrt(constantK * newPrice);
+      const newTokenReserve = Math.sqrt(constantK / newPrice);
+
+      await db('market_coins').where({ symbol }).update({
+        current_price: newPrice,
+        virtual_game_reserve: newGameReserve,
+        virtual_token_reserve: newTokenReserve,
+        updated_at: new Date(),
+      });
+
+      await db('market_price_history').insert({
+        coin_symbol: symbol,
+        price: newPrice,
+        volume: 0,
+        timestamp: new Date(),
+      });
+
+      await db('market_events').insert({
+        coin_symbol: symbol,
+        event_type: template.type,
+        title: template.title,
+        description: template.description,
+        price_impact_percent: priceImpactPercent,
+        created_at: new Date(),
+      });
+
+      // Partially discharge battery and update cooldown
+      momentum.positiveEventCharge = Math.max(0, momentum.positiveEventCharge - 20);
+      momentum.lastEventTime = now;
+      console.log(`[Market Dynamic Event (+)]: ${template.title} on $${symbol} (+${priceImpactPercent}%) [Charge left: ${momentum.positiveEventCharge}%]`);
+
+    } else if (roll < positiveChance + negativeChance) {
+      // 🔴 NEGATIVE / COOLING EVENT TRIGGERED BY INACTIVITY!
+      const negativeEvents = [
+        {
+          type: 'PLAYER_DOWNTIME',
+          title: '💤 Nächtliche Spielpause',
+          description: `Die Arcade-Lobby ruht vorübergehend. Ohne neue Burns verharrt $${symbol} in einer Ruhepause.`,
+          minImpact: -0.0045,
+          maxImpact: -0.0015,
+        },
+        {
+          type: 'EARLY_FARMER_EXIT',
+          title: '🌾 Früh-Farmer Gewinnmitnahme',
+          description: `Einige frühe Spieler tauschen erwirtschaftete $${symbol} in Game$ Guthaben um.`,
+          minImpact: -0.0055,
+          maxImpact: -0.0020,
+        },
+        {
+          type: 'MARKET_COOLING',
+          title: '❄️ Gesunde Konsolidierung',
+          description: `Nach intensiven Runden kühlt der Markt für $${symbol} auf natürlichem Niveau ab.`,
+          minImpact: -0.0035,
+          maxImpact: -0.0010,
+        },
+        {
+          type: 'COFFEE_BREAK',
+          title: '☕ Verschnaufpause der Gamer',
+          description: `Spieler laden ihre Energie auf – kurzzeitiger Stillstand am $${symbol} Markt.`,
+          minImpact: -0.0030,
+          maxImpact: -0.0010,
+        },
+        {
+          type: 'SUMMER_SLUMBER',
+          title: '🍃 Ruhiger Handelstag',
+          description: `Geringe Aktivität auf den Ranglisten lässt den Kurs von $${symbol} leicht nachgeben.`,
+          minImpact: -0.0040,
+          maxImpact: -0.0015,
+        },
+        {
+          type: 'PROFIT_LOCK',
+          title: '🔒 Gewinnsicherung',
+          description: `Vorsichtige Händler realisieren kleine Gewinne nach dem letzten Spiel-Push.`,
+          minImpact: -0.0048,
+          maxImpact: -0.0018,
+        },
+        {
+          type: 'MARKET_FATIGUE',
+          title: '🍂 Warten auf den nächsten Raid',
+          description: `Der Markt wartet gespannt auf die nächste große Highscore-Welle bei $${symbol}.`,
+          minImpact: -0.0038,
+          maxImpact: -0.0012,
+        },
+        {
+          type: 'ENERGY_WAIT',
+          title: '⚡ Warten auf Energie-Refill',
+          description: `Viele Spieler warten auf neue Energie-Balken – Handelsvolumen verlangsamt sich temporär.`,
+          minImpact: -0.0028,
+          maxImpact: -0.0010,
+        },
+        {
+          type: 'SLUMBER_CORRECTION',
+          title: '📉 Inaktivitäts-Korrektur',
+          description: `Längere Spielpause führt zu einer leichten Abkühlung bei $${symbol}.`,
+          minImpact: -0.0050,
+          maxImpact: -0.0020,
+        },
+      ];
+
+      const template = negativeEvents[Math.floor(Math.random() * negativeEvents.length)];
+      const impactFactor = template.minImpact + Math.random() * (template.maxImpact - template.minImpact);
+      const priceImpactPercent = Math.round(impactFactor * 10000) / 100;
+
+      const rawNewPrice = currentPrice * (1 + impactFactor);
+      const newPrice = Math.max(basePrice, Math.round(rawNewPrice * 1e12) / 1e12);
+
+      const newGameReserve = Math.sqrt(constantK * newPrice);
+      const newTokenReserve = Math.sqrt(constantK / newPrice);
+
+      await db('market_coins').where({ symbol }).update({
+        current_price: newPrice,
+        virtual_game_reserve: newGameReserve,
+        virtual_token_reserve: newTokenReserve,
+        updated_at: new Date(),
+      });
+
+      await db('market_price_history').insert({
+        coin_symbol: symbol,
+        price: newPrice,
+        volume: 0,
+        timestamp: new Date(),
+      });
+
+      await db('market_events').insert({
+        coin_symbol: symbol,
+        event_type: template.type,
+        title: template.title,
+        description: template.description,
+        price_impact_percent: priceImpactPercent,
+        created_at: new Date(),
+      });
+
+      momentum.lastEventTime = now;
+      console.log(`[Market Dynamic Event (-)]: ${template.title} on $${symbol} (${priceImpactPercent}%) [Inactive: ${minutesInactive.toFixed(1)}m]`);
+
+    } else if (roll < 0.003) {
+      // ⚪ NEUTRAL / COMMUNITY INFORMATIVE EVENT
+      const neutralEvents = [
+        {
+          type: 'COMMUNITY_REPORT',
+          title: '📊 Community Markt-Bericht',
+          description: `Stabiles Handelsumfeld bei $${symbol}. Spieler nutzen Kursbewegungen für Taktiken.`,
+        },
+        {
+          type: 'NETWORK_UPDATE',
+          title: '⚡ Minigame-Netzwerk Live',
+          description: `Kontinuierliche Punktverbrennung bei $${symbol} hält den Umlaufbestand stabil.`,
+        },
+        {
+          type: 'AMM_STABILITY',
+          title: '🛡️ Liquiditäts-Check',
+          description: `Der AMM-Pool von $${symbol} weist eine ausgewogene Reservenverteilung auf.`,
+        },
+      ];
+
+      const item = neutralEvents[Math.floor(Math.random() * neutralEvents.length)];
+
+      await db('market_events').insert({
+        coin_symbol: symbol,
+        event_type: item.type,
+        title: item.title,
+        description: item.description,
+        price_impact_percent: 0.0,
+        created_at: new Date(),
+      });
+
+      momentum.lastEventTime = now;
+      console.log(`[Market Neutral Event]: ${item.title} on $${symbol}`);
+    }
   } catch (err) {
-    console.error('[Market News Logger Error]:', err);
+    console.error('[Dynamic Market Event Error]:', err);
   }
 }
 

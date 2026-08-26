@@ -359,6 +359,10 @@ export const translations = {
       reviveReadySub: 'Klicke auf den Button, um das Spiel fortzusetzen.',
       reviveContinueBtn: '🚀 Spiel fortsetzen',
       reviveCountdownGo: 'LOS!',
+      comingSoonBadge: 'In Entwicklung • Coming Soon',
+      comingSoonTitle: 'Weitere Minigames in Arbeit',
+      comingSoonDesc: 'Weitere spannende Arcade-Hits folgen in Kürze mit eigenen Token & Highscores!',
+      comingSoonLocked: '🔒 Bald verfügbar',
       items: {
         doodlejump: {
           title: 'Neon Jump',
@@ -741,6 +745,10 @@ export const translations = {
       reviveReadySub: 'Tap the button to continue your game.',
       reviveContinueBtn: '🚀 Continue Game',
       reviveCountdownGo: 'GO!',
+      comingSoonBadge: 'In Development • Coming Soon',
+      comingSoonTitle: 'More Minigames in Development',
+      comingSoonDesc: 'More exciting arcade hits are coming soon with their own tokens & leaderboards!',
+      comingSoonLocked: '🔒 Coming Soon',
       items: {
         doodlejump: {
           title: 'Neon Jump',
