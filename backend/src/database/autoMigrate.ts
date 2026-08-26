@@ -76,6 +76,13 @@ export async function runAutoMigrations(knex: Knex): Promise<void> {
       await ensureColumn(knex, 'users', 'last_bot_message_id', (t) => t.integer('last_bot_message_id').nullable());
       await ensureColumn(knex, 'users', 'last_notification_message_id', (t) => t.integer('last_notification_message_id').nullable());
       await ensureColumn(knex, 'users', 'last_market_alert_message_id', (t) => t.integer('last_market_alert_message_id').nullable());
+      await ensureColumn(knex, 'users', 'is_frozen', (t) => t.boolean('is_frozen').defaultTo(false));
+      await ensureColumn(knex, 'users', 'frozen_reason', (t) => t.string('frozen_reason').nullable());
+      await ensureColumn(knex, 'users', 'is_banned', (t) => t.boolean('is_banned').defaultTo(false));
+      await ensureColumn(knex, 'users', 'ban_reason', (t) => t.string('ban_reason').nullable());
+      await ensureColumn(knex, 'users', 'last_name_change_at', (t) => t.timestamp('last_name_change_at').nullable());
+      await ensureColumn(knex, 'users', 'name_changes_count', (t) => t.integer('name_changes_count').defaultTo(0));
+      await ensureColumn(knex, 'users', 'avatar_id', (t) => t.string('avatar_id', 50).defaultTo('avatar_1'));
     }
 
     // ── Table: SCORES ─────────────────────────────────────────────────────────
@@ -560,6 +567,210 @@ export async function runAutoMigrations(knex: Knex): Promise<void> {
         table.timestamp('created_at').defaultTo(knex.fn.now());
       });
       console.log('[DATABASE AUTO-SYNC]: Created user_inbox table.');
+    }
+
+    // ── Table: AI_SETTINGS ───────────────────────────────────────────────────
+    const hasAiSettings = await knex.schema.hasTable('ai_settings');
+    if (!hasAiSettings) {
+      await knex.schema.createTable('ai_settings', (table) => {
+        table.string('id', 64).primary().defaultTo('global');
+        table.text('deepseek_api_key').nullable();
+        table.string('selected_model', 64).defaultTo('deepseek-chat');
+        table.text('available_models').nullable();
+        table.boolean('is_enabled').defaultTo(true);
+        table.boolean('auto_post_channel').defaultTo(true);
+        table.string('telegram_channel_id', 128).nullable();
+        table.text('storyline_theme').nullable();
+        table.integer('interval_hours').defaultTo(12);
+        table.timestamp('last_run_at').nullable();
+        table.timestamp('next_run_at').nullable();
+        table.timestamps(true, true);
+      });
+
+      await knex('ai_settings').insert({
+        id: 'global',
+        selected_model: 'deepseek-chat',
+        is_enabled: true,
+        auto_post_channel: true,
+        interval_hours: 12,
+        storyline_theme: 'Cyberpunk Neon Metropolis: Tech innovations, cyber market rallies, secret hackathons, and arcade gaming tournaments.',
+        available_models: JSON.stringify([
+          { id: 'deepseek-chat', name: 'DeepSeek Chat (V3)', status: 'active' },
+          { id: 'deepseek-reasoner', name: 'DeepSeek Reasoner (R1)', status: 'active' }
+        ]),
+        created_at: new Date(),
+        updated_at: new Date()
+      });
+      console.log('[DATABASE AUTO-SYNC]: Created and initialized ai_settings table.');
+    }
+
+    // ── Table: AI_MARKET_NEWS ────────────────────────────────────────────────
+    const hasAiNews = await knex.schema.hasTable('ai_market_news');
+    if (!hasAiNews) {
+      await knex.schema.createTable('ai_market_news', (table) => {
+        table.increments('id').primary();
+        table.string('title', 255).notNullable();
+        table.text('summary').notNullable();
+        table.text('content').nullable();
+        table.string('coin_symbol', 32).notNullable().index();
+        table.string('sentiment', 16).notNullable();
+        table.decimal('price_impact_percent', 10, 4).notNullable().defaultTo(0);
+        table.integer('impact_duration_minutes').defaultTo(60);
+        table.boolean('is_published').defaultTo(false).index();
+        table.string('story_arc', 128).nullable();
+        table.timestamp('scheduled_at').notNullable().index();
+        table.timestamp('published_at').nullable();
+        table.timestamps(true, true);
+      });
+      console.log('[DATABASE AUTO-SYNC]: Created ai_market_news table.');
+    }
+
+    // ── Table: AI_CHANNEL_POSTS ──────────────────────────────────────────────
+    const hasAiPosts = await knex.schema.hasTable('ai_channel_posts');
+    if (!hasAiPosts) {
+      await knex.schema.createTable('ai_channel_posts', (table) => {
+        table.increments('id').primary();
+        table.text('post_text').notNullable();
+        table.string('story_arc', 128).nullable();
+        table.string('reward_type', 32).defaultTo('NONE');
+        table.string('reward_coin_symbol', 32).nullable();
+        table.decimal('reward_amount', 20, 4).defaultTo(0);
+        table.string('reward_claim_code', 64).unique().nullable().index();
+        table.integer('reward_max_claims').defaultTo(100);
+        table.integer('reward_claimed_count').defaultTo(0);
+        table.timestamp('reward_expires_at').nullable();
+        table.text('community_goal').nullable();
+        table.string('telegram_message_id', 64).nullable();
+        table.string('status', 32).defaultTo('SCHEDULED').index();
+        table.timestamp('scheduled_at').notNullable().index();
+        table.timestamp('posted_at').nullable();
+        table.timestamps(true, true);
+      });
+      console.log('[DATABASE AUTO-SYNC]: Created ai_channel_posts table.');
+    } else {
+      await ensureColumn(knex, 'ai_channel_posts', 'post_text_de', (t) => t.text('post_text_de').nullable());
+      await ensureColumn(knex, 'ai_channel_posts', 'post_text_en', (t) => t.text('post_text_en').nullable());
+      await ensureColumn(knex, 'ai_channel_posts', 'community_goal_de', (t) => t.text('community_goal_de').nullable());
+      await ensureColumn(knex, 'ai_channel_posts', 'community_goal_en', (t) => t.text('community_goal_en').nullable());
+    }
+
+    // ── Multilingual checks for AI Market News ─────────────────────────────
+    await ensureColumn(knex, 'ai_market_news', 'title_de', (t) => t.string('title_de', 255).nullable());
+    await ensureColumn(knex, 'ai_market_news', 'title_en', (t) => t.string('title_en', 255).nullable());
+    await ensureColumn(knex, 'ai_market_news', 'summary_de', (t) => t.text('summary_de').nullable());
+    await ensureColumn(knex, 'ai_market_news', 'summary_en', (t) => t.text('summary_en').nullable());
+
+    // ── Table: AI_LIVE_EVENTS (Dynamic Crypto Live Events scripted by AI) ───
+    const hasAiLiveEvents = await knex.schema.hasTable('ai_live_events');
+    if (!hasAiLiveEvents) {
+      await knex.schema.createTable('ai_live_events', (table) => {
+        table.increments('id').primary();
+        table.string('event_type', 32).notNullable();
+        table.string('coin_symbol', 32).notNullable().index();
+        table.string('title_de', 255).notNullable();
+        table.string('title_en', 255).notNullable();
+        table.text('description_de').notNullable();
+        table.text('description_en').notNullable();
+        table.decimal('price_impact_percent', 10, 4).defaultTo(0);
+        table.decimal('multiplier', 10, 4).defaultTo(1.0);
+        table.integer('duration_minutes').defaultTo(60);
+        table.string('story_arc', 128).nullable();
+        table.boolean('is_active').defaultTo(false).index();
+        table.boolean('is_completed').defaultTo(false).index();
+        table.timestamp('scheduled_at').notNullable().index();
+        table.timestamp('started_at').nullable();
+        table.timestamp('ended_at').nullable();
+        table.timestamps(true, true);
+      });
+      console.log('[DATABASE AUTO-SYNC]: Created ai_live_events table.');
+    }
+
+    // ── Multilingual & live checks for Market Events ────────────────────────
+    await ensureColumn(knex, 'market_events', 'title_de', (t) => t.string('title_de', 255).nullable());
+    await ensureColumn(knex, 'market_events', 'title_en', (t) => t.string('title_en', 255).nullable());
+    await ensureColumn(knex, 'market_events', 'description_de', (t) => t.text('description_de').nullable());
+    await ensureColumn(knex, 'market_events', 'description_en', (t) => t.text('description_en').nullable());
+    await ensureColumn(knex, 'market_events', 'is_active', (t) => t.boolean('is_active').defaultTo(true));
+    await ensureColumn(knex, 'market_events', 'multiplier', (t) => t.decimal('multiplier', 10, 4).defaultTo(1.0));
+    await ensureColumn(knex, 'market_events', 'duration_minutes', (t) => t.integer('duration_minutes').defaultTo(60));
+    await ensureColumn(knex, 'market_events', 'expires_at', (t) => t.timestamp('expires_at').nullable());
+
+    // ── Telegram Channel & Bot Moderator Recognition in ai_settings ─────────
+    await ensureColumn(knex, 'ai_settings', 'telegram_channel_title', (t) => t.string('telegram_channel_title', 255).nullable());
+    await ensureColumn(knex, 'ai_settings', 'telegram_channel_username', (t) => t.string('telegram_channel_username', 128).nullable());
+    await ensureColumn(knex, 'ai_settings', 'telegram_channel_type', (t) => t.string('telegram_channel_type', 64).nullable());
+    await ensureColumn(knex, 'ai_settings', 'bot_moderator_status', (t) => t.string('bot_moderator_status', 64).defaultTo('PENDING'));
+    await ensureColumn(knex, 'ai_settings', 'bot_moderator_verified_at', (t) => t.timestamp('bot_moderator_verified_at').nullable());
+    await ensureColumn(knex, 'ai_settings', 'bot_moderator_permissions', (t) => t.text('bot_moderator_permissions').nullable());
+
+    // ── Area-Specific AI Models & Token Caching Analytics in ai_settings ────
+    await ensureColumn(knex, 'ai_settings', 'model_market_news', (t) => t.string('model_market_news', 64).defaultTo('deepseek-chat'));
+    await ensureColumn(knex, 'ai_settings', 'model_live_events', (t) => t.string('model_live_events', 64).defaultTo('deepseek-chat'));
+    await ensureColumn(knex, 'ai_settings', 'model_channel_posts', (t) => t.string('model_channel_posts', 64).defaultTo('deepseek-chat'));
+    await ensureColumn(knex, 'ai_settings', 'total_prompt_tokens', (t) => t.bigInteger('total_prompt_tokens').defaultTo(0));
+    await ensureColumn(knex, 'ai_settings', 'total_completion_tokens', (t) => t.bigInteger('total_completion_tokens').defaultTo(0));
+    await ensureColumn(knex, 'ai_settings', 'total_cache_hit_tokens', (t) => t.bigInteger('total_cache_hit_tokens').defaultTo(0));
+    await ensureColumn(knex, 'ai_settings', 'total_cache_miss_tokens', (t) => t.bigInteger('total_cache_miss_tokens').defaultTo(0));
+    await ensureColumn(knex, 'ai_settings', 'total_estimated_cost_eur', (t) => t.decimal('total_estimated_cost_eur', 14, 6).defaultTo(0));
+
+    // ── Table: CUSTOM_EMOJIS ───────────────────────────────────────────────
+    const hasCustomEmojis = await knex.schema.hasTable('custom_emojis');
+    if (!hasCustomEmojis) {
+      await knex.schema.createTable('custom_emojis', (table) => {
+        table.string('emoji_key', 64).primary();
+        table.string('custom_emoji_id', 64).notNullable().index();
+        table.string('file_id', 255).nullable();
+        table.string('emoji_char', 16).notNullable().defaultTo('🪙');
+        table.string('category', 32).notNullable().defaultTo('general');
+        table.timestamps(true, true);
+      });
+      console.log('[DATABASE AUTO-SYNC]: Created custom_emojis table.');
+    }
+
+    // ── Table: AI_REWARD_CLAIMS ──────────────────────────────────────────────
+    const hasAiClaims = await knex.schema.hasTable('ai_reward_claims');
+    if (!hasAiClaims) {
+      await knex.schema.createTable('ai_reward_claims', (table) => {
+        table.increments('id').primary();
+        table.string('claim_code', 64).notNullable().index();
+        table.string('user_id', 255).notNullable().index();
+        table.string('telegram_id', 255).nullable();
+        table.string('reward_type', 32).notNullable();
+        table.string('reward_coin_symbol', 32).nullable();
+        table.decimal('reward_amount', 20, 4).notNullable();
+        table.timestamp('claimed_at').notNullable().defaultTo(knex.fn.now());
+        table.unique(['claim_code', 'user_id']);
+      });
+      console.log('[DATABASE AUTO-SYNC]: Created ai_reward_claims table.');
+    }
+
+    // ── Table: ACHIEVEMENTS ──────────────────────────────────────────────────
+    const hasAchievements = await knex.schema.hasTable('achievements');
+    if (!hasAchievements) {
+      await knex.schema.createTable('achievements', (table) => {
+        table.string('id', 64).primary();
+        table.string('category', 32).notNullable();
+        table.string('title', 128).notNullable();
+        table.string('description', 255).notNullable();
+        table.string('badge_icon', 64).notNullable();
+        table.string('badge_rarity', 32).notNullable().defaultTo('BRONZE');
+        table.integer('sort_order').defaultTo(0);
+        table.timestamps(true, true);
+      });
+      console.log('[DATABASE AUTO-SYNC]: Created achievements table.');
+    }
+
+    // ── Table: USER_ACHIEVEMENTS ─────────────────────────────────────────────
+    const hasUserAchievements = await knex.schema.hasTable('user_achievements');
+    if (!hasUserAchievements) {
+      await knex.schema.createTable('user_achievements', (table) => {
+        table.increments('id').primary();
+        table.string('user_id', 255).notNullable().index();
+        table.string('achievement_id', 64).notNullable().index();
+        table.timestamp('unlocked_at').notNullable().defaultTo(knex.fn.now());
+        table.unique(['user_id', 'achievement_id']);
+      });
+      console.log('[DATABASE AUTO-SYNC]: Created user_achievements table.');
     }
 
     // ── Default Season Seed (Season 0 in 'preparing' state for initial 1.000 € fill-up) ─────

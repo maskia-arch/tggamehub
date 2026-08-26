@@ -11,6 +11,7 @@ import { EnergyModal } from './components/EnergyModal';
 import { useLanguage } from './i18n/LanguageContext';
 import { LanguageToggle } from './components/LanguageToggle';
 import { TelegramRedirectLanding } from './components/TelegramRedirectLanding';
+import { FrozenAccountModal } from './components/FrozenAccountModal';
 
 // Read API URL from environment, fallback to backend on local dev or current origin in prod
 const BACKEND_URL =
@@ -33,17 +34,34 @@ interface ProfileData {
     last_name: string | null;
     display_name: string | null;
     display_name_changed: boolean;
+    can_change_name?: boolean;
+    name_change_cooldown_days_left?: number;
+    last_name_change_at?: string | null;
+    name_changes_count?: number;
+    avatar_id?: string | null;
     referral_link: string;
     referrals_count: number;
     daily_ad_count: number;
     daily_ad_limit: number;
     season_pass_type?: 'NONE' | 'SEASON' | 'VIP';
+    is_vip?: boolean;
+    is_ad_free?: boolean;
     can_claim_free_refill?: boolean;
     daily_refill_remaining?: number;
     daily_refill_limit?: number;
+    daily_refill_amount?: number;
     wallet_ltc: string | null;
     deletion_scheduled_at: string | null;
     game_cash?: number;
+    is_frozen?: boolean;
+    frozen_reason?: string | null;
+    is_banned?: boolean;
+    ban_reason?: string | null;
+    is_og_player?: boolean;
+    unlocked_badges_count?: number;
+    total_badges_count?: number;
+    badges?: any[];
+    all_achievements?: any[];
   };
   energy: {
     current: number;
@@ -417,6 +435,15 @@ export default function App() {
             setShowEnergyPopup(false);
             setActiveTab('shop');
           }}
+        />
+      )}
+
+      {/* Frozen or Banned Lockout Screen */}
+      {profile && (profile.user.is_frozen || profile.user.is_banned) && (
+        <FrozenAccountModal
+          isFrozen={Boolean(profile.user.is_frozen)}
+          isBanned={Boolean(profile.user.is_banned)}
+          reason={profile.user.frozen_reason || profile.user.ban_reason}
         />
       )}
     </div>

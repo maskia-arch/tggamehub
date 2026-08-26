@@ -253,16 +253,16 @@ export const translations = {
         },
         season_pass: {
           name: 'Season Pass',
-          description: 'Permanentes Energie-Cap von 8 (statt 5) für die gesamte Saison, 15 tägliche Ads & 1x täglicher Free-Refill (+5 ⚡).',
+          description: 'Permanentes Energie-Cap von 10 (statt 5) für die gesamte Season, 20 tägliche Ads & 3x täglicher Free-Refill (+5 ⚡), Name alle 30 Tage ändern.',
         },
         vip_airdrop_pass: {
           name: 'Season Pass VIP',
-          description: 'Energie-Cap von 15, unbegrenzte tägliche Ads, 6x täglich 5 Energie Refill & exklusiver goldener VIP-Badge.',
+          description: 'Energie-Cap von 20, 6x täglicher Doppel-Refill (+10 ⚡), AdFree (Sofort-Belohnung ohne Ads), Goldener VIP-Badge & Name alle 30 Tage ändern.',
           badge: 'Max Rewards',
         },
         season_pass_vip: {
           name: 'Season Pass VIP',
-          description: 'Energie-Cap von 15, unbegrenzte tägliche Ads, 6x täglich 5 Energie Refill & exklusiver goldener VIP-Badge.',
+          description: 'Energie-Cap von 20, 6x täglicher Doppel-Refill (+10 ⚡), AdFree (Sofort-Belohnung ohne Ads), Goldener VIP-Badge & Name alle 30 Tage ändern.',
           badge: 'Max Rewards',
         },
       },
@@ -332,6 +332,15 @@ export const translations = {
       slippageProtection: 'Slippage-Schutz',
       maxSlippage: 'Max. Slippage: 15%',
       recordSpike: '🚀 Rekord-Impuls',
+      newsTab: 'News',
+      newsTitle: '📰 Cyber-News & Marktberichte',
+      newsSubtitle: 'Live-Analysen & Berichte der autonomen DeepSeek KI mit direktem Einfluss auf die Börsenkurse.',
+      bullish: '🟢 Bullish',
+      bearish: '🔴 Bearish',
+      neutral: '⚪ Neutral',
+      tradeCoinBtn: 'Diesen Coin handeln 🚀',
+      noNewsYet: 'Noch keine aktuellen News verfügbar. Die KI generiert alle 12 Stunden neue Berichte.',
+      breakingNewsHeader: '🚨 KI-Eilmeldung:',
     },
     // Games & GameWrapper
     games: {
@@ -639,16 +648,16 @@ export const translations = {
         },
         season_pass: {
           name: 'Season Pass',
-          description: 'Permanent Energy Cap of 8 (instead of 5) for entire season, 15 daily ads & 1x daily Free-Refill (+5 ⚡).',
+          description: 'Permanent Energy Cap of 10 (instead of 5) for entire season, 20 daily ads & 3x daily Free-Refill (+5 ⚡), change name every 30 days.',
         },
         vip_airdrop_pass: {
           name: 'Season Pass VIP',
-          description: 'Energy cap of 15, unlimited daily ads, 6x daily 5 energy refill & exclusive golden VIP badge.',
+          description: 'Energy cap of 20, 6x daily Double Refill (+10 ⚡), AdFree (Instant rewards without ads), Golden VIP Badge & change name every 30 days.',
           badge: 'Max Rewards',
         },
         season_pass_vip: {
           name: 'Season Pass VIP',
-          description: 'Energy cap of 15, unlimited daily ads, 6x daily 5 energy refill & exclusive golden VIP badge.',
+          description: 'Energy cap of 20, 6x daily Double Refill (+10 ⚡), AdFree (Instant rewards without ads), Golden VIP Badge & change name every 30 days.',
           badge: 'Max Rewards',
         },
       },
@@ -718,6 +727,15 @@ export const translations = {
       slippageProtection: 'Slippage Protection',
       maxSlippage: 'Max Slippage: 15%',
       recordSpike: '🚀 Record Spike',
+      newsTab: 'News',
+      newsTitle: '📰 Cyber News & Market Reports',
+      newsSubtitle: 'Live analysis & breaking stories from the autonomous DeepSeek AI directly impacting market prices.',
+      bullish: '🟢 Bullish',
+      bearish: '🔴 Bearish',
+      neutral: '⚪ Neutral',
+      tradeCoinBtn: 'Trade this Coin 🚀',
+      noNewsYet: 'No news available yet. The AI generates new reports every 12 hours.',
+      breakingNewsHeader: '🚨 AI Breaking News:',
     },
     // Games & GameWrapper
     games: {

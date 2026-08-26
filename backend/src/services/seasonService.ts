@@ -25,6 +25,7 @@ export interface SeasonLeaderboardEntry {
   username: string | null;
   firstName: string | null;
   displayName: string | null;
+  avatarId?: string;
   isVip?: boolean;
   seasonPassType?: 'NONE' | 'SEASON' | 'VIP';
   netProfit: number;
@@ -235,7 +236,8 @@ export async function getSeasonProfitLeaderboard(seasonId?: number, limit = 100)
       'users.username',
       'users.first_name',
       'users.display_name',
-      'users.season_pass_type'
+      'users.season_pass_type',
+      'users.avatar_id'
     )
     .orderBy('season_user_stats.net_profit', 'desc')
     .limit(limit);
@@ -247,6 +249,7 @@ export async function getSeasonProfitLeaderboard(seasonId?: number, limit = 100)
       username: r.username,
       firstName: r.first_name,
       displayName: r.display_name,
+      avatarId: r.avatar_id || 'avatar_1',
       isVip: passType === 'VIP',
       seasonPassType: passType,
       netProfit: parseFloat(parseFloat(String(r.net_profit || 0)).toFixed(4)),

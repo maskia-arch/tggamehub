@@ -96,8 +96,25 @@ export async function renderBotScreen(
   const chatId = ctx.chat?.id || ctx.from?.id;
   const session = getUserSession(userId);
 
+  const { formatCoinCadeHtml } = require('../services/customEmojiFormatter');
+
+  let processedText = text;
+  let parseMode = extra?.parse_mode || 'HTML';
+
+  // Automatically convert markdown formatting to HTML if needed so <tg-emoji> tags work cleanly
+  if (parseMode === 'HTML' || !extra?.parse_mode) {
+    parseMode = 'HTML';
+    // Convert basic markdown to HTML
+    processedText = processedText
+      .replace(/\*([^\*\n]+)\*/g, '<b>$1</b>')
+      .replace(/_([^_\n]+)_/g, '<i>$1</i>')
+      .replace(/`([^`\n]+)`/g, '<code>$1</code>');
+    // Format custom emojis
+    processedText = formatCoinCadeHtml(processedText);
+  }
+
   const extraOptions: any = {
-    parse_mode: 'Markdown',
+    parse_mode: parseMode,
     ...(extra && extra.reply_markup ? { reply_markup: extra.reply_markup } : (extra || {})),
   };
 
@@ -125,7 +142,7 @@ export async function renderBotScreen(
   // 2. If triggered by an inline button callback, attempt to edit the message in-place
   if (ctx.callbackQuery && 'message' in ctx.callbackQuery && ctx.callbackQuery.message) {
     try {
-      await ctx.editMessageText(text, extraOptions);
+      await ctx.editMessageText(processedText, extraOptions);
       const msgId = ctx.callbackQuery.message.message_id;
       session.lastBotMessageId = msgId;
       db('users').where({ id: userId }).update({ last_bot_message_id: msgId }).catch(() => {});
@@ -154,7 +171,7 @@ export async function renderBotScreen(
 
   // 4. Send fresh menu message and track its ID
   try {
-    const sent = await ctx.reply(text, extraOptions);
+    const sent = await ctx.reply(processedText, extraOptions);
     if (sent?.message_id) {
       session.lastBotMessageId = sent.message_id;
       db('users').where({ id: userId }).update({ last_bot_message_id: sent.message_id }).catch(() => {});

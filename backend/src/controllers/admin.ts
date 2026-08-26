@@ -170,6 +170,10 @@ export async function getAdminUsers(req: Request, res: Response) {
         'users.wallet_btc',
         'users.deletion_scheduled_at',
         'users.daily_ad_count',
+        'users.is_frozen',
+        'users.frozen_reason',
+        'users.is_banned',
+        'users.ban_reason',
         's.total_rounds',
         's.total_score'
       )
@@ -1066,6 +1070,156 @@ export async function resetAdminAllLeaderboards(_req: Request, res: Response) {
   } catch (error: any) {
     console.error('[ADMIN RESET ALL LEADERBOARDS ERROR]:', error);
     return res.status(500).json({ error: 'Fehler beim Zurücksetzen aller Leaderboards', detail: error.message });
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GET /api/admin/emojis & POST /api/admin/emojis/sync
+// ─────────────────────────────────────────────────────────────────────────────
+export async function getAdminCustomEmojisHandler(_req: Request, res: Response) {
+  try {
+    const { CUSTOM_EMOJI_CATALOG, getEmojisDirectory } = require('../services/customEmojiGenerator');
+    const { getAllCachedEmojis } = require('../services/customEmojiService');
+    const fs = require('fs');
+    const path = require('path');
+
+    const cachedMap = getAllCachedEmojis();
+    const emojiDir = getEmojisDirectory();
+
+    const items = CUSTOM_EMOJI_CATALOG.map((def: any) => {
+      const filePath = path.join(emojiDir, def.filename);
+      const exists = fs.existsSync(filePath);
+      const customEmojiId = cachedMap[def.key] || null;
+
+      return {
+        key: def.key,
+        title: def.title,
+        category: def.category,
+        emojiChar: def.emojiChar,
+        filename: def.filename,
+        hasPngAsset: exists,
+        customEmojiId,
+        isRegistered: Boolean(customEmojiId)
+      };
+    });
+
+    return res.json({
+      success: true,
+      totalCatalog: CUSTOM_EMOJI_CATALOG.length,
+      totalRegistered: Object.keys(cachedMap).length,
+      emojis: items
+    });
+  } catch (error: any) {
+    console.error('[ADMIN GET EMOJIS ERROR]:', error);
+    return res.status(500).json({ error: 'Failed to fetch emojis', detail: error.message });
+  }
+}
+
+export async function syncAdminCustomEmojisHandler(_req: Request, res: Response) {
+  try {
+    const { getBotInstance } = require('../bot');
+    const { initCustomEmojiSet } = require('../services/customEmojiService');
+
+    const bot = getBotInstance();
+    const result = await initCustomEmojiSet(bot);
+
+    return res.json({
+      success: result.success,
+      message: result.success ? `Custom Emoji Set "${result.setName}" erfolgreich synchronisiert!` : `Sync Hinweis: ${result.error}`,
+      totalEmojis: result.totalEmojis,
+      setName: result.setName,
+      error: result.error
+    });
+  } catch (error: any) {
+    console.error('[ADMIN SYNC EMOJIS ERROR]:', error);
+    return res.status(500).json({ error: 'Failed to sync custom emojis', detail: error.message });
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// User Moderation: Freeze, Ban & Instant Hard-Delete
+// ─────────────────────────────────────────────────────────────────────────────
+export async function freezeAdminUserHandler(req: Request, res: Response) {
+  try {
+    const { id } = req.params;
+    const { is_frozen, frozen_reason } = req.body;
+
+    const user = await db('users').where({ id }).first();
+    if (!user) {
+      return res.status(404).json({ error: 'Spieler nicht gefunden.' });
+    }
+
+    const freezeVal = is_frozen === undefined ? !user.is_frozen : Boolean(is_frozen);
+    const reasonVal = freezeVal ? (frozen_reason || 'Vorübergehend durch Support gesperrt.') : null;
+
+    await db('users').where({ id }).update({
+      is_frozen: freezeVal,
+      frozen_reason: reasonVal,
+    });
+
+    const updated = await db('users').where({ id }).first();
+
+    return res.json({
+      success: true,
+      message: freezeVal ? `Account ${user.display_name || id} wurde eingefroren.` : `Account ${user.display_name || id} wurde wieder entfroren.`,
+      user: updated
+    });
+  } catch (error: any) {
+    console.error('[ADMIN FREEZE USER ERROR]:', error);
+    return res.status(500).json({ error: 'Fehler beim Einfrieren des Accounts', detail: error.message });
+  }
+}
+
+export async function banAdminUserHandler(req: Request, res: Response) {
+  try {
+    const { id } = req.params;
+    const { is_banned, ban_reason } = req.body;
+
+    const user = await db('users').where({ id }).first();
+    if (!user) {
+      return res.status(404).json({ error: 'Spieler nicht gefunden.' });
+    }
+
+    const banVal = is_banned === undefined ? !user.is_banned : Boolean(is_banned);
+    const reasonVal = banVal ? (ban_reason || 'Dauerhaft durch Administrator gebannt.') : null;
+
+    await db('users').where({ id }).update({
+      is_banned: banVal,
+      ban_reason: reasonVal,
+    });
+
+    const updated = await db('users').where({ id }).first();
+
+    return res.json({
+      success: true,
+      message: banVal ? `Account ${user.display_name || id} wurde dauerhaft gebannt.` : `Bann für ${user.display_name || id} wurde aufgehoben.`,
+      user: updated
+    });
+  } catch (error: any) {
+    console.error('[ADMIN BAN USER ERROR]:', error);
+    return res.status(500).json({ error: 'Fehler beim Bannen des Accounts', detail: error.message });
+  }
+}
+
+export async function deleteAdminUserInstantHandler(req: Request, res: Response) {
+  try {
+    const { id } = req.params;
+
+    const user = await db('users').where({ id }).first();
+    if (!user) {
+      return res.status(404).json({ error: 'Spieler nicht gefunden.' });
+    }
+
+    const { hardDeleteUser } = require('../services/deletionScheduler');
+    await hardDeleteUser(id);
+
+    return res.json({
+      success: true,
+      message: `Spieler "${user.display_name || user.first_name || id}" (${id}) wurde sofort und vollständig aus der Datenbank gelöscht.`
+    });
+  } catch (error: any) {
+    console.error('[ADMIN INSTANT DELETE USER ERROR]:', error);
+    return res.status(500).json({ error: 'Fehler beim Löschen des Spielers', detail: error.message });
   }
 }
 

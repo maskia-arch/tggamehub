@@ -44,6 +44,7 @@ export interface GameHighscoreEntry {
   username: string | null;
   firstName: string | null;
   displayName: string | null;
+  avatarId?: string;
   isVip: boolean;
   seasonPassType: 'NONE' | 'SEASON' | 'VIP';
   highscore: number;
@@ -291,7 +292,7 @@ export async function getGameLeaderboard(
   const users = userIds.length > 0
     ? await db('users')
         .whereIn('id', userIds)
-        .select('id', 'username', 'first_name', 'display_name', 'season_pass_type')
+        .select('id', 'username', 'first_name', 'display_name', 'season_pass_type', 'avatar_id')
     : [];
   const userMap = new Map(users.map((u) => [u.id, u]));
 
@@ -320,6 +321,7 @@ export async function getGameLeaderboard(
       username: userDetail?.username || null,
       firstName: userDetail?.first_name || 'Spieler',
       displayName: userDetail?.display_name || userDetail?.first_name || 'Spieler',
+      avatarId: userDetail?.avatar_id || 'avatar_1',
       isVip: passType === 'VIP',
       seasonPassType: passType,
       highscore: entry.score,

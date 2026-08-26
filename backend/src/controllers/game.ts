@@ -246,6 +246,10 @@ export async function submitScore(req: AuthenticatedRequest, res: Response) {
     // Record activity round & net profit for active season (only if season is currently active)
     await recordUserGameActivity(userId, earnedCash);
 
+    // Check & award achievements
+    const { checkAndAwardAchievements } = require('../services/achievementService');
+    const achievementRes = await checkAndAwardAchievements(userId);
+
     const updatedUser = await db('users').where({ id: userId }).first();
 
     return res.json({
@@ -253,6 +257,7 @@ export async function submitScore(req: AuthenticatedRequest, res: Response) {
       score: parsedScore,
       earnedCash,
       totalCash: Number(updatedUser?.game_cash || 0.0),
+      newlyUnlockedBadges: achievementRes.newlyUnlocked || [],
       marketImpact: {
         targetScore: marketResult.targetScore || 1000,
         zScore: marketResult.zScore || 0,

@@ -168,6 +168,18 @@ runAutoMigrations(db)
       // Start reliable Telegram notification background scheduler (Full Energy & Portfolio alerts)
       const { startNotificationScheduler } = require('./services/notificationService');
       startNotificationScheduler();
+
+      // Start DeepSeek Autonomous AI Moderator & News Scheduler
+      const { startAiScheduler } = require('./services/aiScheduler');
+      startAiScheduler();
+
+      // Start Automatic Account Deletion Scheduler (every 60s)
+      const { startAccountDeletionScheduler } = require('./services/deletionScheduler');
+      startAccountDeletionScheduler();
+
+      // Seed Achievements Catalog
+      const { seedAchievementsCatalog } = require('./services/achievementService');
+      seedAchievementsCatalog();
     });
 
     // Graceful process shutdown handler (ensures port release and cleanly kills old instances)

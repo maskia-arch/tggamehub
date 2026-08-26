@@ -1,9 +1,13 @@
 import { useState, useEffect, useRef } from 'react';
 import {
-  User, Share2, Copy, Check, Tv, Edit3, Wallet,
-  Trash2, AlertTriangle, X, ChevronRight, Shield, Clock
+  Share2, Copy, Check, Tv, Edit3, Wallet,
+  Trash2, AlertTriangle, X, ChevronRight, Shield, Clock,
+  Award, ExternalLink
 } from 'lucide-react';
 import { showRewardedAd } from '../services/adsgram';
+import { PublicProfileModal } from './PublicProfileModal';
+import { AvatarSelectModal } from './AvatarSelectModal';
+import { getAvatarConfig, getAvatarPath } from '../config/avatars';
 
 interface ProfileData {
   user: {
@@ -13,17 +17,34 @@ interface ProfileData {
     last_name: string | null;
     display_name: string | null;
     display_name_changed: boolean;
+    can_change_name?: boolean;
+    name_change_cooldown_days_left?: number;
+    last_name_change_at?: string | null;
+    name_changes_count?: number;
+    avatar_id?: string | null;
     referral_link: string;
     referrals_count: number;
     daily_ad_count: number;
     daily_ad_limit: number;
     season_pass_type?: 'NONE' | 'SEASON' | 'VIP';
+    is_vip?: boolean;
+    is_ad_free?: boolean;
     can_claim_free_refill?: boolean;
     daily_refill_remaining?: number;
     daily_refill_limit?: number;
+    daily_refill_amount?: number;
     wallet_ltc: string | null;
     deletion_scheduled_at: string | null;
     game_cash?: number;
+    is_frozen?: boolean;
+    frozen_reason?: string | null;
+    is_banned?: boolean;
+    ban_reason?: string | null;
+    is_og_player?: boolean;
+    unlocked_badges_count?: number;
+    total_badges_count?: number;
+    badges?: any[];
+    all_achievements?: any[];
   };
   energy: {
     current: number;
@@ -99,6 +120,12 @@ export function Profile({ profile, onRefresh, initData, backendUrl }: ProfilePro
   const [deleteScheduled, setDeleteScheduled] = useState(!!profile.user.deletion_scheduled_at);
   const [deletionTime, setDeletionTime] = useState(profile.user.deletion_scheduled_at);
 
+  // Public Profile preview state
+  const [showPublicPreview, setShowPublicPreview] = useState(false);
+
+  // Avatar Selection Modal state
+  const [showAvatarModal, setShowAvatarModal] = useState(false);
+
   // Live sync countdown directly from App root state
   useEffect(() => {
     setSecondsLeft(profile.energy.nextRechargeInSeconds);
@@ -146,17 +173,11 @@ export function Profile({ profile, onRefresh, initData, backendUrl }: ProfilePro
     }
   };
 
-  // ── Save display name (costs 10 InGame$) ────────────────────────────────────
+  // ── Save display name (1x Free for standard, every 30 days for Pass holders) ──
   const saveDisplayName = async () => {
     const cleanName = nameInput.trim();
     if (!cleanName || cleanName.length < 3 || cleanName.length > 15) {
       setNameError(t.profile.nameMinMaxError);
-      return;
-    }
-
-    const currentCash = profile.user.game_cash || 0;
-    if (currentCash < 10.0) {
-      setNameError(t.profile.nameChangeInsufficientHint.replace('{needed}', (10.0 - currentCash).toFixed(2)));
       return;
     }
 
@@ -253,16 +274,40 @@ export function Profile({ profile, onRefresh, initData, backendUrl }: ProfilePro
         }} />
 
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: '16px' }}>
-          {/* Avatar */}
-          <div style={{
-            width: '58px', height: '58px', flexShrink: 0,
-            borderRadius: '50%',
-            background: 'linear-gradient(135deg, rgba(0,242,254,0.2), rgba(255,140,0,0.15))',
-            border: '2px solid rgba(0,242,254,0.3)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            boxShadow: '0 0 20px rgba(0,242,254,0.15)',
-          }}>
-            <User size={26} style={{ color: 'var(--accent-cyan)' }} />
+          {/* Neon Avatar with Glow & Click-to-Edit */}
+          <div
+            onClick={() => setShowAvatarModal(true)}
+            style={{
+              position: 'relative',
+              width: '62px',
+              height: '62px',
+              flexShrink: 0,
+              borderRadius: '20px',
+              overflow: 'hidden',
+              cursor: 'pointer',
+              border: `2px solid ${getAvatarConfig(profile.user.avatar_id).glowColor}`,
+              boxShadow: `0 0 20px ${getAvatarConfig(profile.user.avatar_id).glowColor}66`,
+              transition: 'transform 0.2s',
+            }}
+            title="Neon Profilbild ändern"
+          >
+            <img
+              src={getAvatarPath(profile.user.avatar_id)}
+              alt="Profilbild"
+              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+            />
+            <div style={{
+              position: 'absolute',
+              bottom: 0, left: 0, right: 0,
+              background: 'rgba(0,0,0,0.65)',
+              backdropFilter: 'blur(4px)',
+              padding: '2px 0',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}>
+              <Edit3 size={10} style={{ color: '#fff' }} />
+            </div>
           </div>
 
           {/* Name + username */}
@@ -272,16 +317,27 @@ export function Profile({ profile, onRefresh, initData, backendUrl }: ProfilePro
                 {displayName}
               </span>
               {profile.user.season_pass_type === 'VIP' && (
-                <span style={{
-                  fontSize: '10px', fontWeight: 900, color: '#fbbf24',
-                  background: 'linear-gradient(135deg, rgba(245,158,11,0.25) 0%, rgba(251,191,36,0.12) 100%)',
-                  border: '1px solid rgba(251,191,36,0.45)',
-                  borderRadius: '6px', padding: '2px 7px',
-                  display: 'inline-flex', alignItems: 'center', gap: '3px',
-                  boxShadow: '0 0 10px rgba(251,191,36,0.3)',
-                }}>
-                  👑 VIP
-                </span>
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                  <img
+                    src="/assets/vip_badge_gold.png"
+                    alt="VIP Badge"
+                    style={{
+                      width: '22px', height: '22px', objectFit: 'contain',
+                      filter: 'drop-shadow(0 0 6px rgba(251,191,36,0.8))',
+                      verticalAlign: 'middle',
+                    }}
+                  />
+                  <span style={{
+                    fontSize: '10px', fontWeight: 900, color: '#fbbf24',
+                    background: 'linear-gradient(135deg, rgba(245,158,11,0.25) 0%, rgba(251,191,36,0.12) 100%)',
+                    border: '1px solid rgba(251,191,36,0.45)',
+                    borderRadius: '6px', padding: '2px 7px',
+                    display: 'inline-flex', alignItems: 'center', gap: '3px',
+                    boxShadow: '0 0 10px rgba(251,191,36,0.3)',
+                  }}>
+                    👑 VIP
+                  </span>
+                </div>
               )}
               {profile.user.season_pass_type === 'SEASON' && (
                 <span style={{
@@ -293,24 +349,34 @@ export function Profile({ profile, onRefresh, initData, backendUrl }: ProfilePro
                   🌟 PASS
                 </span>
               )}
-              <button
-                onClick={() => {
-                  setNameInput(profile.user.display_name || profile.user.first_name || '');
-                  setEditingName(true);
-                  setNameError('');
-                  setTimeout(() => nameInputRef.current?.focus(), 50);
-                }}
-                title={t.profile.nameChangeButton}
-                style={{
-                  background: 'rgba(0,242,254,0.1)', border: '1px solid rgba(0,242,254,0.2)',
-                  borderRadius: '8px', padding: '3px 8px',
-                  display: 'flex', alignItems: 'center', gap: '4px',
-                  cursor: 'pointer', color: 'var(--accent-cyan)', fontSize: '10px', fontWeight: 700,
-                  transition: 'all 0.2s',
-                }}
-              >
-                <Edit3 size={11} /> {t.profile.nameChangeButton}
-              </button>
+              {profile.user.can_change_name ? (
+                <button
+                  onClick={() => {
+                    setNameInput(profile.user.display_name || profile.user.first_name || '');
+                    setEditingName(true);
+                    setNameError('');
+                    setTimeout(() => nameInputRef.current?.focus(), 50);
+                  }}
+                  title={t.profile.nameChangeButton}
+                  style={{
+                    background: 'rgba(0,242,254,0.1)', border: '1px solid rgba(0,242,254,0.2)',
+                    borderRadius: '8px', padding: '3px 8px',
+                    display: 'flex', alignItems: 'center', gap: '4px',
+                    cursor: 'pointer', color: 'var(--accent-cyan)', fontSize: '10px', fontWeight: 700,
+                    transition: 'all 0.2s',
+                  }}
+                >
+                  <Edit3 size={11} /> {t.profile.nameChangeButton}
+                </button>
+              ) : profile.user.name_change_cooldown_days_left && profile.user.name_change_cooldown_days_left > 0 ? (
+                <span style={{
+                  fontSize: '9px', fontWeight: 700, color: 'rgba(255,255,255,0.4)',
+                  background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)',
+                  borderRadius: '6px', padding: '2px 6px', display: 'inline-flex', alignItems: 'center', gap: '3px',
+                }}>
+                  🕒 Name in {profile.user.name_change_cooldown_days_left}d änderbar
+                </span>
+              ) : null}
             </div>
             <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.35)', marginTop: '3px', display: 'block' }}>
               {profile.user.username ? `@${profile.user.username}` : `ID: ${profile.user.id}`}
@@ -332,6 +398,67 @@ export function Profile({ profile, onRefresh, initData, backendUrl }: ProfilePro
           </div>
         </div>
 
+        {/* ── Golden OG Pioneer Banner (If Eligible) ── */}
+        {profile.user.is_og_player && (
+          <div
+            style={{
+              marginTop: '16px',
+              background: 'linear-gradient(135deg, rgba(251,191,36,0.2) 0%, rgba(217,119,6,0.1) 100%)',
+              border: '1px solid rgba(251,191,36,0.5)',
+              borderRadius: '16px',
+              padding: '12px 14px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '12px',
+              boxShadow: '0 0 15px rgba(251,191,36,0.2)',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div style={{
+                fontSize: '22px', width: '36px', height: '36px', borderRadius: '10px',
+                background: 'rgba(251,191,36,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center'
+              }}>
+                🌟
+              </div>
+              <div>
+                <div style={{ fontSize: '13px', fontWeight: 900, color: '#fbbf24', letterSpacing: '0.04em' }}>
+                  GOLDENER OG PIONIER
+                </div>
+                <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.7)', marginTop: '2px' }}>
+                  Registriert vor Airdrop Season 1 (Stunde 1).
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── Public Profile Card Preview Action ── */}
+        <button
+          onClick={() => setShowPublicPreview(true)}
+          style={{
+            marginTop: '14px',
+            width: '100%',
+            padding: '10px 14px',
+            borderRadius: '14px',
+            background: 'rgba(0, 242, 254, 0.08)',
+            border: '1px solid rgba(0, 242, 254, 0.25)',
+            color: '#00f2fe',
+            fontSize: '12px',
+            fontWeight: 800,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '8px',
+            cursor: 'pointer',
+            transition: 'all 0.2s',
+          }}
+        >
+          <Award size={15} />
+          <span>Öffentliche Profilkarte & Highscores ansehen</span>
+          <ExternalLink size={13} style={{ opacity: 0.7 }} />
+        </button>
+
         {/* ── Pending deletion warning ───────────────────────────────────── */}
         {deleteScheduled && deletionTime && (
           <div style={{
@@ -350,6 +477,58 @@ export function Profile({ profile, onRefresh, initData, backendUrl }: ProfilePro
           </div>
         )}
       </div>
+
+      {/* ── Badges & Achievements Showcase Card ─────────────────────────── */}
+      <SectionCard>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <SectionTitle icon={<Award size={14} style={{ color: '#fbbf24' }} />} label="Badges & Erfolge" />
+          <span style={{ fontSize: '11px', fontWeight: 900, color: '#fbbf24' }}>
+            {profile.user.unlocked_badges_count || 0} / {profile.user.total_badges_count || 21}
+          </span>
+        </div>
+
+        {/* Progress Bar */}
+        <div style={{ width: '100%', height: '6px', background: 'rgba(255,255,255,0.08)', borderRadius: '9999px', overflow: 'hidden' }}>
+          <div
+            style={{
+              height: '100%',
+              width: `${Math.min(100, (((profile.user.unlocked_badges_count || 0) / (profile.user.total_badges_count || 21)) * 100))}%`,
+              background: 'linear-gradient(90deg, #fbbf24 0%, #00f2fe 100%)',
+              borderRadius: '9999px',
+              transition: 'width 0.6s ease',
+            }}
+          />
+        </div>
+
+        {/* Badges Grid (Preview of top badges) */}
+        {profile.user.badges && profile.user.badges.length > 0 ? (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px', marginTop: '4px' }}>
+            {profile.user.badges.slice(0, 8).map((b: any) => (
+              <div
+                key={b.id}
+                onClick={() => setShowPublicPreview(true)}
+                style={{
+                  background: 'rgba(255,255,255,0.04)',
+                  border: '1px solid rgba(251,191,36,0.3)',
+                  borderRadius: '12px',
+                  padding: '8px 4px',
+                  textAlign: 'center',
+                  cursor: 'pointer',
+                }}
+              >
+                <div style={{ fontSize: '20px' }}>{b.badge_icon}</div>
+                <div style={{ fontSize: '9px', fontWeight: 800, color: '#fff', marginTop: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {b.title}
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.4)', textAlign: 'center', padding: '10px 0' }}>
+            Spiele Runden und erreiche Highscores, um deine ersten Badges freizuschalten!
+          </div>
+        )}
+      </SectionCard>
 
       {/* ── Energy Card ───────────────────────────────────────────────────── */}
       <SectionCard>
@@ -727,28 +906,30 @@ export function Profile({ profile, onRefresh, initData, backendUrl }: ProfilePro
               </button>
             </div>
 
-            {/* Cost & Balance Info */}
+            {/* Pass vs Standard Rule Notice Banner */}
             <div style={{
-              background: 'rgba(0,0,0,0.35)',
-              border: '1px solid rgba(255, 140, 0, 0.25)',
-              borderRadius: '16px', padding: '12px 16px',
-              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              background: (profile.user.season_pass_type === 'VIP' || profile.user.season_pass_type === 'SEASON')
+                ? 'linear-gradient(135deg, rgba(251,191,36,0.15) 0%, rgba(245,158,11,0.06) 100%)'
+                : 'linear-gradient(135deg, rgba(0,242,254,0.12) 0%, rgba(79,172,254,0.05) 100%)',
+              border: (profile.user.season_pass_type === 'VIP' || profile.user.season_pass_type === 'SEASON')
+                ? '1px solid rgba(251,191,36,0.35)'
+                : '1px solid rgba(0,242,254,0.3)',
+              borderRadius: '16px', padding: '12px 14px',
+              display: 'flex', alignItems: 'center', gap: '10px',
             }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.45)', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 800 }}>
-                  {t.profile.nameChangeFeeLabel}
-                </span>
-                <span style={{ fontSize: '15px', fontWeight: 900, color: 'var(--accent-gold)' }}>
-                  {t.profile.nameChangeFeeValue}
-                </span>
-              </div>
-              <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.45)', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 800 }}>
-                  {t.profile.nameChangeBalanceLabel}
-                </span>
-                <span style={{ fontSize: '15px', fontWeight: 900, color: (profile.user.game_cash || 0) >= 10.0 ? '#4ade80' : '#f87171' }}>
-                  {(profile.user.game_cash || 0).toFixed(2)} $
-                </span>
+              <span style={{ fontSize: '20px', flexShrink: 0 }}>
+                {(profile.user.season_pass_type === 'VIP' || profile.user.season_pass_type === 'SEASON') ? '🏆' : '✨'}
+              </span>
+              <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.8)', lineHeight: 1.4 }}>
+                {(profile.user.season_pass_type === 'VIP' || profile.user.season_pass_type === 'SEASON') ? (
+                  <>
+                    <strong style={{ color: '#fbbf24' }}>Season-Pass Vorteil:</strong> Du kannst deinen Namen alle 30 Tage 1x kostenlos ändern.
+                  </>
+                ) : (
+                  <>
+                    <strong style={{ color: 'var(--accent-cyan)' }}>1x Kostenlose Änderung:</strong> Wähle deinen Namen sorgfältig. Nach dieser Änderung ist die Funktion dauerhaft gesperrt (oder mit Season-Pass alle 30 Tage verfügbar).
+                  </>
+                )}
               </div>
             </div>
 
@@ -786,45 +967,38 @@ export function Profile({ profile, onRefresh, initData, backendUrl }: ProfilePro
               />
             </div>
 
-            {/* Error or Insufficient funds notice */}
-            {nameError ? (
+            {/* Error notice */}
+            {nameError && (
               <div style={{
                 background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)',
                 borderRadius: '10px', padding: '8px 12px', fontSize: '11px', color: '#f87171',
               }}>
                 {nameError}
               </div>
-            ) : (profile.user.game_cash || 0) < 10.0 ? (
-              <div style={{
-                background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.25)',
-                borderRadius: '10px', padding: '8px 12px', fontSize: '11px', color: '#fbbf24',
-              }}>
-                {t.profile.nameChangeInsufficientHint.replace('{needed}', (10.0 - (profile.user.game_cash || 0)).toFixed(2))}
-              </div>
-            ) : null}
+            )}
 
             {/* Action Buttons */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '4px' }}>
               <button
                 onClick={saveDisplayName}
-                disabled={nameSaving || (profile.user.game_cash || 0) < 10.0}
+                disabled={nameSaving || nameInput.trim().length < 3}
                 style={{
-                  background: (profile.user.game_cash || 0) < 10.0
+                  background: nameInput.trim().length < 3
                     ? 'rgba(255,255,255,0.08)'
                     : 'linear-gradient(135deg, #00f2fe 0%, #4facfe 100%)',
-                  boxShadow: (profile.user.game_cash || 0) < 10.0
+                  boxShadow: nameInput.trim().length < 3
                     ? 'none'
                     : '0 0 20px rgba(0,242,254,0.35)',
                   border: 'none',
                   borderRadius: '14px', padding: '14px',
-                  color: (profile.user.game_cash || 0) < 10.0 ? 'rgba(255,255,255,0.35)' : '#000',
+                  color: nameInput.trim().length < 3 ? 'rgba(255,255,255,0.35)' : '#000',
                   fontWeight: 900, fontSize: '13px',
-                  cursor: (profile.user.game_cash || 0) < 10.0 ? 'not-allowed' : 'pointer',
+                  cursor: nameInput.trim().length < 3 ? 'not-allowed' : 'pointer',
                   opacity: nameSaving ? 0.6 : 1,
                   transition: 'all 0.2s',
                 }}
               >
-                {nameSaving ? t.profile.nameChangeSavingBtn : t.profile.nameChangeSubmitBtn}
+                {nameSaving ? t.profile.nameChangeSavingBtn : 'Anzeigename kostenlos speichern'}
               </button>
 
               <button
@@ -841,6 +1015,28 @@ export function Profile({ profile, onRefresh, initData, backendUrl }: ProfilePro
             </div>
           </div>
         </div>
+      )}
+
+      {/* ── Public Profile Card Preview Modal ── */}
+      {showPublicPreview && (
+        <PublicProfileModal
+          userId={profile.user.id}
+          onClose={() => setShowPublicPreview(false)}
+          backendUrl={backendUrl}
+          initData={initData}
+        />
+      )}
+
+      {/* ── Neon Avatar Select Modal ── */}
+      {showAvatarModal && (
+        <AvatarSelectModal
+          isOpen={showAvatarModal}
+          onClose={() => setShowAvatarModal(false)}
+          currentAvatarId={profile.user.avatar_id}
+          initData={initData}
+          backendUrl={backendUrl}
+          onAvatarSaved={() => onRefresh()}
+        />
       )}
     </div>
   );

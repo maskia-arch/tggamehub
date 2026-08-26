@@ -23,14 +23,12 @@ export async function buildMainMenu(userId: string): Promise<MenuRenderResult> {
   const gameCash = (user?.game_cash || 0.0).toFixed(2);
   const passType = user?.season_pass_type === 'VIP' ? '👑 VIP PASS' : (user?.season_pass_type === 'SEASON' ? '🌟 SEASON PASS' : 'STANDARD');
 
-  const text = `🎮 *━━━━━━━━━━━━━━━━━━━━*\n` +
-    `🪙 *COINCADE ARCADE HUB*\n` +
-    `*━━━━━━━━━━━━━━━━━━━━*\n\n` +
-    `👤 *Spieler:* \`${displayName}\`\n` +
-    `⚡ *Energie:* \`${energyInfo.currentEnergy}/${energyInfo.maxEnergy}\`${energyInfo.currentEnergy < energyInfo.maxEnergy && energyInfo.nextRechargeInSeconds > 0 ? ` *(+1 in ${Math.floor(energyInfo.nextRechargeInSeconds / 60)}m)*` : ' *(Voll)*'}\n` +
-    `💵 *Game Cash:* \`${gameCash} $\`\n` +
-    `🏆 *Status:* \`${passType}\`\n` +
-    (unreadInbox > 0 ? `📬 *Inbox:* \`${unreadInbox} ungelesene Nachricht(en)\`\n\n` : `\n`) +
+  const text = `[COINCADE]\n\n` +
+    `👤 <b>Spieler:</b> <code>${displayName}</code>\n` +
+    `[ENERGY] <b>Energie:</b> <code>${energyInfo.currentEnergy}/${energyInfo.maxEnergy}</code>${energyInfo.currentEnergy < energyInfo.maxEnergy && energyInfo.nextRechargeInSeconds > 0 ? ` <i>(+1 in ${Math.floor(energyInfo.nextRechargeInSeconds / 60)}m)</i>` : ' <i>(Voll)</i>'}\n` +
+    `[COIN_CASH] <b>Game Cash:</b> <code>${gameCash} $</code>\n` +
+    `[TROPHY_GOLD] <b>Status:</b> <code>${passType}</code>\n` +
+    (unreadInbox > 0 ? `📬 <b>Inbox:</b> <code>${unreadInbox} ungelesene Nachricht(en)</code>\n\n` : `\n`) +
     `Wähle eine Aktion aus dem Menü:`;
 
   const keyboard = Markup.inlineKeyboard([
@@ -71,16 +69,17 @@ export async function buildProfileMenu(userId: string): Promise<MenuRenderResult
 
   const ltcAddr = user?.wallet_ltc ? `\`${user.wallet_ltc.substring(0, 10)}...${user.wallet_ltc.slice(-8)}\`` : '❌ _Nicht hinterlegt_';
 
-  const text = `👤 *MEIN COINCADE PROFIL*\n` +
-    `*━━━━━━━━━━━━━━━━━━━━*\n\n` +
-    `🏷️ *Anzeigename:* \`${displayName}\`\n` +
-    `🆔 *Telegram ID:* \`${userId}\`\n` +
-    `⚡ *Energie:* \`${energyInfo.currentEnergy}/${energyInfo.maxEnergy}\`\n` +
-    `💵 *Game Cash Guthaben:* \`${gameCash} $\`\n` +
-    `🎟️ *Season Pass:* \`${passType}\`\n\n` +
-    `👥 *Geworbene Freunde:* \`${refCount}\`\n` +
-    `🔗 *Dein Referral-Link:*\n\`${referralLink}\`\n\n` +
-    `🟣 *LTC-Auszahlungsadresse (Airdrops):*\n${ltcAddr}\n`;
+  const text = `[COINCADE]\n` +
+    `👤 <b>MEIN PROFIL</b>\n` +
+    `━━━━━━━━━━━━━━━━━━━━\n\n` +
+    `🏷️ <b>Anzeigename:</b> <code>${displayName}</code>\n` +
+    `🆔 <b>Telegram ID:</b> <code>${userId}</code>\n` +
+    `[ENERGY] <b>Energie:</b> <code>${energyInfo.currentEnergy}/${energyInfo.maxEnergy}</code>\n` +
+    `[COIN_CASH] <b>Game Cash:</b> <code>${gameCash} $</code>\n` +
+    `🎟️ <b>Season Pass:</b> <code>${passType}</code>\n\n` +
+    `👥 <b>Geworbene Freunde:</b> <code>${refCount}</code>\n` +
+    `🔗 <b>Dein Referral-Link:</b>\n<code>${referralLink}</code>\n\n` +
+    `🟣 <b>LTC-Auszahlungsadresse (Airdrops):</b>\n${ltcAddr}\n`;
 
   const keyboard = Markup.inlineKeyboard([
     [
@@ -99,13 +98,14 @@ export async function buildProfileMenu(userId: string): Promise<MenuRenderResult
 export async function buildWalletsMenu(userId: string): Promise<MenuRenderResult> {
   const user = await db('users').where({ id: userId }).first();
 
-  const ltcAddr = user?.wallet_ltc ? `\`${user.wallet_ltc}\`` : '❌ _Keine Litecoin-Adresse hinterlegt_';
+  const ltcAddr = user?.wallet_ltc ? `<code>${user.wallet_ltc}</code>` : '❌ <i>Keine Litecoin-Adresse hinterlegt</i>';
 
-  const text = `💳 *LTC AUSZAHLUNGS-WALLET*\n` +
-    `*━━━━━━━━━━━━━━━━━━━━*\n\n` +
-    `Alle Airdrop-Ausschüttungen und Krypto-Gewinne werden bei CoinCade ausschließlich in *Litecoin (LTC)* ausgezahlt.\n\n` +
-    `🟣 *Deine hinterlegte LTC-Adresse:*\n${ltcAddr}\n\n` +
-    `_Hinweis: Änderungen im Bot sind sofort live mit der Web-App synchronisiert._`;
+  const text = `[COINCADE]\n` +
+    `💳 <b>LTC AUSZAHLUNGS-WALLET</b>\n` +
+    `━━━━━━━━━━━━━━━━━━━━\n\n` +
+    `Alle Airdrop-Ausschüttungen und Krypto-Gewinne werden bei CoinCade ausschließlich in <b>Litecoin (LTC)</b> ausgezahlt.\n\n` +
+    `🟣 <b>Deine hinterlegte LTC-Adresse:</b>\n${ltcAddr}\n\n` +
+    `<i>Hinweis: Änderungen im Bot sind sofort live mit der Web-App synchronisiert.</i>`;
 
   const keyboard = Markup.inlineKeyboard([
     [Markup.button.callback('🟣 LTC-Adresse hinterlegen / ändern', 'wallet_edit_ltc')],
@@ -124,25 +124,26 @@ export async function buildLeaderboardMenu(userId: string): Promise<MenuRenderRe
 
   let listText = '';
   if (topPlayers.length === 0) {
-    listText = '_Noch keine Teilnehmer in dieser Season. Starte ein Spiel und sei der Erste!_';
+    listText = '<i>Noch keine Teilnehmer in dieser Season. Starte ein Spiel und sei der Erste!</i>';
   } else {
     topPlayers.forEach((p, i) => {
-      const medal = i === 0 ? '🥇' : (i === 1 ? '🥈' : (i === 2 ? '🥉' : `*${i + 1}.*`));
+      const medal = i === 0 ? '[TROPHY_GOLD]' : (i === 1 ? '[TROPHY_SILVER]' : (i === 2 ? '[TROPHY_BRONZE]' : `<b>${i + 1}.</b>`));
       const name = p.displayName || p.firstName || `User_${p.userId.slice(-4)}`;
       const isMe = p.userId === userId ? ' 👈 (Du)' : '';
-      listText += `${medal} \`${name}\` — *${p.netProfit.toFixed(2)} $* (${p.totalRounds} Runden)${isMe}\n`;
+      listText += `${medal} <code>${name}</code> — <b>${p.netProfit.toFixed(2)} $</b> (${p.totalRounds} Runden)${isMe}\n`;
     });
   }
 
-  const text = `🏆 *COINCADE SEASON RANGSLISTE*\n` +
-    `*━━━━━━━━━━━━━━━━━━━━*\n\n` +
-    `🏆 *Season:* \`${season.name}\`\n` +
-    `💰 *Aktueller Airdrop-Pot:* \`${season.currentPot.toFixed(2)} €\`\n` +
-    `🎯 *Ziel:* \`${season.targetAmount.toFixed(2)} €\` (${season.progressPercent}%)\n` +
-    `⏳ *Status:* \`${season.status.toUpperCase()}\` | *Restzeit:* \`${season.daysLeft} Tage\`\n\n` +
-    `*Top 10 Season-Leaderboard:*\n` +
+  const text = `[COINCADE]\n` +
+    `[TROPHY_GOLD] <b>SEASON RANGSLISTE</b>\n` +
+    `━━━━━━━━━━━━━━━━━━━━\n\n` +
+    `[CROWN] <b>Season:</b> <code>${season.name}</code>\n` +
+    `[GIFT] <b>Aktueller Airdrop-Pot:</b> <code>${season.currentPot.toFixed(2)} €</code>\n` +
+    `🎯 <b>Ziel:</b> <code>${season.targetAmount.toFixed(2)} €</code> (${season.progressPercent}%)\n` +
+    `⏳ <b>Status:</b> <code>${season.status.toUpperCase()}</code> | <b>Restzeit:</b> <code>${season.daysLeft} Tage</code>\n\n` +
+    `<b>Top 10 Season-Leaderboard:</b>\n` +
     `${listText}\n` +
-    `_Spiele Runden und trade an der Börse, um deinen Season-Rang zu verbessern!_`;
+    `<i>Spiele Runden und trade an der Börse, um deinen Season-Rang zu verbessern!</i>`;
 
   const keyboard = Markup.inlineKeyboard([
     [
@@ -177,7 +178,7 @@ export async function buildMarketMenu(userId: string): Promise<MenuRenderResult>
   let coinsText = '';
 
   marketData.coins.forEach((c: any) => {
-    const changeSign = c.change24hPercent >= 0 ? '📈 +' : '📉 ';
+    const changeSign = c.change24hPercent >= 0 ? '[BULL] +' : '[BEAR] ';
     const changeStr = `${changeSign}${c.change24hPercent.toFixed(2)}%`;
     const userHolding = marketData.portfolio.find((p: any) => p.coinSymbol === c.symbol);
     const holdingAmount = userHolding ? userHolding.amount : 0;
@@ -194,15 +195,19 @@ export async function buildMarketMenu(userId: string): Promise<MenuRenderResult>
     totalPortfolioValue += holdingValue;
     totalInvestedCost += investedCost;
 
-    const holdingDisplay = holdingAmount > 0
-      ? `  • Dein Bestand: \`${holdingAmount.toLocaleString('de-DE')} ${c.symbol}\`\n` +
-        `  • Aktueller Wert: \`${holdingValue.toFixed(2)} $\` (Kauf: \`${investedCost.toFixed(2)} $\`)\n` +
-        `  • Gewinn/Verlust: ${pnlEmoji} \`${pnlSign}${pnlCash.toFixed(2)} $ (${pnlSign}${pnlPct.toFixed(2)}%)\`\n\n`
-      : `  • Dein Bestand: \`0 ${c.symbol}\` _(Noch keine Coins gekauft)_\n\n`;
+    let coinToken = '[COIN_DOODLE]';
+    if (c.symbol === 'FLAPPY') coinToken = '[COIN_FLAPPY]';
+    if (c.symbol === 'CROSSY') coinToken = '[COIN_CROSSY]';
 
-    coinsText += `🔹 *${c.name} ($${c.symbol})*\n` +
-      `  • Kurs: \`${priceFormatted} $\` (${changeStr})\n` +
-      `  • 24h Volumen: \`${c.volume24h.toFixed(2)} $\`\n` +
+    const holdingDisplay = holdingAmount > 0
+      ? `  • Dein Bestand: <code>${holdingAmount.toLocaleString('de-DE')} ${c.symbol}</code>\n` +
+        `  • Aktueller Wert: <code>${holdingValue.toFixed(2)} $</code> (Kauf: <code>${investedCost.toFixed(2)} $</code>)\n` +
+        `  • Gewinn/Verlust: ${pnlEmoji} <code>${pnlSign}${pnlCash.toFixed(2)} $ (${pnlSign}${pnlPct.toFixed(2)}%)</code>\n\n`
+      : `  • Dein Bestand: <code>0 ${c.symbol}</code> <i>(Noch keine Coins gekauft)</i>\n\n`;
+
+    coinsText += `${coinToken} <b>${c.name} ($${c.symbol})</b>\n` +
+      `  • Kurs: <code>${priceFormatted} $</code> (${changeStr})\n` +
+      `  • 24h Volumen: <code>${c.volume24h.toFixed(2)} $</code>\n` +
       holdingDisplay;
   });
 
@@ -211,14 +216,15 @@ export async function buildMarketMenu(userId: string): Promise<MenuRenderResult>
   const totalPnlSign = totalPnl >= 0 ? '+' : '';
   const totalPnlEmoji = totalPnl > 0 ? '🟢' : (totalPnl < 0 ? '🔴' : '⚪');
 
-  const text = `📊 *MEIN KRYPTO-PORTFOLIO & LIVE MARKT*\n` +
-    `*━━━━━━━━━━━━━━━━━━━━*\n\n` +
-    `💵 *Verfügbares Game Cash:* \`${gameCash.toFixed(2)} $\`\n` +
-    `💎 *Portfolio-Gesamtwert:* \`${totalPortfolioValue.toFixed(2)} $\`\n` +
-    `📈 *Gesamt-Gewinn/Verlust:* ${totalPnlEmoji} \`${totalPnlSign}${totalPnl.toFixed(2)} $ (${totalPnlSign}${totalPnlPct.toFixed(2)}%)\`\n\n` +
-    `*Live Markt- & Bestandsübersicht:*\n\n` +
+  const text = `[COINCADE]\n` +
+    `[BULL] <b>KRYPTO-PORTFOLIO & LIVE BÖRSE</b>\n` +
+    `━━━━━━━━━━━━━━━━━━━━\n\n` +
+    `[COIN_CASH] <b>Verfügbares Game Cash:</b> <code>${gameCash.toFixed(2)} $</code>\n` +
+    `💎 <b>Portfolio-Gesamtwert:</b> <code>${totalPortfolioValue.toFixed(2)} $</code>\n` +
+    `[BULL] <b>Gesamt-Gewinn/Verlust:</b> ${totalPnlEmoji} <code>${totalPnlSign}${totalPnl.toFixed(2)} $ (${totalPnlSign}${totalPnlPct.toFixed(2)}%)</code>\n\n` +
+    `<b>Live Markt- & Bestandsübersicht:</b>\n\n` +
     `${coinsText}` +
-    `_Öffne die Krypto-Börse in der CoinCade Mini App für interaktive Candlestick-Charts, Live-Orderbuch und Sofort-Trading!_`;
+    `<i>Öffne die Krypto-Börse in der CoinCade Mini App für interaktive Candlestick-Charts, Live-Orderbuch und Sofort-Trading!</i>`;
 
   const keyboard = Markup.inlineKeyboard([
     [Markup.button.webApp('📈 Krypto-Börse in Mini App öffnen (Trading & Charts) 🚀', config.frontendUrl)],

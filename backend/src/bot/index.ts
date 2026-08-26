@@ -54,7 +54,48 @@ export function initTelegramBot(): Telegraf | null {
       console.log(`[BOT]: /start from user ${telegramId}. Referrer payload: ${referrerId || 'none'}`);
 
       // Check if user exists in database
-      const user = await db('users').where({ id: telegramId }).first();
+      let user = await db('users').where({ id: telegramId }).first();
+
+      // ── Handle Community Bonus Claim Deep-Links (/start claim_<code_id>) ──
+      if (referrerId && referrerId.startsWith('claim_')) {
+        // Ensure user record exists
+        if (!user) {
+          await db('users').insert({
+            id: telegramId,
+            username,
+            first_name: firstName,
+            last_name: lastName,
+            display_name: sanitizeTelegramName(`${firstName} ${lastName}`.trim() || username || 'Player'),
+            energy_value: 5,
+            energy_updated_at: new Date(),
+            created_at: new Date()
+          });
+          user = await db('users').where({ id: telegramId }).first();
+        }
+
+        const { processAiRewardClaim } = require('../controllers/aiController');
+        const claimResult = await processAiRewardClaim(telegramId, telegramId, referrerId);
+
+        let claimText = '';
+        if (claimResult.success) {
+          claimText = `🎉 *COMMUNITY-BONUS ERFOLGREICH EINGELÖST!* 🎁\n\n` +
+            `${claimResult.message}\n\n` +
+            `Dein Bonus ist sofort in deinem Spielerprofil und an der Börse verfügbar. Viel Spaß beim Zocken! 🚀`;
+        } else {
+          claimText = `ℹ️ *Community-Bonus Info*\n\n` +
+            `${claimResult.message}\n\n` +
+            `Bleibe im Community-Kanal aktiv, um bei den nächsten AI-Aktionen die schnellsten Boni abzugreifen!`;
+        }
+
+        const buttons = [];
+        if (config.frontendUrl) {
+          buttons.push([Markup.button.webApp('🎮 CoinCade Arcade öffnen', config.frontendUrl)]);
+        }
+        buttons.push([Markup.button.callback('📋 Hauptmenü anzeigen', 'nav_main_menu')]);
+
+        await renderBotScreen(ctx, claimText, Markup.inlineKeyboard(buttons));
+        return;
+      }
 
       // If user exists and already has a display name, show the Main Menu
       if (user && user.display_name && user.display_name.trim().length >= 2) {
@@ -80,12 +121,13 @@ export function initTelegramBot(): Telegraf | null {
         },
       });
 
-      const welcomeText = `👋 *Willkommen bei CoinCade! 🎮🪙*\n\n` +
+      const welcomeText = `[COINCADE]\n\n` +
+        `👋 <b>Willkommen bei CoinCade!</b>\n\n` +
         `Erstelle jetzt in wenigen Sekunden dein kostenloses Spielerprofil.\n\n` +
-        `🏷️ *Wie soll dein Anzeigename im Spiel und auf der Rangliste lauten?*\n\n` +
-        `_Regeln: 3 bis 15 Zeichen, keine Sonderzeichen. Der Name muss im Spiel einmalig sein._\n\n` +
+        `🏷️ <b>Wie soll dein Anzeigename im Spiel und auf der Rangliste lauten?</b>\n\n` +
+        `<i>Regeln: 3 bis 15 Zeichen, keine Sonderzeichen. Der Name muss im Spiel einmalig sein.</i>\n\n` +
         (sanitizedTgName.length >= 3
-          ? `Du kannst deinen bereinigten Telegram-Namen *"${sanitizedTgName}"* mit einem Klick übernehmen oder unten deinen Wunschnamen in den Chat tippen.`
+          ? `Du kannst deinen bereinigten Telegram-Namen <b>"${sanitizedTgName}"</b> mit einem Klick übernehmen oder unten deinen Wunschnamen in den Chat tippen.`
           : `Tippe deinen Wunschnamen bitte direkt hier in den Chat:`);
 
       const buttons = [];
@@ -460,7 +502,7 @@ export function initTelegramBot(): Telegraf | null {
   });
 
   // ══════════════════════════════════════════════════════════════════════════
-  // 7. Command Handlers (/menu, /hub, /dashboard)
+  // 7. Command Handlers (/menu, /hub, /dashboard, /setup_channel)
   // ══════════════════════════════════════════════════════════════════════════
   bot.command(['menu', 'hub', 'dashboard'], async (ctx) => {
     try {
@@ -471,6 +513,104 @@ export function initTelegramBot(): Telegraf | null {
       await renderBotScreen(ctx, text, keyboard);
     } catch (err) {
       console.error('[BOT ERROR]: Error rendering command menu:', err);
+    }
+  });
+
+  // ── Auto-Detect Channel when Admin runs /setup_channel in a Group/Channel ─
+  bot.command(['setup_channel', 'setchannel', 'moderator'], async (ctx) => {
+    try {
+      const chat = ctx.chat;
+      if (!chat) return;
+
+      const { updateAiSettings } = require('../services/deepseekService');
+      const chatType = (chat.type as string);
+      const isChannelOrGroup = chatType === 'channel' || chatType === 'supergroup' || chatType === 'group';
+
+      if (!isChannelOrGroup) {
+        await ctx.reply('ℹ️ Führe diesen Befehl direkt in deinem Telegram-Kanal oder deiner Gruppe aus, um den Bot dort als AI Moderator zu verknüpfen.');
+        return;
+      }
+
+      let memberInfo: any = null;
+      try {
+        const botInfo = await ctx.telegram.getMe();
+        memberInfo = await ctx.telegram.getChatMember(chat.id, botInfo.id);
+      } catch (e: any) {
+        console.warn('[BOT]: Chat member check warning:', e.message);
+      }
+
+      const isAdmin = memberInfo && (memberInfo.status === 'administrator' || memberInfo.status === 'creator');
+      const status = isAdmin ? 'VERIFIED_ADMIN' : (memberInfo?.status || 'CONNECTED');
+
+      await updateAiSettings({
+        telegram_channel_id: chat.id.toString(),
+        telegram_channel_title: (chat as any).title || (chat as any).username || chat.id.toString(),
+        telegram_channel_username: (chat as any).username ? '@' + (chat as any).username.replace(/^@/, '') : null,
+        telegram_channel_type: chat.type,
+        bot_moderator_status: status,
+        bot_moderator_verified_at: new Date(),
+        bot_moderator_permissions: memberInfo ? JSON.stringify(memberInfo) : null
+      });
+
+      console.log(`[BOT]: 🤖 AI Moderator Channel locked in via command: ${(chat as any).title} (${chat.id}) [${status}]`);
+      await ctx.reply(`🤖 [CoinCade AI Moderator]\n\n✅ Dieser Chat wurde erfolgreich als offizieller CoinCade Community-Kanal registriert!\n\n• Chat-Titel: ${(chat as any).title || (chat as any).username}\n• Chat-ID: <code>${chat.id}</code>\n• Status: <b>${isAdmin ? '🟢 Admin-Berechtigung Aktiv' : '⚠️ Mitglied (Für automatische Posts bitte Admin-Rechte vergeben)'}</b>\n\nDas Admin Dashboard zeigt die Verbindung ab sofort live an.`, { parse_mode: 'HTML' });
+    } catch (err: any) {
+      console.error('[BOT ERROR]: Error in /setup_channel:', err);
+    }
+  });
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // 8. Auto-Detection: Bot Added to Channel or Admin Status Updated
+  // ══════════════════════════════════════════════════════════════════════════
+  bot.on('my_chat_member', async (ctx) => {
+    try {
+      const update = ctx.myChatMember;
+      if (!update) return;
+
+      const chat = update.chat;
+      const newMember = update.new_chat_member;
+      const status = newMember?.status; // 'administrator', 'member', 'left', 'kicked'
+
+      console.log(`[BOT]: my_chat_member update in "${(chat as any).title || (chat as any).username}" (${chat.id}): new status = ${status}`);
+
+      if (status === 'administrator' || status === 'member') {
+        const { updateAiSettings } = require('../services/deepseekService');
+        const isAdm = status === 'administrator';
+
+        await updateAiSettings({
+          telegram_channel_id: chat.id.toString(),
+          telegram_channel_title: (chat as any).title || (chat as any).username || chat.id.toString(),
+          telegram_channel_username: (chat as any).username ? '@' + (chat as any).username.replace(/^@/, '') : null,
+          telegram_channel_type: chat.type,
+          bot_moderator_status: isAdm ? 'VERIFIED_ADMIN' : 'MEMBER',
+          bot_moderator_verified_at: new Date(),
+          bot_moderator_permissions: JSON.stringify(newMember)
+        });
+
+        console.log(`[BOT]: 🤖 AI Moderator automatically recognized channel "${(chat as any).title}" (${chat.id}) with status ${status}!`);
+      }
+    } catch (err: any) {
+      console.error('[BOT ERROR]: Error in my_chat_member handler:', err);
+    }
+  });
+
+  // ── Auto-Detect Channel on Channel Post ────────────────────────────────────
+  bot.on('channel_post', async (ctx) => {
+    try {
+      const chat = ctx.channelPost?.chat;
+      if (chat && chat.id) {
+        const { updateAiSettings } = require('../services/deepseekService');
+        await updateAiSettings({
+          telegram_channel_id: chat.id.toString(),
+          telegram_channel_title: (chat as any).title || (chat as any).username || chat.id.toString(),
+          telegram_channel_username: (chat as any).username ? '@' + (chat as any).username.replace(/^@/, '') : null,
+          telegram_channel_type: chat.type,
+          bot_moderator_status: 'VERIFIED_ADMIN',
+          bot_moderator_verified_at: new Date()
+        });
+      }
+    } catch (err) {
+      console.warn('[BOT]: Channel post handler warning:', err);
     }
   });
 
@@ -664,8 +804,13 @@ export function initTelegramBot(): Telegraf | null {
 
   // Launch bot in background
   bot.launch()
-    .then(() => {
+    .then(async () => {
       console.log(`[BOT]: Telegram Bot @${bot?.botInfo?.username || 'coincadebot'} successfully started.`);
+      // Initialize and synchronize Telegram Custom Emoji Sticker Set
+      const { initCustomEmojiSet } = require('../services/customEmojiService');
+      initCustomEmojiSet(bot).catch((emojiErr: any) => {
+        console.warn('[BOT]: Custom emoji set initialization note:', emojiErr.message || emojiErr);
+      });
     })
     .catch((err) => {
       console.warn('[BOT WARNING]: Could not launch Telegram bot listener (invalid or test token):', err.message || err);

@@ -82,10 +82,36 @@ export function EnergyModal({
     return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   };
 
-  const handleWatchAd = () => {
+  const handleWatchAd = async () => {
     if (isAdLimitReached) return;
     setAdError(null);
     setSuccessMessage(null);
+
+    // If VIP (isUnlimitedAds), grant +1 energy instantly without video ad!
+    if (isUnlimitedAds) {
+      try {
+        const res = await fetch(`${backendUrl}/api/user/add-energy-ad`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `tma ${initData}`,
+          },
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          setLocalEnergy(data.energy?.currentEnergy ?? (localEnergy + 1));
+          setLocalAdCount((prev) => prev + 1);
+          setSuccessMessage('⚡ +1 Energie sofort gutgeschrieben (AdFree VIP)!');
+          onEnergyGranted(data.energy?.currentEnergy);
+        } else {
+          setAdError(data.message || data.error || 'Fehler beim Gutschreiben');
+        }
+      } catch (err: any) {
+        setAdError('Verbindungsfehler: ' + err.message);
+      }
+      return;
+    }
+
     setShowAdPlayer(true);
   };
 

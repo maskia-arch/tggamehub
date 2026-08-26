@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { authMiddleware } from '../middleware/auth';
 import { adminAuth } from '../middleware/adminAuth';
-import { getProfile, addEnergyAd, updateDisplayName, updateWalletAddresses, scheduleAccountDeletion, cancelAccountDeletion, claimDailyFreeRefill } from '../controllers/user';
+import { getProfile, getPublicProfile, addEnergyAd, updateDisplayName, updateWalletAddresses, scheduleAccountDeletion, cancelAccountDeletion, claimDailyFreeRefill, updateAvatar } from '../controllers/user';
 import { startGame, submitScore, getGameBenchmark, getAllGameBenchmarks, getGamesCatalog, updateGameStatusHandler, createDevSandboxToken, reorderGamesHandler } from '../controllers/game';
 import { getLeaderboard, getGamesList, getGameLeaderboardHandler, getSeasonLeaderboardHandler } from '../controllers/leaderboard';
 import {
@@ -23,7 +23,12 @@ import {
   resetDatabaseDangerZone,
   getAdminLeaderboards,
   resetAdminGameLeaderboard,
-  resetAdminAllLeaderboards
+  resetAdminAllLeaderboards,
+  getAdminCustomEmojisHandler,
+  syncAdminCustomEmojisHandler,
+  freezeAdminUserHandler,
+  banAdminUserHandler,
+  deleteAdminUserInstantHandler
 } from '../controllers/admin';
 
 import {
@@ -39,6 +44,18 @@ import {
 } from '../controllers/shop';
 
 import { getMarketData, getCoinChartData, tradeCoin, getMarketEventsData } from '../controllers/market';
+import {
+  getMarketNewsHandler,
+  getLiveAiEventsHandler,
+  claimAiRewardHandler,
+  getAdminAiSettingsHandler,
+  updateAdminAiSettingsHandler,
+  getAdminAiModelsHandler,
+  triggerAdminAiGenerateHandler,
+  getAdminAiLogsHandler,
+  verifyAdminAiChannelHandler,
+  testAdminAiHelloHandler
+} from '../controllers/aiController';
 import { getCurrentSeason } from '../services/seasonService';
 
 const router = Router();
@@ -54,11 +71,14 @@ router.post('/telemetry/log', (req: Request, res: Response) => {
 
 // User endpoints (secured)
 router.get('/user/profile', authMiddleware, getProfile);
+router.get('/user/public-profile/:targetUserId', getPublicProfile);
 router.post('/user/energy/ad', authMiddleware, addEnergyAd);
+router.post('/user/add-energy-ad', authMiddleware, addEnergyAd);
 router.get('/adsgram/reward', handleAdsgramReward);
 router.post('/adsgram/reward', handleAdsgramReward);
 router.post('/user/claim-daily-free-refill', authMiddleware, claimDailyFreeRefill);
 router.patch('/user/display-name', authMiddleware, updateDisplayName);
+router.patch('/user/avatar', authMiddleware, updateAvatar);
 router.patch('/user/wallets', authMiddleware, updateWalletAddresses);
 router.post('/user/delete', authMiddleware, scheduleAccountDeletion);
 router.post('/user/cancel-delete', authMiddleware, cancelAccountDeletion);
@@ -102,8 +122,15 @@ router.get('/leaderboard', authMiddleware, getLeaderboard);
 // Market / Börse endpoints (secured)
 router.get('/market/overview', authMiddleware, getMarketData);
 router.get('/market/events', authMiddleware, getMarketEventsData);
+router.get('/market/live-events', authMiddleware, getLiveAiEventsHandler);
+router.get('/market/news', authMiddleware, getMarketNewsHandler);
 router.get('/market/chart/:symbol', authMiddleware, getCoinChartData);
 router.post('/market/trade', authMiddleware, tradeCoin);
+
+// AI Community Reward Claim & Live News endpoints (secured)
+router.get('/ai/news', authMiddleware, getMarketNewsHandler);
+router.get('/ai/live-events', authMiddleware, getLiveAiEventsHandler);
+router.post('/ai/claim', authMiddleware, claimAiRewardHandler);
 
 // Shop endpoints (secured via WebApp auth)
 router.post('/shop/checkout', authMiddleware, createCheckout);
@@ -120,6 +147,15 @@ router.post('/crypto/sync-queue', clearSyncQueue);
 router.get('/crypto/airdrop-payouts', getAirdropPayouts);
 router.post('/crypto/airdrop-payouts/confirm', confirmAirdropPayout);
 
+// Admin AI DeepSeek endpoints (secured via adminAuth)
+router.get('/admin/ai/settings', adminAuth, getAdminAiSettingsHandler);
+router.post('/admin/ai/settings', adminAuth, updateAdminAiSettingsHandler);
+router.get('/admin/ai/models', adminAuth, getAdminAiModelsHandler);
+router.post('/admin/ai/generate-now', adminAuth, triggerAdminAiGenerateHandler);
+router.get('/admin/ai/logs', adminAuth, getAdminAiLogsHandler);
+router.post('/admin/ai/verify-channel', adminAuth, verifyAdminAiChannelHandler);
+router.post('/admin/ai/test-hello', adminAuth, testAdminAiHelloHandler);
+
 // Admin endpoints (secured via adminAuth: dev=open, prod=Basic Auth)
 router.get('/admin/stats', adminAuth, getAdminStats);
 router.get('/admin/users', adminAuth, getAdminUsers);
@@ -132,15 +168,22 @@ router.put('/admin/coins/:symbol', adminAuth, updateAdminCoin);
 router.post('/admin/coins/:symbol/reset', adminAuth, resetAdminCoinPool);
 router.patch('/admin/users/:id', adminAuth, updateAdminUser);
 router.get('/admin/users/:id/logs', adminAuth, getAdminUserLogs);
+router.post('/admin/users/:id/freeze', adminAuth, freezeAdminUserHandler);
+router.post('/admin/users/:id/ban', adminAuth, banAdminUserHandler);
+router.delete('/admin/users/:id', adminAuth, deleteAdminUserInstantHandler);
+router.post('/admin/users/:id/delete', adminAuth, deleteAdminUserInstantHandler);
 router.patch('/admin/season', adminAuth, updateAdminSeason);
 router.post('/admin/season/start', adminAuth, startAdminSeason);
 router.post('/admin/season/settle', adminAuth, settleAdminSeason);
 router.get('/admin/airdrop-payouts', adminAuth, getAirdropPayouts);
 router.post('/admin/airdrop-payouts/confirm', adminAuth, confirmAirdropPayout);
 router.get('/admin/leaderboards', adminAuth, getAdminLeaderboards);
-router.get('/admin/leaderboard/overview', adminAuth, getAdminLeaderboards);
 router.post('/admin/leaderboard/:gameId/reset', adminAuth, resetAdminGameLeaderboard);
 router.post('/admin/leaderboard/reset-all', adminAuth, resetAdminAllLeaderboards);
 router.post('/admin/danger/reset-database', adminAuth, resetDatabaseDangerZone);
+
+// Admin Custom Emojis endpoints (secured via adminAuth)
+router.get('/admin/emojis', adminAuth, getAdminCustomEmojisHandler);
+router.post('/admin/emojis/sync', adminAuth, syncAdminCustomEmojisHandler);
 
 export default router;

@@ -123,23 +123,25 @@ const SHOP_PRODUCTS: ShopProductItem[] = [
     id: 'season_pass',
     category: 'passes',
     name: 'Season Pass',
-    description: 'Permanentes Energie-Cap von 8 (statt 5) für die gesamte Saison, 15 tägliche Ads & 1x täglicher Free-Refill (+5 ⚡).',
+    description: 'Permanentes Energie-Cap von 10 (statt 5) für die gesamte Season, 20 tägliche Ads & 3x täglicher Free-Refill (+5 ⚡), Name alle 30 Tage ändern.',
     priceEur: 9.99,
     icon: '🏆',
     gradient: 'linear-gradient(135deg, rgba(251,191,36,0.14) 0%, rgba(217,119,6,0.06) 100%)',
     passType: 'SEASON',
+    energyAmount: 10,
   },
   {
     id: 'season_pass_vip',
     category: 'passes',
     name: 'Season Pass VIP',
-    description: 'Energie-Cap von 15, unbegrenzte tägliche Ads, 6x täglich 5 Energie Refill & exklusiver goldener VIP-Badge.',
+    description: 'Energie-Cap von 20, 6x täglicher Doppel-Refill (+10 ⚡), AdFree (Sofort-Belohnung ohne Ads), Goldener VIP-Badge & Name alle 30 Tage ändern.',
     priceEur: 19.99,
     badge: 'VIP Status',
     badgeColor: '#fbbf24',
     icon: '👑',
     gradient: 'linear-gradient(135deg, rgba(245,158,11,0.2) 0%, rgba(251,191,36,0.08) 100%)',
     passType: 'VIP',
+    energyAmount: 20,
   },
 ];
 
@@ -341,8 +343,8 @@ export function Shop({ initData, backendUrl, onPurchaseSuccess, profile }: ShopP
                   </div>
                   <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.5)', marginTop: '2px' }}>
                     {userPassType === 'VIP'
-                      ? 'Max 15 ⚡ Cap | ∞ Ads/Tag | 6x Free-Refill'
-                      : 'Max 8 ⚡ Cap | 15 Ads/Tag | 1x Free-Refill'}
+                      ? 'Max 20 ⚡ Cap | AdFree | 6x Free-Refill (+10 ⚡)'
+                      : 'Max 10 ⚡ Cap | 20 Ads/Tag | 3x Free-Refill (+5 ⚡)'}
                   </div>
                 </div>
               </div>
@@ -569,6 +571,34 @@ export function Shop({ initData, backendUrl, onPurchaseSuccess, profile }: ShopP
                     <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)', margin: '0 0 14px', lineHeight: 1.5 }}>
                       {(t.shop.products as any)[prod.id]?.description || prod.description}
                     </p>
+
+                    {/* VIP Badge Showcase */}
+                    {prod.passType === 'VIP' && (
+                      <div style={{
+                        display: 'flex', alignItems: 'center', gap: '12px',
+                        background: 'linear-gradient(135deg, rgba(251,191,36,0.14) 0%, rgba(245,158,11,0.05) 100%)',
+                        border: '1px solid rgba(251,191,36,0.35)',
+                        borderRadius: '14px', padding: '10px 14px', marginBottom: '14px',
+                      }}>
+                        <img
+                          src="/assets/vip_badge_gold.png"
+                          alt="Goldener VIP Badge"
+                          style={{
+                            width: '42px', height: '42px', objectFit: 'contain',
+                            filter: 'drop-shadow(0 0 10px rgba(251,191,36,0.7))',
+                            flexShrink: 0,
+                          }}
+                        />
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: '11px', fontWeight: 900, color: '#fbbf24', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            🌟 Inklusive: Goldener VIP-Badge
+                          </div>
+                          <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.6)', marginTop: '2px' }}>
+                            Wird dauerhaft in deinem Profil, der öffentlichen Spielerkarte & im Leaderboard angezeigt.
+                          </div>
+                        </div>
+                      </div>
+                    )}
 
                     {/* Price & Buy Button */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>

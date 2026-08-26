@@ -141,13 +141,52 @@ export function authMiddleware(req: AuthenticatedRequest, res: Response, next: N
   const startParam = params.get('start_param') || undefined;
 
   // Telegram user IDs are numbers, cast them to string for database safety and consistency
+  const finalUserId = verification.user.id.toString();
   req.telegramUser = {
-    id: verification.user.id.toString(),
+    id: finalUserId,
     username: verification.user.username,
     first_name: verification.user.first_name,
     last_name: verification.user.last_name,
     startParam: startParam,
   };
 
-  next();
+  // Moderation Check: Banned & Frozen Accounts
+  checkUserModerationStatus(req, res, next, finalUserId);
+}
+
+async function checkUserModerationStatus(req: AuthenticatedRequest, res: Response, next: NextFunction, userId: string) {
+  try {
+    const db = require('../database/client').default;
+    const user = await db('users').where({ id: userId }).select('is_banned', 'ban_reason', 'is_frozen', 'frozen_reason').first();
+
+    if (user) {
+      if (user.is_banned) {
+        return res.status(403).json({
+          error: 'ACCOUNT_BANNED',
+          isBanned: true,
+          message: 'Dein Account wurde dauerhaft gesperrt.',
+          reason: user.ban_reason || 'Verstoß gegen die Nutzungsbedingungen.'
+        });
+      }
+
+      if (user.is_frozen) {
+        // If requesting profile, allow through so frontend can show the frozen lockout card
+        if (req.path === '/user/profile') {
+          return next();
+        }
+
+        return res.status(403).json({
+          error: 'ACCOUNT_FROZEN',
+          isFrozen: true,
+          message: 'Dein Account wurde vorübergehend eingefroren. Bitte kontaktiere den Support.',
+          reason: user.frozen_reason || 'Vorübergehende Sicherheitsprüfung.'
+        });
+      }
+    }
+
+    next();
+  } catch (err) {
+    // If DB check fails, continue
+    next();
+  }
 }

@@ -102,8 +102,16 @@ export interface MarketEvent {
   coinSymbol: string;
   eventType: string;
   title: string;
+  titleDe?: string;
+  titleEn?: string;
   description: string;
+  descriptionDe?: string;
+  descriptionEn?: string;
   priceImpactPercent: number;
+  multiplier?: number;
+  durationMinutes?: number;
+  isActive?: boolean;
+  expiresAt?: string | null;
   createdAt: string;
 }
 
@@ -1640,6 +1648,123 @@ export async function getUserPortfolio(userId: string): Promise<{
   }
 }
 
+export async function applyAiNewsImpact(
+  coinSymbol: string,
+  priceImpactPercent: number,
+  title: string,
+  description: string,
+  titleDe?: string,
+  titleEn?: string,
+  descriptionDe?: string,
+  descriptionEn?: string
+): Promise<void> {
+  try {
+    const symbol = coinSymbol.toUpperCase();
+    const coin = await db('market_coins').where({ symbol }).first();
+    if (!coin) return;
+
+    const currentPrice = Number(coin.current_price || MARKET_CONFIG.BASE_PRICE);
+    const basePrice = Number(coin.base_price || MARKET_CONFIG.BASE_PRICE);
+    const constantK = Number(coin.constant_product_k || MARKET_CONFIG.CONSTANT_PRODUCT_K);
+
+    // Convert e.g. +3.5% -> 0.035
+    const delta = priceImpactPercent / 100;
+    const rawNewPrice = currentPrice * (1 + delta);
+    const newPrice = Math.max(basePrice, Math.round(rawNewPrice * 1e12) / 1e12);
+
+    const newGameReserve = Math.sqrt(constantK * newPrice);
+    const newTokenReserve = Math.sqrt(constantK / newPrice);
+
+    await db('market_coins')
+      .where({ symbol })
+      .update({
+        current_price: newPrice,
+        virtual_game_reserve: newGameReserve,
+        virtual_token_reserve: newTokenReserve,
+        updated_at: new Date(),
+      });
+
+    await db('market_price_history').insert({
+      coin_symbol: symbol,
+      price: newPrice,
+      volume: 0,
+      timestamp: new Date(),
+    });
+
+    const eventType = delta > 0 ? 'AI_BREAKING_BULL' : delta < 0 ? 'AI_BREAKING_BEAR' : 'AI_MARKET_UPDATE';
+
+    await db('market_events').insert({
+      coin_symbol: symbol,
+      event_type: eventType,
+      title: `📰 ${titleDe || title}`,
+      title_de: titleDe || title,
+      title_en: titleEn || title,
+      description: descriptionDe || description,
+      description_de: descriptionDe || description,
+      description_en: descriptionEn || description,
+      price_impact_percent: priceImpactPercent,
+      created_at: new Date(),
+    });
+
+    console.log(`[Market Engine]: Applied AI News Impact on $${symbol}: ${priceImpactPercent > 0 ? '+' : ''}${priceImpactPercent}% -> New Price: ${newPrice}`);
+  } catch (err: any) {
+    console.error('[Market Engine Error in applyAiNewsImpact]:', err.message);
+  }
+}
+
+export async function applyLiveCryptoEvent(
+  coinSymbol: string,
+  eventType: string,
+  priceImpactPercent: number,
+  multiplier: number,
+  durationMinutes: number,
+  titleDe: string,
+  titleEn: string,
+  descriptionDe: string,
+  descriptionEn: string
+): Promise<void> {
+  try {
+    const symbol = coinSymbol.toUpperCase();
+
+    // 1. Move price if impact != 0
+    if (priceImpactPercent !== 0) {
+      await applyAiNewsImpact(
+        symbol,
+        priceImpactPercent,
+        titleDe,
+        descriptionDe,
+        titleDe,
+        titleEn,
+        descriptionDe,
+        descriptionEn
+      );
+    }
+
+    // 2. Insert active live event in market_events with expiration
+    const expiresAt = new Date(Date.now() + durationMinutes * 60 * 1000);
+    await db('market_events').insert({
+      coin_symbol: symbol,
+      event_type: eventType,
+      title: `⚡ ${titleDe}`,
+      title_de: titleDe,
+      title_en: titleEn,
+      description: descriptionDe,
+      description_de: descriptionDe,
+      description_en: descriptionEn,
+      price_impact_percent: priceImpactPercent,
+      multiplier: multiplier,
+      duration_minutes: durationMinutes,
+      is_active: true,
+      expires_at: expiresAt,
+      created_at: new Date(),
+    });
+
+    console.log(`[Market Engine]: Activated Live Crypto Event "${titleDe}" for $${symbol} (Multiplier: ${multiplier}x, Duration: ${durationMinutes}m).`);
+  } catch (err: any) {
+    console.error('[Market Engine Error in applyLiveCryptoEvent]:', err.message);
+  }
+}
+
 export async function getMarketEvents(limit: number = 30): Promise<MarketEvent[]> {
   try {
     const hasEventsTable = await db.schema.hasTable('market_events');
@@ -1651,8 +1776,16 @@ export async function getMarketEvents(limit: number = 30): Promise<MarketEvent[]
       coinSymbol: r.coin_symbol,
       eventType: r.event_type,
       title: r.title,
+      titleDe: r.title_de || r.title,
+      titleEn: r.title_en || r.title,
       description: r.description,
+      descriptionDe: r.description_de || r.description,
+      descriptionEn: r.description_en || r.description,
       priceImpactPercent: Number(r.price_impact_percent || 0),
+      multiplier: Number(r.multiplier || 1.0),
+      durationMinutes: Number(r.duration_minutes || 60),
+      isActive: Boolean(r.is_active),
+      expiresAt: r.expires_at ? new Date(r.expires_at).toISOString() : null,
       createdAt: new Date(r.created_at).toISOString(),
     }));
   } catch (err) {

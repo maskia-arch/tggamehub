@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Trophy, Clock, Calendar, Compass, ShieldAlert, Medal, Star, Gamepad2, Sparkles, UserCheck, Lock } from 'lucide-react';
 import { useLanguage } from '../i18n/LanguageContext';
+import { PublicProfileModal } from './PublicProfileModal';
+import { getAvatarConfig, getAvatarPath } from '../config/avatars';
 
 export type LeaderboardPillar = 'games' | 'season';
 export type LeaderboardTimeframe = 'daily' | 'weekly' | 'monthly' | 'all_time';
@@ -21,6 +23,7 @@ interface GameHighscoreEntry {
   username: string | null;
   firstName: string | null;
   displayName: string | null;
+  avatarId?: string;
   isVip: boolean;
   seasonPassType: 'NONE' | 'SEASON' | 'VIP';
   highscore: number;
@@ -33,6 +36,7 @@ interface SeasonLeaderboardEntry {
   username: string | null;
   firstName: string | null;
   displayName: string | null;
+  avatarId?: string;
   isVip: boolean;
   seasonPassType: 'NONE' | 'SEASON' | 'VIP';
   score: number;
@@ -171,6 +175,9 @@ export function Leaderboard({ initData, backendUrl }: LeaderboardProps) {
   const [isSeasonActive, setIsSeasonActive] = useState<boolean>(false);
   const [seasonMsg, setSeasonMsg] = useState<string | null>(null);
   const [seasonInfo, setSeasonInfo] = useState<any>(null);
+
+  // Selected Profile for Public Profile Modal
+  const [selectedProfileUserId, setSelectedProfileUserId] = useState<string | null>(null);
 
   // Shared state
   const [loading, setLoading] = useState(true);
@@ -727,6 +734,7 @@ export function Leaderboard({ initData, backendUrl }: LeaderboardProps) {
                 return (
                   <div
                     key={entry.userId}
+                    onClick={() => setSelectedProfileUserId(entry.userId)}
                     style={{
                       display: 'flex',
                       alignItems: 'center',
@@ -738,6 +746,8 @@ export function Leaderboard({ initData, backendUrl }: LeaderboardProps) {
                       boxShadow: `0 4px 20px ${cfg.glow}`,
                       position: 'relative',
                       overflow: 'hidden',
+                      cursor: 'pointer',
+                      transition: 'transform 0.15s ease',
                     }}
                   >
                     <span style={{ fontSize: '22px', flexShrink: 0 }}>{cfg.emoji}</span>
@@ -752,6 +762,19 @@ export function Leaderboard({ initData, backendUrl }: LeaderboardProps) {
                       {entry.rank}
                     </div>
 
+                    {/* Avatar Thumbnail */}
+                    <div style={{
+                      width: '32px', height: '32px', borderRadius: '10px', overflow: 'hidden', flexShrink: 0,
+                      border: `1.5px solid ${getAvatarConfig(entry.avatarId).glowColor}`,
+                      boxShadow: `0 0 10px ${getAvatarConfig(entry.avatarId).glowColor}44`,
+                    }}>
+                      <img
+                        src={getAvatarPath(entry.avatarId)}
+                        alt="Avatar"
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      />
+                    </div>
+
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: '13px', fontWeight: 800, color: '#fff', display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
                         {entry.displayName || entry.firstName || t.common.anonymous}
@@ -760,10 +783,16 @@ export function Leaderboard({ initData, backendUrl }: LeaderboardProps) {
                             fontSize: '9px', fontWeight: 900, color: '#fbbf24',
                             background: 'linear-gradient(135deg, rgba(245,158,11,0.25) 0%, rgba(251,191,36,0.12) 100%)',
                             border: '1px solid rgba(251,191,36,0.45)',
-                            borderRadius: '6px', padding: '1px 6px',
+                            borderRadius: '6px', padding: '1px 5px',
                             display: 'inline-flex', alignItems: 'center', gap: '3px',
+                            boxShadow: '0 0 8px rgba(251,191,36,0.25)',
                           }}>
-                            👑 VIP
+                            <img
+                              src="/assets/vip_badge_gold.png"
+                              alt="VIP"
+                              style={{ width: '12px', height: '12px', objectFit: 'contain' }}
+                            />
+                            VIP
                           </span>
                         )}
                         {entry.username && (
@@ -811,6 +840,7 @@ export function Leaderboard({ initData, backendUrl }: LeaderboardProps) {
               {restGame.map((entry) => (
                 <div
                   key={entry.userId}
+                  onClick={() => setSelectedProfileUserId(entry.userId)}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -819,6 +849,8 @@ export function Leaderboard({ initData, backendUrl }: LeaderboardProps) {
                     background: 'rgba(255,255,255,0.02)',
                     border: '1px solid rgba(255,255,255,0.05)',
                     borderRadius: '14px',
+                    cursor: 'pointer',
+                    transition: 'transform 0.15s ease',
                   }}
                 >
                   <div style={{
@@ -831,6 +863,19 @@ export function Leaderboard({ initData, backendUrl }: LeaderboardProps) {
                     {entry.rank}
                   </div>
 
+                  {/* Avatar Thumbnail */}
+                  <div style={{
+                    width: '28px', height: '28px', borderRadius: '8px', overflow: 'hidden', flexShrink: 0,
+                    border: `1.5px solid ${getAvatarConfig(entry.avatarId).glowColor}`,
+                    boxShadow: `0 0 8px ${getAvatarConfig(entry.avatarId).glowColor}33`,
+                  }}>
+                    <img
+                      src={getAvatarPath(entry.avatarId)}
+                      alt="Avatar"
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    />
+                  </div>
+
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: '12px', fontWeight: 700, color: '#e2e8f0', display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
                       {entry.displayName || entry.firstName || t.common.anonymous}
@@ -839,9 +884,16 @@ export function Leaderboard({ initData, backendUrl }: LeaderboardProps) {
                           fontSize: '9px', fontWeight: 900, color: '#fbbf24',
                           background: 'linear-gradient(135deg, rgba(245,158,11,0.25) 0%, rgba(251,191,36,0.12) 100%)',
                           border: '1px solid rgba(251,191,36,0.45)',
-                          borderRadius: '6px', padding: '1px 6px',
+                          borderRadius: '6px', padding: '1px 5px',
+                          display: 'inline-flex', alignItems: 'center', gap: '3px',
+                          boxShadow: '0 0 8px rgba(251,191,36,0.25)',
                         }}>
-                          👑 VIP
+                          <img
+                            src="/assets/vip_badge_gold.png"
+                            alt="VIP"
+                            style={{ width: '12px', height: '12px', objectFit: 'contain' }}
+                          />
+                          VIP
                         </span>
                       )}
                       {entry.username && (
@@ -881,6 +933,7 @@ export function Leaderboard({ initData, backendUrl }: LeaderboardProps) {
                 return (
                   <div
                     key={entry.userId}
+                    onClick={() => setSelectedProfileUserId(entry.userId)}
                     style={{
                       display: 'flex',
                       alignItems: 'center',
@@ -892,6 +945,8 @@ export function Leaderboard({ initData, backendUrl }: LeaderboardProps) {
                       boxShadow: `0 4px 20px ${cfg.glow}`,
                       position: 'relative',
                       overflow: 'hidden',
+                      cursor: 'pointer',
+                      transition: 'transform 0.15s ease',
                     }}
                   >
                     <span style={{ fontSize: '22px', flexShrink: 0 }}>{cfg.emoji}</span>
@@ -906,6 +961,19 @@ export function Leaderboard({ initData, backendUrl }: LeaderboardProps) {
                       {entry.rank}
                     </div>
 
+                    {/* Avatar Thumbnail */}
+                    <div style={{
+                      width: '32px', height: '32px', borderRadius: '10px', overflow: 'hidden', flexShrink: 0,
+                      border: `1.5px solid ${getAvatarConfig(entry.avatarId).glowColor}`,
+                      boxShadow: `0 0 10px ${getAvatarConfig(entry.avatarId).glowColor}44`,
+                    }}>
+                      <img
+                        src={getAvatarPath(entry.avatarId)}
+                        alt="Avatar"
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      />
+                    </div>
+
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: '13px', fontWeight: 800, color: '#fff', display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
                         {entry.displayName || entry.firstName || t.common.anonymous}
@@ -914,10 +982,16 @@ export function Leaderboard({ initData, backendUrl }: LeaderboardProps) {
                             fontSize: '9px', fontWeight: 900, color: '#fbbf24',
                             background: 'linear-gradient(135deg, rgba(245,158,11,0.25) 0%, rgba(251,191,36,0.12) 100%)',
                             border: '1px solid rgba(251,191,36,0.45)',
-                            borderRadius: '6px', padding: '1px 6px',
+                            borderRadius: '6px', padding: '1px 5px',
                             display: 'inline-flex', alignItems: 'center', gap: '3px',
+                            boxShadow: '0 0 8px rgba(251,191,36,0.25)',
                           }}>
-                            👑 VIP
+                            <img
+                              src="/assets/vip_badge_gold.png"
+                              alt="VIP"
+                              style={{ width: '12px', height: '12px', objectFit: 'contain' }}
+                            />
+                            VIP
                           </span>
                         )}
                         {entry.username && (
@@ -964,6 +1038,7 @@ export function Leaderboard({ initData, backendUrl }: LeaderboardProps) {
               {restSeason.map((entry) => (
                 <div
                   key={entry.userId}
+                  onClick={() => setSelectedProfileUserId(entry.userId)}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -972,6 +1047,8 @@ export function Leaderboard({ initData, backendUrl }: LeaderboardProps) {
                     background: 'rgba(255,255,255,0.02)',
                     border: '1px solid rgba(255,255,255,0.05)',
                     borderRadius: '14px',
+                    cursor: 'pointer',
+                    transition: 'transform 0.15s ease',
                   }}
                 >
                   <div style={{
@@ -984,6 +1061,19 @@ export function Leaderboard({ initData, backendUrl }: LeaderboardProps) {
                     {entry.rank}
                   </div>
 
+                  {/* Avatar Thumbnail */}
+                  <div style={{
+                    width: '28px', height: '28px', borderRadius: '8px', overflow: 'hidden', flexShrink: 0,
+                    border: `1.5px solid ${getAvatarConfig(entry.avatarId).glowColor}`,
+                    boxShadow: `0 0 8px ${getAvatarConfig(entry.avatarId).glowColor}33`,
+                  }}>
+                    <img
+                      src={getAvatarPath(entry.avatarId)}
+                      alt="Avatar"
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    />
+                  </div>
+
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: '12px', fontWeight: 700, color: '#e2e8f0', display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
                       {entry.displayName || entry.firstName || t.common.anonymous}
@@ -992,9 +1082,16 @@ export function Leaderboard({ initData, backendUrl }: LeaderboardProps) {
                           fontSize: '9px', fontWeight: 900, color: '#fbbf24',
                           background: 'linear-gradient(135deg, rgba(245,158,11,0.25) 0%, rgba(251,191,36,0.12) 100%)',
                           border: '1px solid rgba(251,191,36,0.45)',
-                          borderRadius: '6px', padding: '1px 6px',
+                          borderRadius: '6px', padding: '1px 5px',
+                          display: 'inline-flex', alignItems: 'center', gap: '3px',
+                          boxShadow: '0 0 8px rgba(251,191,36,0.25)',
                         }}>
-                          👑 VIP
+                          <img
+                            src="/assets/vip_badge_gold.png"
+                            alt="VIP"
+                            style={{ width: '12px', height: '12px', objectFit: 'contain' }}
+                          />
+                          VIP
                         </span>
                       )}
                       {entry.username && (
@@ -1026,6 +1123,16 @@ export function Leaderboard({ initData, backendUrl }: LeaderboardProps) {
             </>
           )}
         </div>
+      )}
+
+      {/* ── Public Profile Card Modal ── */}
+      {selectedProfileUserId && (
+        <PublicProfileModal
+          userId={selectedProfileUserId}
+          onClose={() => setSelectedProfileUserId(null)}
+          backendUrl={backendUrl}
+          initData={initData}
+        />
       )}
     </div>
   );
