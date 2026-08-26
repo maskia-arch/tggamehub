@@ -541,10 +541,10 @@ export function generateFallbackScript(theme: string, coins: any[]): Generated12
   const tertiaryCoin = symbols[2] || 'CROSSY';
 
   return {
-    story_arc_de: `${theme} — Episode: Cyber Genesis`,
-    story_arc_en: `${theme} — Episode: Cyber Genesis`,
-    summary_de: 'Autonomer 12-Stunden Simulationszyklus mit dynamischen Storylines, AMM-Kurseffekten und Community-Aktionen.',
-    summary_en: 'Autonomous 12-hour simulation cycle with dynamic storylines, AMM market impacts, and community actions.',
+    story_arc_de: `${theme} — Episode: Cyber Genesis & Market Expansion`,
+    story_arc_en: `${theme} — Episode: Cyber Genesis & Market Expansion`,
+    summary_de: 'Autonomer 12-Stunden Simulationszyklus mit kontinuierlichen Markt-Impulsen, aktiven Telegram-Moderator Drops und AMM-Börsen-Rallyes.',
+    summary_en: 'Autonomous 12-hour simulation cycle with continuous market impulses, active Telegram moderator drops, and AMM exchange rallies.',
     market_news: [
       {
         title_de: `🚀 Gigantische Bullen-Welle erfasst $${primaryCoin}!`,
@@ -553,56 +553,135 @@ export function generateFallbackScript(theme: string, coins: any[]): Generated12
         summary_en: `An unexpected surge in ${primaryCoin} demand drives trade volume rapidly upwards.`,
         coin_symbol: primaryCoin,
         sentiment: 'bullish',
-        price_impact_percent: 3.5,
-        impact_duration_minutes: 180,
-        scheduled_minutes_from_now: 15
-      },
-      {
-        title_de: `⚠️ Liquiditäts-Engpass bremst $${secondaryCoin} aus`,
-        title_en: `⚠️ Liquidity Bottleneck Slows Down $${secondaryCoin}`,
-        summary_de: `Händler nehmen Gewinne mit. Die AMM-Pools verzeichnen eine kurze Abkühlungsphase.`,
-        summary_en: `Traders are taking profits. The AMM pools enter a brief consolidation cooling phase.`,
-        coin_symbol: secondaryCoin,
-        sentiment: 'bearish',
-        price_impact_percent: -2.4,
+        price_impact_percent: 3.8,
         impact_duration_minutes: 120,
-        scheduled_minutes_from_now: 180
+        scheduled_minutes_from_now: 20
       },
       {
-        title_de: `🌐 Cyber-Netzwerk meldet Rekord-Transaktionen bei $${tertiaryCoin}`,
-        title_en: `🌐 Cyber Network Reports Record Transactions on $${tertiaryCoin}`,
-        summary_de: `Die neuen Minigame-Rekorde pushen den Burn-Mechanismus auf ein Allzeit-Hoch.`,
-        summary_en: `New minigame records push the token burn mechanism to an all-time high.`,
-        coin_symbol: tertiaryCoin,
+        title_de: `⚡ Cyber-Netzwerk meldet Rekord-Transaktionen bei $${secondaryCoin}`,
+        title_en: `⚡ Cyber Network Reports Record Transactions on $${secondaryCoin}`,
+        summary_de: `Die neuen Minigame-Punkte pushen den automatischen Token-Burn auf ein Allzeit-Hoch.`,
+        summary_en: `New minigame scores push the automatic token burn mechanism to an all-time high.`,
+        coin_symbol: secondaryCoin,
         sentiment: 'bullish',
-        price_impact_percent: 4.2,
-        impact_duration_minutes: 240,
-        scheduled_minutes_from_now: 360
+        price_impact_percent: 2.9,
+        impact_duration_minutes: 180,
+        scheduled_minutes_from_now: 80
+      },
+      {
+        title_de: `⚠️ Kurze Konsolidierung im $${tertiaryCoin}-Liquiditätspool`,
+        title_en: `⚠️ Brief Consolidation in $${tertiaryCoin} Liquidity Pool`,
+        summary_de: `Trader nehmen Gewinne mit. Die AMM-Pools verzeichnen eine gesunde Abkühlungsphase vor dem nächsten Ausbruch.`,
+        summary_en: `Traders take profits. AMM pools experience a healthy cooling phase before the next breakout.`,
+        coin_symbol: tertiaryCoin,
+        sentiment: 'bearish',
+        price_impact_percent: -2.1,
+        impact_duration_minutes: 90,
+        scheduled_minutes_from_now: 160
+      },
+      {
+        title_de: `🔥 Großauftrag im Orderbuch: Whale kauft $${primaryCoin}`,
+        title_en: `🔥 Large Order in Book: Whale Buys $${primaryCoin}`,
+        summary_de: `Ein Krypto-Whale hat eine massive Kauforder platziert. Die Spot-Preise klettern spürbar.`,
+        summary_en: `A crypto whale placed a massive buy order. Spot prices are climbing noticeably.`,
+        coin_symbol: primaryCoin,
+        sentiment: 'bullish',
+        price_impact_percent: 4.5,
+        impact_duration_minutes: 150,
+        scheduled_minutes_from_now: 240
+      },
+      {
+        title_de: `🎮 Arcade Arena verzeichnet Rekord-Spielerzahlen`,
+        title_en: `🎮 Arcade Arena Records Milestone Player Volume`,
+        summary_de: `Tausende Spieler kämpfen um die Season-Leaderboard Plätze. Der $${secondaryCoin}-Token profitiert direkt.`,
+        summary_en: `Thousands of players battle for Season leaderboard ranks. The $${secondaryCoin} token directly benefits.`,
+        coin_symbol: secondaryCoin,
+        sentiment: 'bullish',
+        price_impact_percent: 3.2,
+        impact_duration_minutes: 120,
+        scheduled_minutes_from_now: 320
+      },
+      {
+        title_de: `📊 $${tertiaryCoin} bildet starken Support-Boden`,
+        title_en: `📊 $${tertiaryCoin} Forms Strong Technical Support Floor`,
+        summary_de: `Nach dem Pullback stabilisiert sich der Kurs. Analysten prognostizieren den Beginn der nächsten Aufwärtsbewegung.`,
+        summary_en: `After the pullback, the token stabilizes. Analysts predict the start of the next upward leg.`,
+        coin_symbol: tertiaryCoin,
+        sentiment: 'neutral',
+        price_impact_percent: 1.4,
+        impact_duration_minutes: 100,
+        scheduled_minutes_from_now: 420
+      },
+      {
+        title_de: `💎 Neues Allzeit-Volumen im CoinCade Ökosystem`,
+        title_en: `💎 New All-Time Volume in CoinCade Ecosystem`,
+        summary_de: `Das 24h-Handelsvolumen bricht alle bisherigen Rekorde. Die Season-Preispools wachsen rasant.`,
+        summary_en: `24h trade volume breaks all previous records. Season prize pots are rapidly compounding.`,
+        coin_symbol: primaryCoin,
+        sentiment: 'bullish',
+        price_impact_percent: 3.6,
+        impact_duration_minutes: 180,
+        scheduled_minutes_from_now: 520
+      },
+      {
+        title_de: `🛡️ Quantum-Schutzwall aktiviert: Stabile AMM-Börsenkurse`,
+        title_en: `🛡️ Quantum Shield Active: Stable AMM Exchange Rates`,
+        summary_de: `Die automatischen AMM-Gleichgewichte halten allen Marktvolatilitäten zuverlässig stand.`,
+        summary_en: `The autonomous AMM product formulas reliably withstand all market volatilities.`,
+        coin_symbol: secondaryCoin,
+        sentiment: 'neutral',
+        price_impact_percent: 0.8,
+        impact_duration_minutes: 90,
+        scheduled_minutes_from_now: 620
       }
     ],
     channel_posts: [
       {
-        post_text_de: `⚡ *[CoinCade AI Alert]*: Das Cyberpunk-Netzwerk glüht! Übertrifft in den nächsten Stunden gemeinsam die Highscore-Benchmark, um die nächste Bullen-Rallye zu entfesseln! Hier ist euer Energie-Booster:`,
-        post_text_en: `⚡ *[CoinCade AI Alert]*: The Cyberpunk arcade grid is glowing hot! Beat the highscore benchmark together in the coming hours to trigger the next bull rally! Here is your energy booster:`,
-        community_goal_de: 'Knackt gemeinsam neue Highscores im Arcade Hub',
-        community_goal_en: 'Break new highscores together across the Arcade Hub',
-        reward_type: 'ENERGY',
-        reward_amount: 3,
-        reward_max_claims: 80,
-        reward_valid_hours: 6,
-        scheduled_minutes_from_now: 30
+        post_text_de: `⚡ *[CoinCade AI Live Drop]*: Aufgepasst, liebe Community! Wir belohnen unsere aufmerksamsten Leser: Die ersten 20 Klicks sichern sich sofort einen Direkt-Bonus von *300 $${primaryCoin}*! Tippt unten auf den Button und holt euch euren Drop:`,
+        post_text_en: `⚡ *[CoinCade AI Live Drop]*: Attention, community! Rewarding our fastest readers: The first 20 clicks receive a direct bonus of *300 $${primaryCoin}*! Tap the button below to claim:`,
+        community_goal_de: `⚡ Schnelligkeits-Drop: 300 $${primaryCoin} für die ersten 20 Leser`,
+        community_goal_en: `⚡ Speed Drop: 300 $${primaryCoin} for the first 20 readers`,
+        reward_type: 'COIN',
+        reward_coin_symbol: primaryCoin,
+        reward_amount: 300,
+        reward_max_claims: 20,
+        reward_valid_hours: 4,
+        scheduled_minutes_from_now: 40
       },
       {
-        post_text_de: `🎁 *[Community Krypto Airdrop]*: Als Belohnung für die starke Aktivität an der Börse verteilt die Arcade-KI heute einen Story-Bonus in $${tertiaryCoin}! Schnell zugreifen:`,
-        post_text_en: `🎁 *[Community Crypto Airdrop]*: As a reward for heavy trading activity, the Arcade AI is dropping a story bonus in $${tertiaryCoin}! Claim yours fast:`,
-        community_goal_de: 'Aktiv an der Börse partizipieren und $CROSSY hodln',
-        community_goal_en: 'Actively trade and hodl $CROSSY in the AMM exchange',
+        post_text_de: `🔋 *[Energie-Überladung]*: Die Arcade-Server laufen auf Hochtouren! Für die schnellsten 15 aktiven Leser gibt es jetzt *+5 Gratis-Energie* direkt aufs Spielerkonto:`,
+        post_text_en: `🔋 *[Energy Overcharge]*: Arcade servers running at peak power! The first 15 active readers get *+5 Free Energy* added directly to their account:`,
+        community_goal_de: `🔋 Energie-Schub: +5 Energie für die schnellsten 15 Leser`,
+        community_goal_en: `🔋 Energy Surge: +5 Energy for the first 15 readers`,
+        reward_type: 'ENERGY',
+        reward_amount: 5,
+        reward_max_claims: 15,
+        reward_valid_hours: 4,
+        scheduled_minutes_from_now: 180
+      },
+      {
+        post_text_de: `🔥 *[Rallye-Spezial]*: Passend zur aktuellen Marktbewegung verteilt der CoinCade Newsroom *400 $${secondaryCoin}* an die ersten 25 Leser im Chat! Schnell zugreifen:`,
+        post_text_en: `🔥 *[Rally Special]*: Matching current market momentum, the CoinCade Newsroom is dropping *400 $${secondaryCoin}* for the first 25 chat readers! Grab yours fast:`,
+        community_goal_de: `🔥 Rallye-Bonus: 400 $${secondaryCoin} für 25 Leser`,
+        community_goal_en: `🔥 Rally Bonus: 400 $${secondaryCoin} for 25 readers`,
+        reward_type: 'COIN',
+        reward_coin_symbol: secondaryCoin,
+        reward_amount: 400,
+        reward_max_claims: 25,
+        reward_valid_hours: 6,
+        scheduled_minutes_from_now: 340
+      },
+      {
+        post_text_de: `🎁 *[Airdrop-Vorschub]*: Großartiger Team-Geist im Chat! Die schnellsten 20 Klicker erhalten *350 $${tertiaryCoin}* als Dankeschön für die Treue:`,
+        post_text_en: `🎁 *[Airdrop Advance]*: Great team spirit in chat! The first 20 readers get *350 $${tertiaryCoin}* to power up their balance:`,
+        community_goal_de: `🎁 Treue-Drop: 350 $${tertiaryCoin} für 20 Leser`,
+        community_goal_en: `🎁 Loyalty Drop: 350 $${tertiaryCoin} for 20 readers`,
         reward_type: 'COIN',
         reward_coin_symbol: tertiaryCoin,
-        reward_amount: 300,
-        reward_max_claims: 60,
-        reward_valid_hours: 8,
-        scheduled_minutes_from_now: 240
+        reward_amount: 350,
+        reward_max_claims: 20,
+        reward_valid_hours: 6,
+        scheduled_minutes_from_now: 500
       }
     ],
     crypto_events: [
@@ -628,7 +707,19 @@ export function generateFallbackScript(theme: string, coins: any[]): Generated12
         price_impact_percent: 2.5,
         multiplier: 2.0,
         duration_minutes: 60,
-        scheduled_minutes_from_now: 300
+        scheduled_minutes_from_now: 220
+      },
+      {
+        event_type: 'PUMP',
+        coin_symbol: tertiaryCoin,
+        title_de: `🚀 Hyper-Pump Signal auf $${tertiaryCoin}`,
+        title_en: `🚀 Hyper-Pump Signal on $${tertiaryCoin}`,
+        description_de: `Hohe Nachfrage treibt den Token-Kurs für 75 Minuten nach oben.`,
+        description_en: `Strong demand pushes token valuation upwards for 75 minutes.`,
+        price_impact_percent: 5.2,
+        multiplier: 1.8,
+        duration_minutes: 75,
+        scheduled_minutes_from_now: 440
       }
     ]
   };
@@ -637,39 +728,48 @@ export function generateFallbackScript(theme: string, coins: any[]): Generated12
 /**
  * Deterministic, invariant System Prompt for maximum DeepSeek Prompt Caching Hits (90% cost reduction)
  */
-const INVARIANT_SYSTEM_PROMPT = `You are the autonomous AI Game Master, narrative storyteller, and Chief Financial Anchor of "CoinCade" (a futuristic Telegram Cyberpunk Arcade & AMM Crypto Trading Mini-App).
+const INVARIANT_SYSTEM_PROMPT = `You are the authentic narrative Game Master, senior financial market anchor, and Chief Community Host of "CoinCade" (a futuristic Telegram Cyberpunk Arcade & AMM Crypto Trading Mini-App).
+
+CRITICAL IMMERSION & NO-AI RULE:
+NEVER mention 'AI', 'KI', 'DeepSeek', 'algorithm', 'bot', or 'generated' in any headlines, summaries, news, or chat posts. The entire world must feel completely authentic, real, and alive, as if reported and hosted by living cyberpunk financial analysts, exchange brokers, and community anchors of the CoinCade Metropolis!
 
 MISSION:
-Every 12 hours, you receive an ecosystem snapshot ($DOODLE, $FLAPPY, $CROSSY token prices, player highscores, trading volumes).
+Every 12 hours, you receive a rich ecosystem snapshot ($DOODLE, $FLAPPY, $CROSSY token prices, player highscores, trading volumes, and narrative continuity).
 You will generate a cohesive, thrilling 12-hour episodic storyline arc with THREE key deliverables:
 
-1. BILINGUAL IN-GAME MARKET NEWS ("market_news", 2-4 items):
+1. BILINGUAL IN-GAME MARKET NEWS ("market_news", generate 8 to 10 items):
    - title_de & title_en: Punchy breaking news headlines.
-   - summary_de & summary_en: 2-3 sentences detailing market events.
+   - summary_de & summary_en: 2-3 sentences detailing market events, token burns, whale trades, or community rallies.
    - coin_symbol: 'DOODLE', 'FLAPPY', or 'CROSSY'.
    - sentiment: 'bullish' | 'bearish' | 'neutral'.
-   - price_impact_percent: Realistic impact between -6.0% and +6.5%.
+   - price_impact_percent: Realistic impact between -5.5% and +6.0%.
    - impact_duration_minutes: 60 to 240 minutes.
-   - scheduled_minutes_from_now: Spread across 12 hours.
+   - scheduled_minutes_from_now: Evenly distributed over 12 hours (spaced every 60-90 minutes).
 
-2. BILINGUAL TELEGRAM COMMUNITY-CHANNEL POSTS ("channel_posts", 2-3 items):
-   - post_text_de & post_text_en: Engaging, high-energy moderator broadcasts with emojis and clear story progression.
-   - community_goal_de & community_goal_en: Concrete arcade/trading community objectives.
-   - reward_type: 'ENERGY' (1 to 5 energy) or 'COIN' (100 to 500 coins) or 'NONE'.
-   - reward_coin_symbol: 'DOODLE', 'FLAPPY', or 'CROSSY'.
-   - reward_amount: Safe integer.
-   - reward_max_claims: Limited claim quota for fastest players.
-   - reward_valid_hours: Expiry time.
-   - scheduled_minutes_from_now: Timed distribution over 12 hours.
+2. BILINGUAL TELEGRAM MODERATOR DROPS FOR ACTIVE CHAT READERS ("channel_posts", generate 4 to 6 items):
+   - post_text_de & post_text_en: High-energy, engaging moderator posts by the CoinCade Host directly addressing active chat readers.
+   - CRITICAL RULE: Active readers in the chat are rewarded directly for their attention and speed. DO NOT require gaming hurdles (e.g. DO NOT require 'reach score X in minigame Y'). The fastest readers who tap the link/button claim the bonus!
+   - THEMATIC REWARD MATCHING: The reward MUST directly match the message content!
+     * If discussing $DOODLE -> reward $DOODLE (e.g. 200 to 500 $DOODLE).
+     * If discussing $FLAPPY -> reward $FLAPPY (e.g. 200 to 500 $FLAPPY).
+     * If discussing $CROSSY -> reward $CROSSY (e.g. 200 to 500 $CROSSY).
+     * If discussing Energy / Turbo -> reward ENERGY (e.g. 2 to 5 Energy).
+   - community_goal_de & community_goal_en: Brief description of the drop (e.g. "⚡ Blitz-Drop: 300 $DOODLE für die ersten 20 Leser").
+   - reward_type: 'ENERGY' or 'COIN' or 'NONE'.
+   - reward_coin_symbol: 'DOODLE', 'FLAPPY', or 'CROSSY' (or null if ENERGY).
+   - reward_amount: Safe integer (e.g. 200-500 coins or 2-5 energy).
+   - reward_max_claims: Limited quota (15 to 35 fastest readers).
+   - reward_valid_hours: 4 to 8 hours.
+   - scheduled_minutes_from_now: Timed distribution over 12 hours (spaced every 90-150 minutes).
 
-3. LIVE CRYPTO EVENTS ("crypto_events", 1-2 items):
+3. LIVE CRYPTO EVENTS ("crypto_events", generate 3 to 5 items):
    - event_type: 'CYBER_RALLY' | 'PUMP' | 'CRASH' | 'WHALE_ALERT' | 'QUANTUM_GLITCH' | 'ENERGY_SURGE'.
    - coin_symbol: 'DOODLE', 'FLAPPY', or 'CROSSY'.
    - title_de & title_en, description_de & description_en.
    - price_impact_percent: -5.0 to +6.0.
    - multiplier: 1.25 to 2.0.
    - duration_minutes: 45 to 120 minutes.
-   - scheduled_minutes_from_now: 60 to 600 minutes.
+   - scheduled_minutes_from_now: Spaced over 12 hours (60 to 660 minutes).
 
 - You MUST respond ONLY with a valid JSON object strictly matching this schema.`;
 

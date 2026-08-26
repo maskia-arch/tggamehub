@@ -54,7 +54,8 @@ import {
   triggerAdminAiGenerateHandler,
   getAdminAiLogsHandler,
   verifyAdminAiChannelHandler,
-  testAdminAiHelloHandler
+  testAdminAiHelloHandler,
+  startAdminAiModerationHandler
 } from '../controllers/aiController';
 import { getCurrentSeason } from '../services/seasonService';
 
@@ -155,6 +156,7 @@ router.post('/admin/ai/generate-now', adminAuth, triggerAdminAiGenerateHandler);
 router.get('/admin/ai/logs', adminAuth, getAdminAiLogsHandler);
 router.post('/admin/ai/verify-channel', adminAuth, verifyAdminAiChannelHandler);
 router.post('/admin/ai/test-hello', adminAuth, testAdminAiHelloHandler);
+router.post('/admin/ai/start-moderation', adminAuth, startAdminAiModerationHandler);
 
 // Admin endpoints (secured via adminAuth: dev=open, prod=Basic Auth)
 router.get('/admin/stats', adminAuth, getAdminStats);

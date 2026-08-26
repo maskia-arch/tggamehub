@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Users, Award } from 'lucide-react';
 import { getAvatarConfig, getAvatarPath } from '../config/avatars';
+import { useLanguage } from '../i18n/LanguageContext';
 
 interface GameStat {
   gameId: string;
@@ -16,11 +17,49 @@ interface BadgeItem {
   id: string;
   category: string;
   title: string;
+  title_de?: string;
+  title_en?: string;
   description: string;
+  description_de?: string;
+  description_en?: string;
   badge_icon: string;
   badge_rarity: 'OG' | 'GOLD' | 'SILVER' | 'BRONZE' | 'DIAMOND';
   is_unlocked: boolean;
   unlocked_at: string | null;
+}
+
+interface RankRecords {
+  bestRankOverall: string;
+  bestRankNumber: number | null;
+  championshipTitlesCount: number;
+  podiumCount: number;
+  top10Count: number;
+  totalDaysRank1: number;
+  weeksRank1: number;
+  totalDaysTop3: number;
+  totalDaysTop10: number;
+  weeksTop10: number;
+  prestigeScore: number;
+  prestigeTier: 'MASTER' | 'DIAMOND' | 'GOLD' | 'SILVER' | 'BRONZE';
+  prestigeTitle_de: string;
+  prestigeTitle_en: string;
+  prestigeBadgeIcon: string;
+  seasonRank: string;
+  seasonRankNumber: number | null;
+  gameRanks: Array<{
+    gameId: string;
+    title: string;
+    icon: string;
+    highscore: number;
+    scoreUnit: string;
+    rank: string;
+    rankNumber: number | null;
+    isRank1: boolean;
+    isTop3: boolean;
+    isTop10: boolean;
+    daysHeld: number;
+    achievedAt: string | null;
+  }>;
 }
 
 interface PublicProfileData {
@@ -35,6 +74,7 @@ interface PublicProfileData {
   isBanned: boolean;
   referralsCount: number;
   gameStats: GameStat[];
+  rankRecords?: RankRecords;
   unlockedBadgesCount: number;
   totalBadgesCount: number;
   badges: BadgeItem[];
@@ -87,6 +127,7 @@ export const PublicProfileModal: React.FC<PublicProfileModalProps> = ({
   backendUrl,
   initData,
 }) => {
+  const { language } = useLanguage();
   const [profile, setProfile] = useState<PublicProfileData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -99,32 +140,30 @@ export const PublicProfileModal: React.FC<PublicProfileModalProps> = ({
     setLoading(true);
     setError(null);
 
-    const fetchPublicProfile = async () => {
-      try {
-        const res = await fetch(`${backendUrl}/api/user/public-profile/${userId}`, {
-          headers: {
-            Authorization: `Bearer ${initData}`,
-          },
-        });
-        const data = await res.json();
-        if (!res.ok || !data.success) {
-          throw new Error(data.error || 'Spielerprofil konnte nicht geladen werden.');
-        }
+    fetch(`${backendUrl}/api/user/public-profile/${userId}`, {
+      headers: {
+        'Authorization': `Bearer ${initData}`,
+        'Content-Type': 'application/json'
+      }
+    })
+      .then(res => res.json())
+      .then(data => {
         if (isMounted) {
-          setProfile(data.profile);
-        }
-      } catch (err: any) {
-        if (isMounted) {
-          setError(err.message || 'Fehler beim Laden des Profils.');
-        }
-      } finally {
-        if (isMounted) {
+          if (data.error) {
+            setError(data.error);
+          } else {
+            setProfile(data);
+          }
           setLoading(false);
         }
-      }
-    };
+      })
+      .catch(err => {
+        if (isMounted) {
+          setError(err.message || 'Verbindungsfehler');
+          setLoading(false);
+        }
+      });
 
-    fetchPublicProfile();
     return () => {
       isMounted = false;
     };
@@ -133,7 +172,7 @@ export const PublicProfileModal: React.FC<PublicProfileModalProps> = ({
   if (!userId) return null;
 
   const memberSince = profile?.createdAt
-    ? new Date(profile.createdAt).toLocaleDateString('de-DE', { month: 'short', year: 'numeric' })
+    ? new Date(profile.createdAt).toLocaleDateString(language === 'en' ? 'en-US' : 'de-DE', { month: 'short', year: 'numeric' })
     : '—';
 
   return (
@@ -141,10 +180,9 @@ export const PublicProfileModal: React.FC<PublicProfileModalProps> = ({
       style={{
         position: 'fixed',
         inset: 0,
-        zIndex: 99999,
-        background: 'rgba(4, 6, 15, 0.85)',
-        backdropFilter: 'blur(10px)',
-        WebkitBackdropFilter: 'blur(10px)',
+        zIndex: 9999,
+        background: 'rgba(0, 0, 0, 0.82)',
+        backdropFilter: 'blur(8px)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -156,16 +194,18 @@ export const PublicProfileModal: React.FC<PublicProfileModalProps> = ({
       <div
         style={{
           width: '100%',
-          maxWidth: '420px',
+          maxWidth: '400px',
           maxHeight: '90vh',
-          overflowY: 'auto',
-          background: 'linear-gradient(180deg, #12182c 0%, #0a0d18 100%)',
+          background: 'linear-gradient(180deg, #131722 0%, #0a0c10 100%)',
           border: '1px solid rgba(0, 242, 254, 0.25)',
           borderRadius: '24px',
           padding: '24px 20px',
-          boxShadow: '0 20px 50px rgba(0, 0, 0, 0.8), 0 0 30px rgba(0, 242, 254, 0.15)',
-          color: '#fff',
+          boxShadow: '0 0 40px rgba(0, 242, 254, 0.15)',
+          overflowY: 'auto',
           position: 'relative',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '16px',
         }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -177,7 +217,7 @@ export const PublicProfileModal: React.FC<PublicProfileModalProps> = ({
             top: '16px',
             right: '16px',
             background: 'rgba(255, 255, 255, 0.08)',
-            border: '1px solid rgba(255, 255, 255, 0.15)',
+            border: 'none',
             borderRadius: '50%',
             width: '32px',
             height: '32px',
@@ -194,59 +234,60 @@ export const PublicProfileModal: React.FC<PublicProfileModalProps> = ({
 
         {loading ? (
           <div style={{ padding: '60px 0', textAlign: 'center', color: '#00f2fe' }}>
-            <div style={{ fontSize: '24px', animation: 'spin 1s infinite linear', display: 'inline-block' }}>⚡</div>
-            <div style={{ marginTop: '12px', fontSize: '13px', color: 'rgba(255,255,255,0.6)', fontWeight: 600 }}>
-              Lade Spielerkarte...
-            </div>
+            <div className="animate-spin" style={{ fontSize: '24px', marginBottom: '8px' }}>⚡</div>
+            <div style={{ fontSize: '12px', fontWeight: 700 }}>{language === 'en' ? 'Loading Player Profile...' : 'Lade Spielerprofil...'}</div>
           </div>
-        ) : error || !profile ? (
-          <div style={{ padding: '40px 0', textAlign: 'center' }}>
-            <div style={{ fontSize: '32px' }}>⚠️</div>
-            <h3 style={{ margin: '12px 0 6px', fontSize: '16px', color: '#ff4d4d' }}>Profil nicht verfügbar</h3>
-            <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.5)', margin: 0 }}>{error}</p>
+        ) : error ? (
+          <div style={{ padding: '40px 0', textAlign: 'center', color: '#f87171' }}>
+            <div style={{ fontSize: '14px', fontWeight: 800 }}>{error}</div>
           </div>
-        ) : (
+        ) : profile ? (
           <div>
-            {/* ── Gamer Header ── */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '20px' }}>
+            {/* ── Player Header ── */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '18px' }}>
+              {/* Neon Avatar */}
               <div
                 style={{
-                  width: '64px',
-                  height: '64px',
+                  position: 'relative',
+                  width: '68px',
+                  height: '68px',
                   borderRadius: '20px',
                   overflow: 'hidden',
+                  flexShrink: 0,
                   border: `2px solid ${getAvatarConfig(profile.avatarId).glowColor}`,
                   boxShadow: `0 0 20px ${getAvatarConfig(profile.avatarId).glowColor}66`,
-                  flexShrink: 0,
                 }}
               >
                 <img
                   src={getAvatarPath(profile.avatarId)}
-                  alt={profile.displayName}
+                  alt="Avatar"
                   style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                 />
               </div>
 
+              {/* Player Identity */}
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                  <h2 style={{ margin: 0, fontSize: '18px', fontWeight: 900, color: '#fff', letterSpacing: '0.02em' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: '18px', fontWeight: 900, color: '#fff' }}>
                     {profile.displayName}
-                  </h2>
+                  </span>
                   {profile.seasonPassType === 'VIP' && (
                     <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                       <img
                         src="/assets/vip_badge_gold.png"
                         alt="VIP Badge"
                         style={{
-                          width: '24px', height: '24px', objectFit: 'contain',
+                          width: '20px', height: '20px', objectFit: 'contain',
                           filter: 'drop-shadow(0 0 6px rgba(251,191,36,0.8))',
                           verticalAlign: 'middle',
                         }}
                       />
                       <span style={{
                         fontSize: '9px', fontWeight: 900, color: '#fbbf24',
-                        background: 'rgba(251,191,36,0.15)', border: '1px solid rgba(251,191,36,0.35)',
-                        borderRadius: '6px', padding: '2px 6px', letterSpacing: '0.05em',
+                        background: 'linear-gradient(135deg, rgba(245,158,11,0.25) 0%, rgba(251,191,36,0.12) 100%)',
+                        border: '1px solid rgba(251,191,36,0.45)',
+                        borderRadius: '6px', padding: '1px 5px',
+                        display: 'inline-flex', alignItems: 'center', gap: '2px',
                         boxShadow: '0 0 10px rgba(251,191,36,0.25)',
                       }}>
                         👑 VIP PASS
@@ -262,12 +303,12 @@ export const PublicProfileModal: React.FC<PublicProfileModalProps> = ({
                 )}
 
                 <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', marginTop: '4px' }}>
-                  Dabei seit {memberSince}
+                  {language === 'en' ? `Member since ${memberSince}` : `Dabei seit ${memberSince}`}
                 </div>
               </div>
             </div>
 
-            {/* ── Golden OG Pioneer Banner (If Eligible) ── */}
+            {/* ── OG Pioneer Banner (If Eligible) ── */}
             {profile.isOgPlayer && (
               <div
                 style={{
@@ -290,10 +331,10 @@ export const PublicProfileModal: React.FC<PublicProfileModalProps> = ({
                 </div>
                 <div>
                   <div style={{ fontSize: '13px', fontWeight: 900, color: '#fbbf24', letterSpacing: '0.04em' }}>
-                    GOLDENER OG PIONIER
+                    {language === 'en' ? 'OG PIONEER' : 'OG PIONIER'}
                   </div>
                   <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.7)', marginTop: '2px' }}>
-                    Seit Stunde 1 vor Airdrop Season 1 registriert.
+                    {language === 'en' ? 'Registered in Hour 1 before Season 1 launch.' : 'Seit Stunde 1 vor Airdrop Season 1 registriert.'}
                   </div>
                 </div>
               </div>
@@ -332,10 +373,78 @@ export const PublicProfileModal: React.FC<PublicProfileModalProps> = ({
               </div>
             </div>
 
+            {/* ── Hall of Fame & Rang-Platzierungen (#1 bis #10 Rekorde) ── */}
+            {profile.rankRecords && (
+              <div
+                style={{
+                  background: 'linear-gradient(135deg, rgba(251,191,36,0.08) 0%, rgba(0,242,254,0.05) 100%)',
+                  border: '1px solid rgba(251,191,36,0.3)',
+                  borderRadius: '16px',
+                  padding: '14px 16px',
+                  marginBottom: '16px',
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span style={{ fontSize: '16px' }}>{profile.rankRecords.prestigeBadgeIcon || '🏆'}</span>
+                    <span style={{ fontSize: '12px', fontWeight: 900, color: '#fbbf24', letterSpacing: '0.04em' }}>
+                      {language === 'en' ? 'HALL OF FAME RECORDS' : 'HALL OF FAME REKORDE'}
+                    </span>
+                  </div>
+                  <span style={{
+                    fontSize: '9px', fontWeight: 900, color: '#00f2fe',
+                    background: 'rgba(0,242,254,0.12)', border: '1px solid rgba(0,242,254,0.3)',
+                    borderRadius: '6px', padding: '2px 6px'
+                  }}>
+                    {profile.rankRecords.prestigeScore} {language === 'en' ? 'Prestige Pts' : 'Prestige-Pkt.'}
+                  </span>
+                </div>
+
+                <div style={{ fontSize: '11px', fontWeight: 800, color: '#fff', marginBottom: '10px' }}>
+                  {language === 'en' ? profile.rankRecords.prestigeTitle_en : profile.rankRecords.prestigeTitle_de}
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
+                  {/* #1 Champion Streak */}
+                  <div style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(251,191,36,0.25)', borderRadius: '10px', padding: '8px 6px', textAlign: 'center' }}>
+                    <div style={{ fontSize: '14px' }}>👑</div>
+                    <div style={{ fontSize: '12px', fontWeight: 900, color: '#fbbf24', marginTop: '2px' }}>
+                      {profile.rankRecords.totalDaysRank1} {language === 'en' ? 'Days' : 'Tage'}
+                    </div>
+                    <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.5)', marginTop: '1px' }}>
+                      #1 Champion
+                    </div>
+                  </div>
+
+                  {/* Top 3 Podium */}
+                  <div style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(0,242,254,0.25)', borderRadius: '10px', padding: '8px 6px', textAlign: 'center' }}>
+                    <div style={{ fontSize: '14px' }}>🏆</div>
+                    <div style={{ fontSize: '12px', fontWeight: 900, color: '#00f2fe', marginTop: '2px' }}>
+                      {profile.rankRecords.totalDaysTop3} {language === 'en' ? 'Days' : 'Tage'}
+                    </div>
+                    <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.5)', marginTop: '1px' }}>
+                      Top 3 Podium
+                    </div>
+                  </div>
+
+                  {/* Top 10 Elite */}
+                  <div style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '10px', padding: '8px 6px', textAlign: 'center' }}>
+                    <div style={{ fontSize: '14px' }}>⭐</div>
+                    <div style={{ fontSize: '12px', fontWeight: 900, color: '#fff', marginTop: '2px' }}>
+                      {profile.rankRecords.totalDaysTop10} {language === 'en' ? 'Days' : 'Tage'}
+                    </div>
+                    <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.5)', marginTop: '1px' }}>
+                      Top 10 Elite
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* ── Highscores All Minigames ── */}
             <div style={{ marginBottom: '20px' }}>
               <div style={{ fontSize: '11px', fontWeight: 900, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '10px' }}>
-                🎮 Game Highscores & Ränge
+                🎮 {language === 'en' ? 'Game Highscores & Ranks' : 'Game Highscores & Ränge'}
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -359,17 +468,17 @@ export const PublicProfileModal: React.FC<PublicProfileModalProps> = ({
                           {stat.title}
                         </div>
                         <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)' }}>
-                          {stat.totalRounds} Runden absolviert
+                          {stat.totalRounds} {language === 'en' ? 'rounds played' : 'Runden absolviert'}
                         </div>
                       </div>
                     </div>
 
                     <div style={{ textAlign: 'right' }}>
                       <div style={{ fontSize: '14px', fontWeight: 900, color: '#00f2fe', fontFamily: 'monospace' }}>
-                        {stat.highScore.toLocaleString()} {stat.scoreUnit}
+                        {stat.highScore.toLocaleString()} {language === 'en' ? 'pts' : 'Pkt.'}
                       </div>
                       <div style={{ fontSize: '11px', fontWeight: 800, color: stat.rank !== '—' ? '#fbbf24' : 'rgba(255,255,255,0.3)' }}>
-                        Rang {stat.rank}
+                        {language === 'en' ? 'Rank ' : 'Rang '}{stat.rank}
                       </div>
                     </div>
                   </div>
@@ -381,21 +490,22 @@ export const PublicProfileModal: React.FC<PublicProfileModalProps> = ({
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
                 <span style={{ fontSize: '11px', fontWeight: 900, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                  🏆 Badges & Erfolge ({profile.unlockedBadgesCount})
+                  🏆 {language === 'en' ? 'Badges & Achievements' : 'Badges & Erfolge'} ({profile.unlockedBadgesCount})
                 </span>
                 <span style={{ fontSize: '11px', color: '#00f2fe', fontWeight: 700 }}>
-                  Vitrine
+                  {language === 'en' ? 'Showcase' : 'Vitrine'}
                 </span>
               </div>
 
               {profile.badges.length === 0 ? (
                 <div style={{ padding: '20px 0', textAlign: 'center', color: 'rgba(255,255,255,0.3)', fontSize: '12px' }}>
-                  Noch keine Badges freigeschaltet.
+                  {language === 'en' ? 'No badges unlocked yet.' : 'Noch keine Badges freigeschaltet.'}
                 </div>
               ) : (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px' }}>
                   {profile.badges.map((badge) => {
                     const rarityStyle = RARITY_STYLES[badge.badge_rarity] || RARITY_STYLES.BRONZE;
+                    const badgeTitle = language === 'en' ? (badge.title_en || badge.title) : (badge.title_de || badge.title);
                     return (
                       <div
                         key={badge.id}
@@ -416,7 +526,7 @@ export const PublicProfileModal: React.FC<PublicProfileModalProps> = ({
                           fontSize: '10px', fontWeight: 800, color: '#fff',
                           overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
                         }}>
-                          {badge.title}
+                          {badgeTitle}
                         </div>
                       </div>
                     );
@@ -443,7 +553,7 @@ export const PublicProfileModal: React.FC<PublicProfileModalProps> = ({
                   <div style={{ flex: 1 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                       <div style={{ fontSize: '13px', fontWeight: 900, color: '#fff' }}>
-                        {selectedBadge.title}
+                        {language === 'en' ? (selectedBadge.title_en || selectedBadge.title) : (selectedBadge.title_de || selectedBadge.title)}
                       </div>
                       <span style={{
                         fontSize: '8px', fontWeight: 900, padding: '1px 5px', borderRadius: '4px',
@@ -454,11 +564,12 @@ export const PublicProfileModal: React.FC<PublicProfileModalProps> = ({
                       </span>
                     </div>
                     <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.7)', marginTop: '2px' }}>
-                      {selectedBadge.description}
+                      {language === 'en' ? (selectedBadge.description_en || selectedBadge.description) : (selectedBadge.description_de || selectedBadge.description)}
                     </div>
                     {selectedBadge.unlocked_at && (
                       <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)', marginTop: '4px' }}>
-                        Freigeschaltet am {new Date(selectedBadge.unlocked_at).toLocaleDateString('de-DE')}
+                        {language === 'en' ? 'Unlocked on ' : 'Freigeschaltet am '}
+                        {new Date(selectedBadge.unlocked_at).toLocaleDateString(language === 'en' ? 'en-US' : 'de-DE')}
                       </div>
                     )}
                   </div>
@@ -475,7 +586,7 @@ export const PublicProfileModal: React.FC<PublicProfileModalProps> = ({
               )}
             </div>
           </div>
-        )}
+        ) : null}
       </div>
     </div>
   );

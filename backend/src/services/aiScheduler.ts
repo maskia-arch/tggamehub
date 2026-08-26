@@ -539,3 +539,119 @@ export async function verifyTelegramChannelConnection(channelIdOverride?: string
     };
   }
 }
+
+/**
+ * Sends the official Initial Welcome & Activation Broadcast to the Telegram Channel
+ */
+export async function startChannelModerationWelcomeMessage(): Promise<{
+  success: boolean;
+  message: string;
+  messageId?: string;
+  channelTitle?: string;
+  claimCode?: string;
+}> {
+  const settings = await getAiSettings();
+  if (!settings.telegram_channel_id) {
+    return {
+      success: false,
+      message: 'Kein Telegram Kanal in den KI-Einstellungen hinterlegt. Bitte hinterlege zuerst eine Channel ID oder Username (z.B. @CoinCadeCommunity).'
+    };
+  }
+
+  const bot = getBotInstance();
+  if (!bot || !bot.telegram) {
+    return {
+      success: false,
+      message: 'Telegram Bot ist aktuell offline oder nicht initialisiert (TELEGRAM_BOT_TOKEN prüfen).'
+    };
+  }
+
+  try {
+    const channelId = settings.telegram_channel_id;
+    const chat: any = await bot.telegram.getChat(channelId);
+    const channelTitle = chat.title || chat.username || channelId;
+
+    // Generate unique genesis welcome claim code
+    const claimCode = `claim_welcome_${Date.now().toString(36)}`;
+    const now = new Date();
+    const expiresAt = new Date(now.getTime() + 12 * 60 * 60 * 1000);
+
+    const postRow = await db('ai_channel_posts').insert({
+      post_text: `🚀 *CoinCade Community Hub — Offizieller Kanal-Start!*\n\nWillkommen zur Eröffnung unseres interaktiven Kanals! Ab sofort versorge ich euch rund um die Uhr mit heißen Börsen-News, unvorhersehbaren Krypto-Rallyes und exklusiven Schnelligkeits-Drops für aktive Leser!`,
+      post_text_de: `🚀 *CoinCade Community Hub — Offizieller Kanal-Start!*\n\nWillkommen zur Eröffnung unseres interaktiven Kanals! Ab sofort versorge ich euch rund um die Uhr mit heißen Börsen-News, unvorhersehbaren Krypto-Rallyes und exklusiven Schnelligkeits-Drops für aktive Leser!`,
+      post_text_en: `🚀 *CoinCade Community Hub — Official Launch!*\n\nWelcome to our official interactive community channel! From now on, I will keep you posted around the clock with breaking market news, unpredictable crypto rallies, and exclusive speed-drops for active readers!`,
+      story_arc: settings.storyline_theme || 'CoinCade Cyber Genesis',
+      reward_type: 'COIN',
+      reward_coin_symbol: 'DOODLE',
+      reward_amount: 500,
+      reward_claim_code: claimCode,
+      reward_max_claims: 25,
+      reward_claimed_count: 0,
+      reward_expires_at: expiresAt,
+      community_goal: '🚀 Genesis Willkommens-Drop: 500 $DOODLE für die ersten 25 Leser',
+      community_goal_de: '🚀 Genesis Willkommens-Drop: 500 $DOODLE für die ersten 25 Leser',
+      community_goal_en: '🚀 Genesis Welcome Drop: 500 $DOODLE for the first 25 readers',
+      status: 'SCHEDULED',
+      scheduled_at: now,
+      created_at: now,
+      updated_at: now
+    }).returning('*');
+
+    const createdPost = Array.isArray(postRow) ? postRow[0] : postRow;
+
+    // Dispatch broadcast immediately
+    const { formatCoinCadeHtml } = require('./customEmojiFormatter');
+    const botUsername = (bot.botInfo?.username) || 'CoinCadeGameBot';
+    const claimUrl = `https://t.me/${botUsername}?start=${claimCode}`;
+
+    let msg = `[COINCADE]\n\n` +
+      `[NEWS] <b>CoinCade Community Hub — Live Eröffnung</b>\n\n` +
+      `🚀 <b>Der offizielle CoinCade Kanal ist ab sofort live!</b>\n\n` +
+      `Willkommen im pulsierenden Cyberpunk-Arcade Hub! Ab sofort berichten wir rund um die Uhr über Live-Börsenkurse der Token <b>$DOODLE</b>, <b>$FLAPPY</b> & <b>$CROSSY</b>, spontane Krypto-Rallyes und verteilen regelmäßige Belohnungen an schnelle Leser!\n\n` +
+      `🎁 <b>Genesis Willkommens-Bonus:</b>\n` +
+      `Die ersten <b>25 Leser</b> erhalten sofort <b>500 $DOODLE</b> auf ihr Spielerkonto gutgeschrieben!\n\n` +
+      `⚡ <i>Tippe unten auf den Button, um dir deinen Bonus direkt abzuholen:</i>`;
+
+    const formattedHtml = formatCoinCadeHtml(msg);
+    const buttons = [
+      [Markup.button.url('🎁 +500 $DOODLE Genesis-Bonus sichern (Noch 25/25)', claimUrl)],
+      ...(config.frontendUrl ? [[Markup.button.url('🎮 CoinCade Arcade öffnen', config.frontendUrl)]] : [])
+    ];
+
+    const sent = await bot.telegram.sendMessage(channelId, formattedHtml, {
+      parse_mode: 'HTML',
+      ...Markup.inlineKeyboard(buttons)
+    });
+
+    const postId = createdPost?.id || (typeof createdPost === 'number' ? createdPost : null);
+    if (postId) {
+      await db('ai_channel_posts').where({ id: postId }).update({
+        status: 'POSTED',
+        telegram_message_id: sent.message_id.toString(),
+        posted_at: now,
+        updated_at: now
+      });
+    }
+
+    await db('ai_settings').where({ id: 'global' }).update({
+      bot_moderator_status: 'ACTIVE',
+      bot_moderator_verified_at: now,
+      telegram_channel_title: channelTitle,
+      updated_at: now
+    });
+
+    return {
+      success: true,
+      message: `Kanal-Moderation erfolgreich gestartet! Begrüßungspost #${sent.message_id} an "${channelTitle}" gesendet.`,
+      messageId: sent.message_id.toString(),
+      channelTitle,
+      claimCode
+    };
+  } catch (err: any) {
+    console.error('[AI Moderator Start Error]:', err.message);
+    return {
+      success: false,
+      message: `Fehler beim Senden des Begrüßungsposts: ${err.message}`
+    };
+  }
+}

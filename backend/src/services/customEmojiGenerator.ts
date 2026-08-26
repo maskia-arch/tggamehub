@@ -107,6 +107,30 @@ export async function generateAllCustomEmojiAssets(): Promise<{ total: number; g
     }
   }
 
+  // 3. Mirror all PNG assets to frontend/public/assets/badges for WebApp usage
+  try {
+    const possibleFrontendPaths = [
+      path.join(process.cwd(), 'frontend/public/assets/badges'),
+      path.join(__dirname, '../../../frontend/public/assets/badges'),
+      path.join(__dirname, '../../../../frontend/public/assets/badges'),
+    ];
+    const frontendBadgesDir = possibleFrontendPaths.find(p => fs.existsSync(path.dirname(p)));
+    if (frontendBadgesDir) {
+      if (!fs.existsSync(frontendBadgesDir)) {
+        fs.mkdirSync(frontendBadgesDir, { recursive: true });
+      }
+      const files = fs.readdirSync(emojiDir);
+      for (const f of files) {
+        if (f.endsWith('.png')) {
+          fs.copyFileSync(path.join(emojiDir, f), path.join(frontendBadgesDir, f));
+        }
+      }
+      console.log(`[Custom Emoji Generator]: Synchronized ${files.length} PNG assets to frontend: ${frontendBadgesDir}`);
+    }
+  } catch (feErr: any) {
+    console.warn('[Custom Emoji Generator]: Could not sync to frontend/public:', feErr.message);
+  }
+
   console.log(`[Custom Emoji Generator]: Emoji catalog verified. Total items: ${CUSTOM_EMOJI_CATALOG.length}, Newly generated: ${generatedCount}`);
   return { total: CUSTOM_EMOJI_CATALOG.length, generated: generatedCount };
 }

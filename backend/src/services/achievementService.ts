@@ -5,7 +5,11 @@ export interface AchievementItem {
   id: string;
   category: 'og' | 'game_jump' | 'game_bird' | 'game_crossy' | 'market' | 'season' | 'community';
   title: string;
+  title_de?: string;
+  title_en?: string;
   description: string;
+  description_de?: string;
+  description_en?: string;
   badge_icon: string;
   badge_rarity: 'OG' | 'GOLD' | 'SILVER' | 'BRONZE' | 'DIAMOND';
   sort_order: number;
@@ -16,8 +20,12 @@ export const ACHIEVEMENTS_CATALOG: AchievementItem[] = [
   {
     id: 'og_pioneer',
     category: 'og',
-    title: '🌟 OG Stunde 1',
+    title: '🌟 OG Pionier',
+    title_de: '🌟 OG Pionier',
+    title_en: '🌟 OG Pioneer',
     description: 'Vor dem Start von Season 1 registriert. Echter Pionier der CoinCade Arcade!',
+    description_de: 'Vor dem Start von Season 1 registriert. Echter Pionier der CoinCade Arcade!',
+    description_en: 'Registered before Season 1 launch. True CoinCade Arcade Pioneer!',
     badge_icon: '🌟',
     badge_rarity: 'OG',
     sort_order: 1,
@@ -122,7 +130,11 @@ export const ACHIEVEMENTS_CATALOG: AchievementItem[] = [
     id: 'crossy_walker',
     category: 'game_crossy',
     title: '🔵 Strassen-Entdecker',
-    description: 'Überquere 25 Meter in Crossy Neon Road',
+    title_de: '🔵 Strassen-Entdecker',
+    title_en: '🔵 Street Explorer',
+    description: 'Erreiche 25 Punkte in Crossy Neon Road',
+    description_de: 'Erreiche 25 Punkte in Crossy Neon Road',
+    description_en: 'Score 25 points in Crossy Neon Road',
     badge_icon: '🔵',
     badge_rarity: 'BRONZE',
     sort_order: 30,
@@ -131,7 +143,11 @@ export const ACHIEVEMENTS_CATALOG: AchievementItem[] = [
     id: 'crossy_runner',
     category: 'game_crossy',
     title: '🔵 Neon Sprinter',
-    description: 'Überquere 75 Meter in Crossy Neon Road',
+    title_de: '🔵 Neon Sprinter',
+    title_en: '🔵 Neon Sprinter',
+    description: 'Erreiche 75 Punkte in Crossy Neon Road',
+    description_de: 'Erreiche 75 Punkte in Crossy Neon Road',
+    description_en: 'Score 75 points in Crossy Neon Road',
     badge_icon: '🔵',
     badge_rarity: 'SILVER',
     sort_order: 31,
@@ -140,7 +156,11 @@ export const ACHIEVEMENTS_CATALOG: AchievementItem[] = [
     id: 'crossy_master',
     category: 'game_crossy',
     title: '🔵 Traffic Dodger',
-    description: 'Überquere 150 Meter in Crossy Neon Road',
+    title_de: '🔵 Traffic Dodger',
+    title_en: '🔵 Traffic Dodger',
+    description: 'Erreiche 150 Punkte in Crossy Neon Road',
+    description_de: 'Erreiche 150 Punkte in Crossy Neon Road',
+    description_en: 'Score 150 points in Crossy Neon Road',
     badge_icon: '🔵',
     badge_rarity: 'GOLD',
     sort_order: 32,
@@ -149,7 +169,11 @@ export const ACHIEVEMENTS_CATALOG: AchievementItem[] = [
     id: 'crossy_god',
     category: 'game_crossy',
     title: '🔵 Cyber Highway Legende',
-    description: 'Überquere 300 Meter in Crossy Neon Road',
+    title_de: '🔵 Cyber Highway Legende',
+    title_en: '🔵 Cyber Highway Legend',
+    description: 'Erreiche 300 Punkte in Crossy Neon Road',
+    description_de: 'Erreiche 300 Punkte in Crossy Neon Road',
+    description_en: 'Score 300 points in Crossy Neon Road',
     badge_icon: '🔵',
     badge_rarity: 'DIAMOND',
     sort_order: 33,
@@ -158,7 +182,11 @@ export const ACHIEVEMENTS_CATALOG: AchievementItem[] = [
     id: 'crossy_veteran',
     category: 'game_crossy',
     title: '🔵 Crossy Veteran',
+    title_de: '🔵 Crossy Veteran',
+    title_en: '🔵 Crossy Veteran',
     description: 'Spiele 50 Runden Crossy Neon Road',
+    description_de: 'Spiele 50 Runden Crossy Neon Road',
+    description_en: 'Play 50 rounds of Crossy Neon Road',
     badge_icon: '🎮',
     badge_rarity: 'SILVER',
     sort_order: 34,
@@ -471,6 +499,171 @@ export async function getUserAchievements(userId: string): Promise<any[]> {
 }
 
 /**
+ * Calculates cumulative #1, Top 3, and Top 10 rank streaks, historical days and prestige records for any player.
+ */
+export async function calculatePlayerRankRecords(targetUserId: string): Promise<any> {
+  const gameDefinitions = [
+    { id: 'doodlejump', title: 'Neon Jump', icon: '👾', aliases: ['doodlejump', 'doodle'] },
+    { id: 'neonbird', title: 'Neon Bird', icon: '🐦', aliases: ['neonbird', 'flappy'] },
+    { id: 'crossyneonroad', title: 'Crossy Neon Road', icon: '🐔', aliases: ['crossyneonroad', 'crossyroad', 'crossy'] },
+  ];
+
+  let totalDaysRank1 = 0;
+  let totalDaysTop3 = 0;
+  let totalDaysTop10 = 0;
+  let championshipTitlesCount = 0;
+  let podiumCount = 0;
+  let top10Count = 0;
+  let bestRankOverall: number | null = null;
+
+  const gameRanks: any[] = [];
+
+  for (const g of gameDefinitions) {
+    const userBestScoreRow = await db('scores')
+      .where({ user_id: targetUserId })
+      .whereIn('game_id', g.aliases)
+      .orderBy('score', 'desc')
+      .first();
+
+    const maxScore = userBestScoreRow ? Number(userBestScoreRow.score) || 0 : 0;
+    const achievedAt = userBestScoreRow ? userBestScoreRow.created_at : null;
+
+    let rankNum: number | null = null;
+    let daysHeld = 0;
+
+    if (maxScore > 0 && achievedAt) {
+      const betterCount = await db('scores')
+        .whereIn('game_id', g.aliases)
+        .andWhere('score', '>', maxScore)
+        .countDistinct('user_id as count')
+        .first();
+
+      rankNum = (Number(betterCount?.count) || 0) + 1;
+
+      if (!bestRankOverall || rankNum < bestRankOverall) {
+        bestRankOverall = rankNum;
+      }
+
+      const scoreAgeDays = Math.max(1, Math.floor((Date.now() - new Date(achievedAt).getTime()) / (1000 * 60 * 60 * 24)));
+      daysHeld = scoreAgeDays;
+
+      if (rankNum === 1) {
+        championshipTitlesCount++;
+        podiumCount++;
+        top10Count++;
+        totalDaysRank1 += daysHeld;
+        totalDaysTop3 += daysHeld;
+        totalDaysTop10 += daysHeld;
+      } else if (rankNum <= 3) {
+        podiumCount++;
+        top10Count++;
+        totalDaysTop3 += daysHeld;
+        totalDaysTop10 += daysHeld;
+      } else if (rankNum <= 10) {
+        top10Count++;
+        totalDaysTop10 += daysHeld;
+      }
+    }
+
+    gameRanks.push({
+      gameId: g.id,
+      title: g.title,
+      icon: g.icon,
+      highscore: maxScore,
+      scoreUnit: 'Pkt.',
+      rank: rankNum ? `#${rankNum}` : '—',
+      rankNumber: rankNum,
+      isRank1: rankNum === 1,
+      isTop3: rankNum !== null && rankNum <= 3,
+      isTop10: rankNum !== null && rankNum <= 10,
+      daysHeld,
+      achievedAt,
+    });
+  }
+
+  // Season leaderboard rank
+  const seasonScores = await db('scores')
+    .select('user_id')
+    .sum('score as total_score')
+    .groupBy('user_id')
+    .orderBy('total_score', 'desc');
+
+  const seasonUserIdx = seasonScores.findIndex(s => String(s.user_id) === String(targetUserId));
+  const seasonRankNum = seasonUserIdx >= 0 ? seasonUserIdx + 1 : null;
+
+  if (seasonRankNum) {
+    if (!bestRankOverall || seasonRankNum < bestRankOverall) {
+      bestRankOverall = seasonRankNum;
+    }
+    if (seasonRankNum === 1) {
+      championshipTitlesCount++;
+      podiumCount++;
+      top10Count++;
+    } else if (seasonRankNum <= 3) {
+      podiumCount++;
+      top10Count++;
+    } else if (seasonRankNum <= 10) {
+      top10Count++;
+    }
+  }
+
+  const weeksRank1 = Math.floor(totalDaysRank1 / 7);
+  const weeksTop10 = Math.floor(totalDaysTop10 / 7);
+
+  const prestigeScore = (championshipTitlesCount * 500) + (totalDaysRank1 * 25) +
+                        (podiumCount * 250) + (totalDaysTop3 * 15) +
+                        (top10Count * 100) + (totalDaysTop10 * 5);
+
+  let prestigeTier: 'MASTER' | 'DIAMOND' | 'GOLD' | 'SILVER' | 'BRONZE' = 'BRONZE';
+  let prestigeTitle_de = 'Bronze Rang-Pionier';
+  let prestigeTitle_en = 'Bronze Rank Pioneer';
+  let prestigeBadgeIcon = '🥉';
+
+  if (championshipTitlesCount > 0 || totalDaysRank1 >= 7 || prestigeScore >= 1500) {
+    prestigeTier = 'MASTER';
+    prestigeTitle_de = '👑 Champion Legende (#1 Rekordhalter)';
+    prestigeTitle_en = '👑 Champion Legend (#1 Record Holder)';
+    prestigeBadgeIcon = '👑';
+  } else if (podiumCount > 0 || totalDaysTop3 >= 7 || prestigeScore >= 750) {
+    prestigeTier = 'DIAMOND';
+    prestigeTitle_de = '💎 Diamant Podium-Meister (Top 3)';
+    prestigeTitle_en = '💎 Diamond Podium Master (Top 3)';
+    prestigeBadgeIcon = '💎';
+  } else if (top10Count > 0 || totalDaysTop10 >= 3 || prestigeScore >= 300) {
+    prestigeTier = 'GOLD';
+    prestigeTitle_de = '⭐ Gold Leaderboard Elite (Top 10)';
+    prestigeTitle_en = '⭐ Gold Leaderboard Elite (Top 10)';
+    prestigeBadgeIcon = '⭐';
+  } else if (bestRankOverall && bestRankOverall <= 50) {
+    prestigeTier = 'SILVER';
+    prestigeTitle_de = '🥈 Silber Arcade Veteran';
+    prestigeTitle_en = '🥈 Silver Arcade Veteran';
+    prestigeBadgeIcon = '🥈';
+  }
+
+  return {
+    bestRankOverall: bestRankOverall ? `#${bestRankOverall}` : '—',
+    bestRankNumber: bestRankOverall,
+    championshipTitlesCount,
+    podiumCount,
+    top10Count,
+    totalDaysRank1,
+    weeksRank1,
+    totalDaysTop3,
+    totalDaysTop10,
+    weeksTop10,
+    prestigeScore,
+    prestigeTier,
+    prestigeTitle_de,
+    prestigeTitle_en,
+    prestigeBadgeIcon,
+    seasonRank: seasonRankNum ? `#${seasonRankNum}` : '—',
+    seasonRankNumber: seasonRankNum,
+    gameRanks,
+  };
+}
+
+/**
  * Generates the full Public Profile Card data for any player
  */
 export async function getPublicProfileData(targetUserId: string): Promise<any> {
@@ -485,12 +678,13 @@ export async function getPublicProfileData(targetUserId: string): Promise<any> {
   const achievements = await getUserAchievements(targetUserId);
   const unlockedBadges = achievements.filter(a => a.is_unlocked);
   const isOg = await isEligibleForOgBadge(user);
+  const rankRecords = await calculatePlayerRankRecords(targetUserId);
 
   // Highscores across all games
   const gamesCatalog = [
-    { id: 'doodlejump', title: 'Neon Jump', icon: '🟢', scoreUnit: 'pts' },
-    { id: 'neonbird', title: 'Neon Bird', icon: '🟡', scoreUnit: 'pts' },
-    { id: 'crossyroad', title: 'Crossy Neon Road', icon: '🔵', scoreUnit: 'm' },
+    { id: 'doodlejump', title: 'Neon Jump', icon: '👾', scoreUnit: 'Pkt.' },
+    { id: 'neonbird', title: 'Neon Bird', icon: '🐦', scoreUnit: 'Pkt.' },
+    { id: 'crossyneonroad', title: 'Crossy Neon Road', icon: '🐔', scoreUnit: 'Pkt.' },
   ];
 
   const gameStats: any[] = [];
@@ -501,7 +695,7 @@ export async function getPublicProfileData(targetUserId: string): Promise<any> {
       .andWhere((qb) => {
         if (game.id === 'doodlejump') qb.whereIn('game_id', ['doodlejump', 'doodle']);
         else if (game.id === 'neonbird') qb.whereIn('game_id', ['neonbird', 'flappy']);
-        else if (game.id === 'crossyroad') qb.whereIn('game_id', ['crossyroad', 'crossy']);
+        else if (game.id === 'crossyneonroad' || game.id === 'crossyroad') qb.whereIn('game_id', ['crossyneonroad', 'crossyroad', 'crossy']);
         else qb.where({ game_id: game.id });
       });
 
@@ -511,8 +705,12 @@ export async function getPublicProfileData(targetUserId: string): Promise<any> {
     // Calculate game rank
     let rank = '—';
     if (maxScore > 0) {
+      const aliasList = game.id === 'doodlejump'
+        ? ['doodlejump', 'doodle']
+        : (game.id === 'neonbird' ? ['neonbird', 'flappy'] : ['crossyneonroad', 'crossyroad', 'crossy']);
+
       const betterCount = await db('scores')
-        .whereIn('game_id', game.id === 'doodlejump' ? ['doodlejump', 'doodle'] : (game.id === 'neonbird' ? ['neonbird', 'flappy'] : ['crossyroad', 'crossy']))
+        .whereIn('game_id', aliasList)
         .andWhere('score', '>', maxScore)
         .countDistinct('user_id as count')
         .first();
@@ -549,6 +747,7 @@ export async function getPublicProfileData(targetUserId: string): Promise<any> {
     isBanned: Boolean(user.is_banned),
     referralsCount,
     gameStats,
+    rankRecords,
     unlockedBadgesCount: unlockedBadges.length,
     totalBadgesCount: achievements.length,
     badges: unlockedBadges,

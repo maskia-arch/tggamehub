@@ -171,11 +171,12 @@ export async function getProfile(req: AuthenticatedRequest, res: Response) {
       }
     }
 
-    const { checkAndAwardAchievements, getUserAchievements, isEligibleForOgBadge } = require('../services/achievementService');
+    const { checkAndAwardAchievements, getUserAchievements, isEligibleForOgBadge, calculatePlayerRankRecords } = require('../services/achievementService');
     await checkAndAwardAchievements(userId);
     const achievements = await getUserAchievements(userId);
     const isOg = await isEligibleForOgBadge(user);
     const unlockedBadges = achievements.filter((a: any) => a.is_unlocked);
+    const rankRecords = await calculatePlayerRankRecords(userId);
 
     return res.json({
       user: {
@@ -211,6 +212,7 @@ export async function getProfile(req: AuthenticatedRequest, res: Response) {
         is_banned: Boolean(user.is_banned),
         ban_reason: user.ban_reason || null,
         is_og_player: isOg,
+        rank_records: rankRecords,
         unlocked_badges_count: unlockedBadges.length,
         total_badges_count: achievements.length,
         badges: unlockedBadges,

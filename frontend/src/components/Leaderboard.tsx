@@ -72,8 +72,8 @@ const DEFAULT_ACTIVE_GAMES: HubGame[] = [
     title: 'Neon Jump',
     genre: 'Arcade / Jump',
     icon: '👾',
-    scoreUnit: 'm',
-    targetScore: 1500,
+    scoreUnit: 'pts',
+    targetScore: 100,
     coinSymbol: 'DOODLE',
   },
   {

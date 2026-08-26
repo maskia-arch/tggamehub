@@ -153,7 +153,7 @@ export function Market({ initData, backendUrl, onBalanceUpdate }: MarketProps) {
   const [timeframe, setTimeframe] = useState<'30m' | '1h' | '12h' | '24h' | '7d'>('24h');
   const [chartMode, setChartMode] = useState<'candles' | 'area'>('candles');
 
-  const [activeTab, setActiveTab] = useState<'market' | 'trade' | 'portfolio' | 'news'>('market');
+  const [activeTab, setActiveTab] = useState<'market' | 'trade' | 'portfolio'>('market');
   const [newsList, setNewsList] = useState<AiNewsItem[]>([]);
   const [tradeType, setTradeType] = useState<'BUY' | 'SELL'>('BUY');
   const [tradeAmount, setTradeAmount] = useState<string>('');
@@ -767,26 +767,6 @@ export function Market({ initData, backendUrl, onBalanceUpdate }: MarketProps) {
         >
           <DollarSign size={14} /> {t.market.portfolio}
         </button>
-        <button
-          onClick={() => setActiveTab('news')}
-          style={{
-            flex: 1, padding: '10px 4px', borderRadius: '12px', border: 'none',
-            background: activeTab === 'news' ? 'rgba(251,191,36,0.15)' : 'transparent',
-            color: activeTab === 'news' ? '#fbbf24' : 'rgba(255,255,255,0.4)',
-            fontSize: '12px', fontWeight: 800, cursor: 'pointer', transition: 'all 0.2s',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px',
-            position: 'relative',
-          }}
-        >
-          <Flame size={14} /> {t.market.newsTab || 'News'}
-          {newsList.length > 0 && (
-            <span style={{
-              width: '6px', height: '6px', borderRadius: '50%',
-              background: '#fbbf24', boxShadow: '0 0 6px #fbbf24',
-              marginLeft: '2px',
-            }} />
-          )}
-        </button>
       </div>
 
       {/* Error alert */}
@@ -813,52 +793,125 @@ export function Market({ initData, backendUrl, onBalanceUpdate }: MarketProps) {
           {activeTab === 'market' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               
-              {/* 🚨 AI Breaking News Banner */}
-              {newsList.length > 0 && (
-                <div style={{
-                  background: 'linear-gradient(135deg, rgba(251,191,36,0.12) 0%, rgba(0,242,254,0.06) 100%)',
-                  border: '1px solid rgba(251,191,36,0.35)',
-                  borderRadius: '18px', padding: '12px 14px',
-                  display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px',
-                  boxShadow: '0 0 16px rgba(251,191,36,0.15)',
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
-                    <span style={{ fontSize: '20px', flexShrink: 0 }}>📰</span>
-                    <div style={{ minWidth: 0 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <span style={{ fontSize: '9px', fontWeight: 900, color: '#fbbf24', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                          {t.market.breakingNewsHeader || '🚨 KI-Eilmeldung:'}
-                        </span>
-                        <span style={{
-                          fontSize: '9px', fontWeight: 900,
-                          padding: '1px 5px', borderRadius: '4px',
-                          background: 'rgba(0,242,254,0.15)', color: 'var(--accent-cyan)',
-                        }}>
-                          ${newsList[0].coinSymbol}
-                        </span>
-                      </div>
-                      <div style={{
-                        fontSize: '12px', fontWeight: 800, color: '#fff',
-                        whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                        marginTop: '2px',
-                      }}>
-                        {language === 'en' ? (newsList[0].titleEn || newsList[0].title) : (newsList[0].titleDe || newsList[0].title)}
-                      </div>
+              {/* ── 📰 Live News Ticker (Oberhalb von Live Markt Trigger & Events) ── */}
+              {newsList && newsList.length > 0 && (
+                <div
+                  style={{
+                    background: 'linear-gradient(135deg, rgba(251,191,36,0.08) 0%, rgba(0,242,254,0.04) 100%)',
+                    border: '1px solid rgba(251,191,36,0.3)',
+                    borderRadius: '20px',
+                    padding: '16px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '12px',
+                    boxShadow: '0 0 20px rgba(251,191,36,0.08)',
+                  }}
+                >
+                  {/* Section Header */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ fontSize: '18px' }}>📰</span>
+                      <span style={{ fontSize: '12px', fontWeight: 900, color: '#fbbf24', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+                        {t.market.newsTickerTitle || 'NEWS TICKER'}
+                      </span>
+                    </div>
+                    <div style={{
+                      display: 'inline-flex', alignItems: 'center', gap: '5px',
+                      background: 'rgba(74, 222, 128, 0.15)',
+                      border: '1px solid rgba(74, 222, 128, 0.35)',
+                      borderRadius: '9999px', padding: '2px 8px',
+                      color: '#4ade80', fontSize: '9px', fontWeight: 900,
+                      letterSpacing: '0.08em', textTransform: 'uppercase',
+                    }}>
+                      <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#4ade80', boxShadow: '0 0 6px #4ade80' }} className="animate-pulse" />
+                      LIVE
                     </div>
                   </div>
 
-                  <button
-                    onClick={() => setActiveTab('news')}
-                    style={{
-                      flexShrink: 0, padding: '6px 12px', borderRadius: '10px',
-                      background: 'rgba(251,191,36,0.2)', border: '1px solid rgba(251,191,36,0.4)',
-                      color: '#fbbf24', fontSize: '11px', fontWeight: 800, cursor: 'pointer',
-                      display: 'flex', alignItems: 'center', gap: '4px',
-                    }}
-                  >
-                    <span>Mehr</span>
-                    <ArrowUpRight size={12} />
-                  </button>
+                  {/* News Items List */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '240px', overflowY: 'auto' }}>
+                    {newsList.map((item) => {
+                      const isBullish = item.sentiment === 'bullish';
+                      const isBearish = item.sentiment === 'bearish';
+                      const coinMatch = data?.coins.find(c => c.symbol === item.coinSymbol);
+                      const timeFormatted = item.publishedAt ? new Date(item.publishedAt).toLocaleTimeString(language === 'en' ? 'en-US' : 'de-DE', { hour: '2-digit', minute: '2-digit' }) : '';
+                      const title = language === 'en' ? (item.titleEn || item.title) : (item.titleDe || item.title);
+                      const summary = language === 'en' ? (item.summaryEn || item.summary) : (item.summaryDe || item.summary);
+
+                      return (
+                        <div
+                          key={item.id}
+                          style={{
+                            background: 'rgba(0, 0, 0, 0.35)',
+                            border: `1px solid ${isBullish ? 'rgba(74,222,128,0.25)' : isBearish ? 'rgba(248,113,113,0.25)' : 'rgba(255,255,255,0.08)'}`,
+                            borderRadius: '14px',
+                            padding: '12px 14px',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '6px',
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '4px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <span style={{
+                                fontSize: '10px', fontWeight: 900,
+                                padding: '1px 6px', borderRadius: '5px',
+                                background: 'rgba(0,242,254,0.15)', color: 'var(--accent-cyan)',
+                                border: '1px solid rgba(0,242,254,0.3)',
+                              }}>
+                                ${item.coinSymbol}
+                              </span>
+                              <span style={{
+                                fontSize: '9px', fontWeight: 800,
+                                padding: '1px 6px', borderRadius: '5px',
+                                background: isBullish ? 'rgba(74,222,128,0.15)' : isBearish ? 'rgba(248,113,113,0.15)' : 'rgba(255,255,255,0.08)',
+                                color: isBullish ? '#4ade80' : isBearish ? '#f87171' : 'rgba(255,255,255,0.6)',
+                                border: `1px solid ${isBullish ? 'rgba(74,222,128,0.3)' : isBearish ? 'rgba(248,113,113,0.3)' : 'rgba(255,255,255,0.15)'}`,
+                              }}>
+                                {isBullish ? t.market.bullish : isBearish ? t.market.bearish : t.market.neutral}
+                              </span>
+                              {item.priceImpactPercent !== 0 && (
+                                <span style={{
+                                  fontSize: '9px', fontWeight: 900,
+                                  color: item.priceImpactPercent > 0 ? '#4ade80' : '#f87171',
+                                }}>
+                                  {item.priceImpactPercent > 0 ? '+' : ''}{item.priceImpactPercent.toFixed(1)}%
+                                </span>
+                              )}
+                            </div>
+
+                            <span style={{ fontSize: '9px', color: 'rgba(255,255,255,0.4)', fontFamily: 'monospace' }}>
+                              {timeFormatted}
+                            </span>
+                          </div>
+
+                          <div style={{ fontSize: '12px', fontWeight: 800, color: '#fff', lineHeight: 1.3 }}>
+                            {title}
+                          </div>
+
+                          <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.7)', lineHeight: 1.4 }}>
+                            {summary}
+                          </div>
+
+                          {coinMatch && (
+                            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '2px' }}>
+                              <button
+                                type="button"
+                                onClick={() => handleSelectCoinForTrade(coinMatch, isBearish ? 'SELL' : 'BUY')}
+                                style={{
+                                  padding: '4px 10px', borderRadius: '8px', border: '1px solid rgba(0,242,254,0.3)',
+                                  background: 'rgba(0,242,254,0.08)', color: 'var(--accent-cyan)', fontSize: '10px', fontWeight: 800, cursor: 'pointer',
+                                  display: 'flex', alignItems: 'center', gap: '3px',
+                                }}
+                              >
+                                <span>⚡</span> {language === 'en' ? `Trade $${item.coinSymbol}` : `$${item.coinSymbol} handeln`}
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
 
@@ -1453,134 +1506,6 @@ export function Market({ initData, backendUrl, onBalanceUpdate }: MarketProps) {
                 })
               )}
 
-            </div>
-          )}
-
-          {/* ════════════════════════════════════════════════════════════════ */}
-          {/* ── TAB 4: CYBER NEWS & MARKT-BERICHTE (DEEPSEEK AI) ───────────── */}
-          {activeTab === 'news' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              {/* Header Hero Banner */}
-              <div style={{
-                background: 'linear-gradient(135deg, rgba(251,191,36,0.08) 0%, rgba(0,242,254,0.04) 100%)',
-                border: '1px solid rgba(251,191,36,0.25)',
-                borderRadius: '20px', padding: '18px',
-                position: 'relative', overflow: 'hidden',
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-                  <span style={{
-                    fontSize: '9px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.1em',
-                    padding: '3px 8px', borderRadius: '6px',
-                    background: 'rgba(251,191,36,0.15)', color: '#fbbf24',
-                    border: '1px solid rgba(251,191,36,0.3)',
-                  }}>
-                    🤖 DeepSeek Autonomous News Anchor
-                  </span>
-                </div>
-                <h3 style={{ fontSize: '17px', fontWeight: 900, color: '#fff', margin: '0 0 4px 0' }}>
-                  {t.market.newsTitle}
-                </h3>
-                <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.6)', margin: 0, lineHeight: 1.4 }}>
-                  {t.market.newsSubtitle}
-                </p>
-              </div>
-
-              {/* News Articles List */}
-              {(!newsList || newsList.length === 0) ? (
-                <div style={{
-                  padding: '40px 16px', textAlign: 'center',
-                  background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)',
-                  borderRadius: '18px', color: 'rgba(255,255,255,0.4)', fontSize: '12px',
-                }}>
-                  {t.market.noNewsYet}
-                </div>
-              ) : (
-                newsList.map((item) => {
-                  const isBullish = item.sentiment === 'bullish';
-                  const isBearish = item.sentiment === 'bearish';
-                  const coinMatch = data?.coins.find(c => c.symbol === item.coinSymbol);
-                  const timeFormatted = item.publishedAt ? new Date(item.publishedAt).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) : '';
-                  const dateFormatted = item.publishedAt ? new Date(item.publishedAt).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' }) : '';
-
-                  return (
-                    <div
-                      key={item.id}
-                      style={{
-                        background: 'rgba(255,255,255,0.02)',
-                        border: `1px solid ${isBullish ? 'rgba(74,222,128,0.25)' : isBearish ? 'rgba(248,113,113,0.25)' : 'rgba(255,255,255,0.08)'}`,
-                        borderRadius: '18px', padding: '16px',
-                        display: 'flex', flexDirection: 'column', gap: '10px',
-                        transition: 'all 0.2s ease',
-                      }}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '6px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <span style={{
-                            fontSize: '11px', fontWeight: 900,
-                            padding: '2px 8px', borderRadius: '6px',
-                            background: 'rgba(0,242,254,0.15)', color: 'var(--accent-cyan)',
-                            border: '1px solid rgba(0,242,254,0.3)',
-                          }}>
-                            ${item.coinSymbol}
-                          </span>
-                          <span style={{
-                            fontSize: '10px', fontWeight: 800,
-                            padding: '2px 8px', borderRadius: '6px',
-                            background: isBullish ? 'rgba(74,222,128,0.15)' : isBearish ? 'rgba(248,113,113,0.15)' : 'rgba(255,255,255,0.08)',
-                            color: isBullish ? '#4ade80' : isBearish ? '#f87171' : 'rgba(255,255,255,0.6)',
-                            border: `1px solid ${isBullish ? 'rgba(74,222,128,0.3)' : isBearish ? 'rgba(248,113,113,0.3)' : 'rgba(255,255,255,0.15)'}`,
-                          }}>
-                            {isBullish ? t.market.bullish : isBearish ? t.market.bearish : t.market.neutral}
-                          </span>
-                          {item.priceImpactPercent !== 0 && (
-                            <span style={{
-                              fontSize: '10px', fontWeight: 900,
-                              color: item.priceImpactPercent > 0 ? '#4ade80' : '#f87171',
-                            }}>
-                              {item.priceImpactPercent > 0 ? '+' : ''}{item.priceImpactPercent.toFixed(1)}% Kurs-Effekt
-                            </span>
-                          )}
-                        </div>
-
-                        <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)', fontFamily: 'monospace' }}>
-                          {dateFormatted} {timeFormatted}
-                        </span>
-                      </div>
-
-                      <div>
-                        <h4 style={{ fontSize: '14px', fontWeight: 900, color: '#fff', margin: '0 0 4px 0', lineHeight: 1.3 }}>
-                          {language === 'en' ? (item.titleEn || item.title) : (item.titleDe || item.title)}
-                        </h4>
-                        <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.7)', margin: 0, lineHeight: 1.45 }}>
-                          {language === 'en' ? (item.summaryEn || item.summary) : (item.summaryDe || item.summary)}
-                        </p>
-                      </div>
-
-                      {item.storyArc && (
-                        <div style={{ fontSize: '10px', color: 'rgba(251,191,36,0.8)', fontStyle: 'italic' }}>
-                          📖 {item.storyArc}
-                        </div>
-                      )}
-
-                      {coinMatch && (
-                        <div style={{ borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '8px', display: 'flex', justifyContent: 'flex-end' }}>
-                          <button
-                            type="button"
-                            onClick={() => handleSelectCoinForTrade(coinMatch, isBearish ? 'SELL' : 'BUY')}
-                            style={{
-                              padding: '6px 14px', borderRadius: '10px', border: '1px solid rgba(0,242,254,0.3)',
-                              background: 'rgba(0,242,254,0.1)', color: 'var(--accent-cyan)', fontSize: '11px', fontWeight: 800, cursor: 'pointer',
-                              display: 'flex', alignItems: 'center', gap: '4px',
-                            }}
-                          >
-                            <span>⚡</span> {t.market.tradeCoinBtn || 'Diesen Coin handeln'}
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })
-              )}
             </div>
           )}
         </>

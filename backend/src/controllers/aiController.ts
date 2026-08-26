@@ -1,5 +1,8 @@
 import { Request, Response } from 'express';
+import { Markup } from 'telegraf';
 import db from '../database/client';
+import { config } from '../config';
+import { getBotInstance } from '../bot';
 import {
   getAiSettings,
   updateAiSettings,
@@ -9,11 +12,92 @@ import {
   DEEPSEEK_MODELS_PRICING,
   testDeepSeekHello
 } from '../services/deepseekService';
-import { trigger12HourAiCycle, verifyTelegramChannelConnection } from '../services/aiScheduler';
+import {
+  trigger12HourAiCycle,
+  verifyTelegramChannelConnection,
+  startChannelModerationWelcomeMessage
+} from '../services/aiScheduler';
 import { addEnergy } from '../services/energy';
 
 /**
- * Claims a community reward code atomically
+ * Asynchronously updates the Telegram channel message in real-time when a claim is processed
+ */
+export async function liveEditTelegramChannelPost(postId: number): Promise<void> {
+  try {
+    const post = await db('ai_channel_posts').where({ id: postId }).first();
+    if (!post || !post.telegram_message_id) return;
+
+    const settings = await getAiSettings();
+    if (!settings.telegram_channel_id) return;
+
+    const bot = getBotInstance();
+    if (!bot || !bot.telegram) return;
+
+    const maxClaims = Number(post.reward_max_claims || 20);
+    const claimedCount = Number(post.reward_claimed_count || 0);
+    const remaining = Math.max(0, maxClaims - claimedCount);
+    const isSoldOut = remaining <= 0;
+
+    const postText = post.post_text_de || post.post_text;
+    let body = postText
+      .replace(/\*([^\*\n]+)\*/g, '<b>$1</b>')
+      .replace(/_([^_\n]+)_/g, '<i>$1</i>');
+
+    let updatedMsgText = `[COINCADE]\n\n` +
+      `[NEWS] <b>CoinCade AI Live Broadcast</b>\n\n${body}`;
+
+    const goal = post.community_goal_de || post.community_goal;
+    if (goal) {
+      updatedMsgText += `\n\n⚡ <b>Live Drop-Info:</b>\n<i>${goal}</i>`;
+    }
+
+    if (isSoldOut) {
+      updatedMsgText += `\n\n🔴 <b>AUSVERKAUFT!</b> Alle <b>${maxClaims}</b> Boni wurden von schnellen Lesern eingelöst! Bleibt aktiv für den nächsten Drop.`;
+    } else {
+      updatedMsgText += `\n\n🎁 <b>Live-Claim Status:</b> Noch <b>${remaining} / ${maxClaims}</b> Boni verfügbar!`;
+    }
+
+    const buttons: any[] = [];
+    const botUsername = (bot.botInfo?.username) || 'CoinCadeGameBot';
+    const claimUrl = `https://t.me/${botUsername}?start=${post.reward_claim_code}`;
+
+    if (!isSoldOut) {
+      const rewardLabel = post.reward_type === 'ENERGY'
+        ? `⚡ +${post.reward_amount} Energie sichern (Noch ${remaining}/${maxClaims})`
+        : `🪙 +${Number(post.reward_amount).toLocaleString()} $${post.reward_coin_symbol} sichern (Noch ${remaining}/${maxClaims})`;
+      buttons.push([Markup.button.url(rewardLabel, claimUrl)]);
+    } else {
+      buttons.push([Markup.button.url('🔒 Ausverkauft (Alle Boni vergeben)', claimUrl)]);
+    }
+
+    if (config.frontendUrl) {
+      buttons.push([Markup.button.url('🎮 CoinCade Arcade öffnen', config.frontendUrl)]);
+    }
+
+    const { formatCoinCadeHtml } = require('../services/customEmojiFormatter');
+    const formattedHtml = formatCoinCadeHtml(updatedMsgText);
+
+    await bot.telegram.editMessageText(
+      settings.telegram_channel_id,
+      parseInt(post.telegram_message_id, 10),
+      undefined,
+      formattedHtml,
+      {
+        parse_mode: 'HTML',
+        ...Markup.inlineKeyboard(buttons)
+      }
+    );
+    console.log(`[AI Channel Live Edit]: Successfully edited post #${post.id} (Claimed: ${claimedCount}/${maxClaims}, Remaining: ${remaining}).`);
+  } catch (err: any) {
+    // Ignore benign errors like "message is not modified"
+    if (!err.message?.includes('message is not modified')) {
+      console.warn('[AI Channel Live Edit Warn]:', err.message);
+    }
+  }
+}
+
+/**
+ * Claims a community reward code atomically & live-updates Telegram post
  */
 export async function processAiRewardClaim(
   userId: string,
@@ -25,33 +109,35 @@ export async function processAiRewardClaim(
     return { success: false, message: 'Ungültiger Claim-Code.' };
   }
 
-  const post = await db('ai_channel_posts')
-    .where({ reward_claim_code: cleanCode })
-    .first();
+  // Atomic Claim Execution via SQL Transaction with Row-Locking
+  const claimResult = await db.transaction(async (trx) => {
+    // Lock row for update
+    const post = await trx('ai_channel_posts')
+      .where({ reward_claim_code: cleanCode })
+      .forUpdate()
+      .first();
 
-  if (!post) {
-    return { success: false, message: 'Dieser Bonus-Code existiert nicht oder ist ungültig.' };
-  }
+    if (!post) {
+      return { success: false, message: 'Dieser Bonus-Code existiert nicht oder ist ungültig.' };
+    }
 
-  if (post.reward_expires_at && new Date(post.reward_expires_at) < new Date()) {
-    return { success: false, message: 'Dieser Community-Bonus ist leider bereits abgelaufen.' };
-  }
+    if (post.reward_expires_at && new Date(post.reward_expires_at) < new Date()) {
+      return { success: false, message: 'Dieser Community-Bonus ist leider bereits abgelaufen.' };
+    }
 
-  if (post.reward_max_claims > 0 && post.reward_claimed_count >= post.reward_max_claims) {
-    return { success: false, message: 'Das Kontingent für diesen Bonus wurde bereits vollständig aufgebraucht!' };
-  }
+    if (post.reward_max_claims > 0 && post.reward_claimed_count >= post.reward_max_claims) {
+      return { success: false, message: 'Das Kontingent für diesen Bonus wurde bereits vollständig aufgebraucht!' };
+    }
 
-  // Check if user already claimed this specific reward code
-  const existingClaim = await db('ai_reward_claims')
-    .where({ claim_code: cleanCode, user_id: userId })
-    .first();
+    // Check if user already claimed this specific reward code
+    const existingClaim = await trx('ai_reward_claims')
+      .where({ claim_code: cleanCode, user_id: userId })
+      .first();
 
-  if (existingClaim) {
-    return { success: false, message: 'Du hast diesen Bonus bereits erfolgreich eingelöst!' };
-  }
+    if (existingClaim) {
+      return { success: false, message: 'Du hast diesen Bonus bereits erfolgreich eingelöst!' };
+    }
 
-  // Atomic Claim Execution via SQL Transaction
-  return await db.transaction(async (trx) => {
     // 1. Record claim
     await trx('ai_reward_claims').insert({
       claim_code: cleanCode,
@@ -75,9 +161,10 @@ export async function processAiRewardClaim(
       await addEnergy(userId, amount, true, trx);
       return {
         success: true,
+        postId: post.id,
         rewardType: 'ENERGY',
         amount: amount,
-        message: `⚡ Glückwunsch! Dir wurden ${amount} Energie-Punkte gutgeschrieben!`
+        message: `⚡ Glückwunsch! Dir wurden ${amount} Energie-Punkte sofort gutgeschrieben!`
       };
     } else if (post.reward_type === 'COIN') {
       const sym = (post.reward_coin_symbol || 'DOODLE').toUpperCase();
@@ -106,15 +193,46 @@ export async function processAiRewardClaim(
 
       return {
         success: true,
+        postId: post.id,
         rewardType: 'COIN',
         amount: amount,
         coinSymbol: sym,
-        message: `🎁 Glückwunsch! Dir wurden ${amount.toLocaleString()} $${sym} Token gutgeschrieben!`
+        message: `🎁 Glückwunsch! Dir wurden ${amount.toLocaleString()} $${sym} Token sofort gutgeschrieben!`
       };
     }
 
-    return { success: true, message: 'Bonus erfolgreich eingelöst!' };
+    return { success: true, postId: post.id, message: 'Bonus erfolgreich eingelöst!' };
   });
+
+  // If claim succeeded and postId is known, trigger asynchronous Telegram live edit
+  if (claimResult.success && (claimResult as any).postId) {
+    liveEditTelegramChannelPost((claimResult as any).postId).catch(e => {
+      console.warn('[AI Live Edit Background Error]:', e.message);
+    });
+  }
+
+  return {
+    success: claimResult.success,
+    rewardType: claimResult.rewardType,
+    amount: claimResult.amount,
+    coinSymbol: claimResult.coinSymbol,
+    message: claimResult.message
+  };
+}
+
+/**
+ * Admin: Start Channel Moderation & send official Welcome message
+ */
+export async function startAdminAiModerationHandler(_req: Request, res: Response) {
+  try {
+    const result = await startChannelModerationWelcomeMessage();
+    if (!result.success) {
+      return res.status(400).json(result);
+    }
+    return res.json(result);
+  } catch (err: any) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
 }
 
 /**

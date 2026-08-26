@@ -41,6 +41,7 @@ interface ProfileData {
     is_banned?: boolean;
     ban_reason?: string | null;
     is_og_player?: boolean;
+    rank_records?: any;
     unlocked_badges_count?: number;
     total_badges_count?: number;
     badges?: any[];
@@ -95,7 +96,7 @@ import { useLanguage } from '../i18n/LanguageContext';
 
 /* ─── Main Component ──────────────────────────────────────────────────────── */
 export function Profile({ profile, onRefresh, initData, backendUrl }: ProfileProps) {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const [copied, setCopied] = useState(false);
   const [adLoading, setAdLoading] = useState(false);
   const [secondsLeft, setSecondsLeft] = useState(profile.energy.nextRechargeInSeconds);
@@ -518,17 +519,75 @@ export function Profile({ profile, onRefresh, initData, backendUrl }: ProfilePro
               >
                 <div style={{ fontSize: '20px' }}>{b.badge_icon}</div>
                 <div style={{ fontSize: '9px', fontWeight: 800, color: '#fff', marginTop: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {b.title}
+                  {language === 'en' ? (b.title_en || b.title) : (b.title_de || b.title)}
                 </div>
               </div>
             ))}
           </div>
         ) : (
           <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.4)', textAlign: 'center', padding: '10px 0' }}>
-            Spiele Runden und erreiche Highscores, um deine ersten Badges freizuschalten!
+            {language === 'en' ? 'Play rounds and achieve highscores to unlock your first badges!' : 'Spiele Runden und erreiche Highscores, um deine ersten Badges freizuschalten!'}
           </div>
         )}
       </SectionCard>
+
+      {/* ── Hall of Fame & Rang-Platzierungen (#1 bis #10 Rekorde) ───────── */}
+      {profile.user.rank_records && (
+        <SectionCard style={{ background: 'linear-gradient(135deg, rgba(251,191,36,0.06) 0%, rgba(0,242,254,0.04) 100%)', border: '1px solid rgba(251,191,36,0.25)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <SectionTitle
+              icon={<span style={{ fontSize: '15px' }}>{profile.user.rank_records.prestigeBadgeIcon || '🏆'}</span>}
+              label={language === 'en' ? 'Hall of Fame & Rank Streaks' : 'Hall of Fame & Rang-Historie'}
+            />
+            <span style={{
+              fontSize: '10px', fontWeight: 900, color: '#fbbf24',
+              background: 'rgba(251,191,36,0.15)', border: '1px solid rgba(251,191,36,0.35)',
+              borderRadius: '6px', padding: '2px 7px'
+            }}>
+              {profile.user.rank_records.prestigeScore} {language === 'en' ? 'Prestige Pts' : 'Prestige-Pkt.'}
+            </span>
+          </div>
+
+          <div style={{ fontSize: '12px', fontWeight: 800, color: '#fff' }}>
+            {language === 'en' ? profile.user.rank_records.prestigeTitle_en : profile.user.rank_records.prestigeTitle_de}
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
+            {/* #1 Champion Streak */}
+            <div style={{ background: 'rgba(0,0,0,0.35)', border: '1px solid rgba(251,191,36,0.25)', borderRadius: '12px', padding: '10px 8px', textAlign: 'center' }}>
+              <div style={{ fontSize: '16px' }}>👑</div>
+              <div style={{ fontSize: '13px', fontWeight: 900, color: '#fbbf24', marginTop: '2px' }}>
+                {profile.user.rank_records.totalDaysRank1} {language === 'en' ? 'Days' : 'Tage'}
+              </div>
+              <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.5)', marginTop: '2px' }}>
+                #1 Champion
+              </div>
+            </div>
+
+            {/* Top 3 Podium */}
+            <div style={{ background: 'rgba(0,0,0,0.35)', border: '1px solid rgba(0,242,254,0.25)', borderRadius: '12px', padding: '10px 8px', textAlign: 'center' }}>
+              <div style={{ fontSize: '16px' }}>🏆</div>
+              <div style={{ fontSize: '13px', fontWeight: 900, color: '#00f2fe', marginTop: '2px' }}>
+                {profile.user.rank_records.totalDaysTop3} {language === 'en' ? 'Days' : 'Tage'}
+              </div>
+              <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.5)', marginTop: '2px' }}>
+                Top 3 Podium
+              </div>
+            </div>
+
+            {/* Top 10 Elite */}
+            <div style={{ background: 'rgba(0,0,0,0.35)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', padding: '10px 8px', textAlign: 'center' }}>
+              <div style={{ fontSize: '16px' }}>⭐</div>
+              <div style={{ fontSize: '13px', fontWeight: 900, color: '#fff', marginTop: '2px' }}>
+                {profile.user.rank_records.totalDaysTop10} {language === 'en' ? 'Days' : 'Tage'}
+              </div>
+              <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.5)', marginTop: '2px' }}>
+                Top 10 Elite
+              </div>
+            </div>
+          </div>
+        </SectionCard>
+      )}
 
       {/* ── Energy Card ───────────────────────────────────────────────────── */}
       <SectionCard>
