@@ -246,7 +246,7 @@ export async function getMarketNewsHandler(req: Request, res: Response) {
       .orderBy('published_at', 'desc')
       .limit(limit);
 
-    // If no published news exists yet, auto-publish the earliest pending scheduled news item
+    // If no published news, try to auto-publish the earliest pending item (lightweight operation only)
     if (!rows || rows.length === 0) {
       const pending = await db('ai_market_news')
         .where('is_published', false)
@@ -260,24 +260,28 @@ export async function getMarketNewsHandler(req: Request, res: Response) {
           published_at: now,
           updated_at: now
         });
-        const { applyAiNewsImpact } = require('../services/aiScheduler');
-        await applyAiNewsImpact(
-          pending.coin_symbol,
-          Number(pending.price_impact_percent) || 0,
-          pending.title_de || pending.title,
-          pending.summary_de || pending.summary
-        );
         pending.is_published = true;
         pending.published_at = now;
         rows = [pending];
-      } else {
-        // Table completely empty, trigger initial 12h cycle
-        await trigger12HourAiCycle(false, true);
-        rows = await db('ai_market_news')
-          .where('is_published', true)
-          .orderBy('published_at', 'desc')
-          .limit(limit);
+        // Apply price impact in background (non-blocking, never crash the request)
+        setImmediate(async () => {
+          try {
+            const { applyAiNewsImpact } = await import('../services/marketEngine');
+            await applyAiNewsImpact(
+              pending.coin_symbol,
+              Number(pending.price_impact_percent) || 0,
+              pending.title_de || pending.title,
+              pending.summary_de || pending.summary
+            );
+          } catch (e) {
+            // Non-fatal: price impact failure never crashes the news endpoint
+            console.warn('[AI News]: Auto-publish price impact skipped:', (e as Error).message);
+          }
+        });
       }
+      // If table is completely empty: return empty array gracefully.
+      // The scheduler cron will generate new content on its next tick.
+      // NEVER trigger a heavy AI cycle inside an HTTP request handler.
     }
 
     return res.json({
@@ -301,7 +305,9 @@ export async function getMarketNewsHandler(req: Request, res: Response) {
       }))
     });
   } catch (err: any) {
-    return res.status(500).json({ success: false, error: err.message });
+    // Never crash – always return valid JSON
+    console.error('[AI News Handler Error]:', err.message);
+    return res.json({ success: true, news: [] });
   }
 }
 
