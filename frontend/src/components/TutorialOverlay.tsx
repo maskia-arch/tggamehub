@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { Sparkles, Trophy, Zap, ChevronRight, X, AlertTriangle, CheckCircle2, TrendingUp, Gamepad2, ShoppingBag, User } from 'lucide-react';
 import { useLanguage } from '../i18n/LanguageContext';
 
@@ -36,32 +36,42 @@ export function TutorialOverlay({
   const [claiming, setClaiming] = useState(false);
   const [spotlightRect, setSpotlightRect] = useState<DOMRect | null>(null);
 
-  // Measure target bounding box dynamically
-  const updateSpotlight = useCallback(() => {
+  // Measure target bounding box dynamically & auto-scroll into center
+  useEffect(() => {
     if (!targetElementSelector) {
       setSpotlightRect(null);
       return;
     }
-    const el = document.querySelector(targetElementSelector);
-    if (el) {
-      const rect = el.getBoundingClientRect();
-      setSpotlightRect(rect);
-    } else {
-      setSpotlightRect(null);
-    }
-  }, [targetElementSelector]);
 
-  useEffect(() => {
-    updateSpotlight();
-    const interval = setInterval(updateSpotlight, 400);
-    window.addEventListener('resize', updateSpotlight);
-    window.addEventListener('scroll', updateSpotlight, true);
-    return () => {
-      clearInterval(interval);
-      window.removeEventListener('resize', updateSpotlight);
-      window.removeEventListener('scroll', updateSpotlight, true);
+    const update = () => {
+      const el = document.querySelector(targetElementSelector);
+      if (el) {
+        setSpotlightRect(el.getBoundingClientRect());
+      }
     };
-  }, [updateSpotlight]);
+
+    // Auto-scroll target smoothly into center
+    const timer1 = setTimeout(() => {
+      const el = document.querySelector(targetElementSelector);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        update();
+      }
+    }, 120);
+
+    const timer2 = setTimeout(update, 350);
+    const interval = setInterval(update, 400);
+    window.addEventListener('resize', update);
+    window.addEventListener('scroll', update, true);
+
+    return () => {
+      clearTimeout(timer1);
+      clearTimeout(timer2);
+      clearInterval(interval);
+      window.removeEventListener('resize', update);
+      window.removeEventListener('scroll', update, true);
+    };
+  }, [targetElementSelector, currentStep, subStep]);
 
   const handleClaim = async () => {
     setClaiming(true);
@@ -98,25 +108,26 @@ export function TutorialOverlay({
             borderRadius: '24px',
             padding: '24px',
             width: '100%',
-            maxWidth: '420px',
+            maxWidth: '390px',
             display: 'flex',
             flexDirection: 'column',
-            gap: '16px',
+            gap: '18px',
             textAlign: 'center',
           }}
         >
+          {/* Cyberpunk Arcade Icon */}
           <div
             style={{
               width: '64px',
               height: '64px',
               borderRadius: '20px',
               margin: '0 auto',
-              background: 'linear-gradient(135deg, rgba(0,242,254,0.15) 0%, rgba(79,172,254,0.25) 100%)',
-              border: '1px solid rgba(0,242,254,0.4)',
+              background: 'linear-gradient(135deg, rgba(0,242,254,0.2) 0%, rgba(79,172,254,0.1) 100%)',
+              border: '1px solid rgba(0, 242, 254, 0.4)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              boxShadow: '0 0 20px rgba(0,242,254,0.3)',
+              boxShadow: '0 0 25px rgba(0,242,254,0.25)',
             }}
           >
             <Sparkles size={32} style={{ color: '#00f2fe' }} />
@@ -126,40 +137,43 @@ export function TutorialOverlay({
             <h2 style={{ fontSize: '20px', fontWeight: 900, color: '#fff', margin: '0 0 6px 0', letterSpacing: '-0.02em' }}>
               {t.tutorial.offerTitle}
             </h2>
-            <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--accent-cyan)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+            <p style={{ fontSize: '12px', fontWeight: 800, color: '#00f2fe', textTransform: 'uppercase', letterSpacing: '0.08em', margin: '0 0 10px 0' }}>
               {t.tutorial.offerSubtitle}
-            </div>
+            </p>
+            <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.8)', lineHeight: 1.5, margin: 0 }}>
+              {t.tutorial.offerDescription}
+            </p>
           </div>
 
-          <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.8)', lineHeight: 1.5, margin: 0 }}>
-            {t.tutorial.offerDescription}
-          </p>
-
-          {/* Reward Badges Box */}
+          {/* Reward Highlights */}
           <div
             style={{
-              background: 'rgba(0, 242, 254, 0.06)',
-              border: '1px solid rgba(0, 242, 254, 0.2)',
+              background: 'rgba(255, 255, 255, 0.03)',
+              border: '1px solid rgba(255, 255, 255, 0.08)',
               borderRadius: '16px',
               padding: '12px',
               display: 'flex',
-              justifyContent: 'space-around',
-              alignItems: 'center',
+              flexDirection: 'column',
+              gap: '8px',
+              textAlign: 'left',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <Zap size={16} style={{ color: '#fbbf24' }} />
-              <span style={{ fontSize: '12px', fontWeight: 800, color: '#fbbf24' }}>+5 Energy</span>
+              <span style={{ fontSize: '12px', fontWeight: 800, color: '#fbbf24' }}>
+                +5 {t.tutorial.completion.energyAward}
+              </span>
             </div>
-            <div style={{ width: '1px', height: '20px', background: 'rgba(255,255,255,0.15)' }} />
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <TrendingUp size={16} style={{ color: '#4ade80' }} />
-              <span style={{ fontSize: '12px', fontWeight: 800, color: '#4ade80' }}>All Coins Starter-Bag</span>
+              <span style={{ fontSize: '11.5px', fontWeight: 700, color: '#4ade80' }}>
+                {t.tutorial.completion.portfolioAward}
+              </span>
             </div>
           </div>
 
-          {/* Action Buttons */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '6px' }}>
+          {/* Action Options */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
             <button
               onClick={onStart}
               style={{
@@ -172,52 +186,48 @@ export function TutorialOverlay({
                 fontWeight: 900,
                 border: 'none',
                 cursor: 'pointer',
-                boxShadow: '0 0 25px rgba(0, 242, 254, 0.45)',
+                boxShadow: '0 0 25px rgba(0, 242, 254, 0.4)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: '8px',
-                transition: 'transform 0.15s ease',
               }}
             >
               <span>{t.tutorial.startBtn}</span>
+              <ChevronRight size={18} />
             </button>
 
-            <div style={{ display: 'flex', gap: '10px' }}>
-              <button
-                onClick={onPostpone}
-                style={{
-                  flex: 1,
-                  padding: '11px',
-                  borderRadius: '12px',
-                  background: 'rgba(255,255,255,0.06)',
-                  border: '1px solid rgba(255,255,255,0.12)',
-                  color: 'rgba(255,255,255,0.85)',
-                  fontSize: '12px',
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                }}
-              >
-                {t.tutorial.laterBtn}
-              </button>
+            <button
+              onClick={onPostpone}
+              style={{
+                width: '100%',
+                padding: '11px',
+                borderRadius: '12px',
+                background: 'rgba(255,255,255,0.06)',
+                border: '1px solid rgba(255,255,255,0.12)',
+                color: 'rgba(255,255,255,0.85)',
+                fontSize: '12.5px',
+                fontWeight: 700,
+                cursor: 'pointer',
+              }}
+            >
+              {t.tutorial.laterBtn}
+            </button>
 
-              <button
-                onClick={onDeclinePermanent}
-                style={{
-                  flex: 1,
-                  padding: '11px',
-                  borderRadius: '12px',
-                  background: 'rgba(239, 68, 68, 0.08)',
-                  border: '1px solid rgba(239, 68, 68, 0.25)',
-                  color: '#f87171',
-                  fontSize: '12px',
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                }}
-              >
-                {t.tutorial.expertBtn}
-              </button>
-            </div>
+            <button
+              onClick={onDeclinePermanent}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: 'rgba(255,255,255,0.4)',
+                fontSize: '11.5px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                padding: '4px',
+              }}
+            >
+              {t.tutorial.expertBtn}
+            </button>
           </div>
         </div>
       </div>
@@ -232,8 +242,8 @@ export function TutorialOverlay({
           position: 'fixed',
           inset: 0,
           backgroundColor: 'rgba(3, 7, 18, 0.88)',
-          backdropFilter: 'blur(14px)',
-          WebkitBackdropFilter: 'blur(14px)',
+          backdropFilter: 'blur(12px)',
+          WebkitBackdropFilter: 'blur(12px)',
           zIndex: 999990,
           display: 'flex',
           alignItems: 'center',
@@ -244,58 +254,61 @@ export function TutorialOverlay({
       >
         <div
           style={{
-            background: 'linear-gradient(180deg, #101c38 0%, #090e1f 100%)',
-            border: '1px solid rgba(74, 222, 128, 0.4)',
+            background: 'linear-gradient(180deg, #0d1e2e 0%, #06111a 100%)',
+            border: '1px solid rgba(74, 222, 128, 0.45)',
             boxShadow: '0 0 50px rgba(74, 222, 128, 0.25), 0 20px 40px rgba(0,0,0,0.9)',
             borderRadius: '24px',
-            padding: '24px',
+            padding: '26px 22px',
             width: '100%',
-            maxWidth: '420px',
+            maxWidth: '390px',
             display: 'flex',
             flexDirection: 'column',
             gap: '18px',
             textAlign: 'center',
+            animation: 'slideUpTutorial 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
           }}
         >
           <div
             style={{
-              width: '72px',
-              height: '72px',
+              width: '68px',
+              height: '68px',
               borderRadius: '22px',
               margin: '0 auto',
-              background: 'linear-gradient(135deg, rgba(74,222,128,0.2) 0%, rgba(34,197,94,0.35) 100%)',
-              border: '1px solid rgba(74,222,128,0.5)',
+              background: 'linear-gradient(135deg, rgba(74,222,128,0.25) 0%, rgba(34,197,94,0.12) 100%)',
+              border: '1px solid rgba(74, 222, 128, 0.5)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              boxShadow: '0 0 30px rgba(74,222,128,0.4)',
+              boxShadow: '0 0 30px rgba(74, 222, 128, 0.35)',
+              fontSize: '32px',
             }}
           >
-            <Trophy size={38} style={{ color: '#4ade80' }} />
+            🎉
           </div>
 
           <div>
-            <h2 style={{ fontSize: '22px', fontWeight: 900, color: '#fff', margin: '0 0 6px 0' }}>
+            <h2 style={{ fontSize: '22px', fontWeight: 900, color: '#fff', margin: '0 0 6px 0', letterSpacing: '-0.02em' }}>
               {t.tutorial.completion.title}
             </h2>
-            <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.75)' }}>
+            <p style={{ fontSize: '12.5px', color: 'rgba(255,255,255,0.75)', lineHeight: 1.45, margin: 0 }}>
               {t.tutorial.completion.subtitle}
-            </div>
+            </p>
           </div>
 
+          {/* Reward Breakdown Cards */}
           <div
             style={{
-              background: 'rgba(0,0,0,0.4)',
-              border: '1px solid rgba(255,255,255,0.1)',
+              background: 'rgba(255, 255, 255, 0.03)',
+              border: '1px solid rgba(255, 255, 255, 0.08)',
               borderRadius: '18px',
-              padding: '16px',
+              padding: '14px',
               display: 'flex',
               flexDirection: 'column',
-              gap: '12px',
+              gap: '10px',
               textAlign: 'left',
             }}
           >
-            <div style={{ fontSize: '11px', fontWeight: 800, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+            <div style={{ fontSize: '11px', fontWeight: 900, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
               {t.tutorial.completion.rewardHeader}
             </div>
 
@@ -371,8 +384,13 @@ export function TutorialOverlay({
           badge: t.tutorial.step2.badge,
           title: t.tutorial.step2.title,
           text: t.tutorial.step2.text,
-          buttonText: undefined,
-          showActionBtn: false,
+          buttonText: 'Neon Jump starten 🎮',
+          showActionBtn: true,
+          onAction: () => {
+            const el = document.querySelector('[data-tutorial="game-play-btn-doodlejump"]') as HTMLElement;
+            if (el) el.click();
+            else onNextStep();
+          },
         };
       case 3:
         if (subStep === 'market_news') {
@@ -392,7 +410,12 @@ export function TutorialOverlay({
             badge: t.tutorial.step3.badge,
             title: '$DOODLE kaufen',
             text: t.tutorial.step3.tradingIntro,
-            showActionBtn: false,
+            buttonText: 'MAX (0,10$) auswählen 🛒',
+            showActionBtn: true,
+            onAction: () => {
+              const maxBtn = document.querySelector('[data-tutorial="market-trade-max-btn"]') as HTMLElement;
+              if (maxBtn) maxBtn.click();
+            },
           };
         }
         return {
@@ -440,8 +463,12 @@ export function TutorialOverlay({
           badge: t.tutorial.step7.badge,
           title: t.tutorial.step7.title,
           text: t.tutorial.step7.text,
-          buttonText: undefined,
-          showActionBtn: false,
+          buttonText: 'Profilbild auswählen 🎭',
+          showActionBtn: true,
+          onAction: () => {
+            const el = document.querySelector('[data-tutorial="profile-avatar-btn"]') as HTMLElement;
+            if (el) el.click();
+          },
         };
       default:
         return {
@@ -458,53 +485,73 @@ export function TutorialOverlay({
 
   const stepInfo = getStepContent();
 
+  // Smart non-overlapping card positioning:
+  // If highlighted target is in the lower half of screen -> anchor card at TOP (top: 16px).
+  // If highlighted target is in upper half or none -> anchor card at BOTTOM (bottom: 84px).
+  const targetCenterY = spotlightRect ? (spotlightRect.top + spotlightRect.height / 2) : 0;
+  const isTargetInLowerHalf = Boolean(spotlightRect && targetCenterY > (window.innerHeight * 0.44));
+
   return (
     <>
-      {/* Dimmed & blurred global backdrop with spotlight cut-out */}
-      <div
-        style={{
-          position: 'fixed',
-          inset: 0,
-          backgroundColor: spotlightRect ? 'rgba(3, 7, 18, 0.72)' : 'rgba(3, 7, 18, 0.82)',
-          backdropFilter: 'blur(4px)',
-          WebkitBackdropFilter: 'blur(4px)',
-          zIndex: 99990,
-          pointerEvents: spotlightRect ? 'none' : 'auto',
-          transition: 'all 0.3s ease',
-        }}
-      />
-
-      {/* Spotlight glow border over highlighted element */}
-      {spotlightRect && (
+      {/* ── True Cutout Spotlight Overlay (Crystal Clear Inside, Dimmed Outside) ── */}
+      {spotlightRect ? (
+        <>
+          {/* Transparent click blocker around the highlighted area */}
+          <div
+            style={{
+              position: 'fixed',
+              inset: 0,
+              zIndex: 99980,
+              pointerEvents: 'none',
+            }}
+          />
+          {/* Spotlight cutout border box with infinite outer dark shadow */}
+          <div
+            style={{
+              position: 'fixed',
+              top: spotlightRect.top - 6,
+              left: spotlightRect.left - 6,
+              width: spotlightRect.width + 12,
+              height: spotlightRect.height + 12,
+              borderRadius: '16px',
+              border: '2.5px solid #00f2fe',
+              boxShadow: '0 0 0 9999px rgba(3, 7, 18, 0.85), 0 0 30px rgba(0, 242, 254, 0.9), inset 0 0 15px rgba(0, 242, 254, 0.25)',
+              zIndex: 99990,
+              pointerEvents: 'none',
+              transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+              animation: 'pulseGlow 2s infinite ease-in-out',
+            }}
+          />
+        </>
+      ) : (
+        /* Fullscreen dimmed backdrop for steps without a specific target element */
         <div
           style={{
             position: 'fixed',
-            top: spotlightRect.top - 4,
-            left: spotlightRect.left - 4,
-            width: spotlightRect.width + 8,
-            height: spotlightRect.height + 8,
-            borderRadius: '16px',
-            border: '2px solid #00f2fe',
-            boxShadow: '0 0 25px rgba(0, 242, 254, 0.6), inset 0 0 15px rgba(0, 242, 254, 0.2)',
-            zIndex: 99995,
-            pointerEvents: 'none',
-            animation: 'pulseGlow 2s infinite ease-in-out',
+            inset: 0,
+            backgroundColor: 'rgba(3, 7, 18, 0.85)',
+            backdropFilter: 'blur(8px)',
+            WebkitBackdropFilter: 'blur(8px)',
+            zIndex: 99990,
+            pointerEvents: 'auto',
+            animation: 'fadeIn 0.2s ease-out',
           }}
         />
       )}
 
-      {/* Floating Tutorial Card */}
+      {/* ── Floating Smart-Positioned Tutorial Explanation Card ── */}
       <div
         style={{
           position: 'fixed',
           left: '50%',
           transform: 'translateX(-50%)',
-          bottom: '84px', // Placed just above the bottom navigation bar
-          width: 'calc(100% - 28px)',
+          top: isTargetInLowerHalf ? '16px' : 'auto',
+          bottom: !isTargetInLowerHalf ? '84px' : 'auto',
+          width: 'calc(100% - 24px)',
           maxWidth: '410px',
-          background: 'linear-gradient(180deg, rgba(16, 24, 46, 0.96) 0%, rgba(8, 12, 24, 0.98) 100%)',
-          border: '1px solid rgba(0, 242, 254, 0.4)',
-          boxShadow: '0 0 35px rgba(0, 242, 254, 0.2), 0 12px 30px rgba(0,0,0,0.85)',
+          background: 'linear-gradient(180deg, rgba(14, 22, 42, 0.98) 0%, rgba(6, 10, 20, 0.99) 100%)',
+          border: '1.5px solid rgba(0, 242, 254, 0.45)',
+          boxShadow: '0 0 40px rgba(0, 242, 254, 0.25), 0 16px 36px rgba(0,0,0,0.92)',
           borderRadius: '22px',
           padding: '16px 18px',
           zIndex: 99998,
@@ -512,9 +559,10 @@ export function TutorialOverlay({
           flexDirection: 'column',
           gap: '10px',
           animation: 'slideUpTutorial 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
+          transition: 'top 0.3s ease, bottom 0.3s ease',
         }}
       >
-        {/* Header with Step indicator and Abort button */}
+        {/* Header with Step indicator, Target Direction Hint, and Abort button */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <span
@@ -532,29 +580,46 @@ export function TutorialOverlay({
             >
               {t.tutorial.stepIndicator.replace('{step}', String(currentStep)).replace('{total}', '7')}
             </span>
-            <span style={{ fontSize: '11px', fontWeight: 800, color: 'rgba(255,255,255,0.6)' }}>
+            <span style={{ fontSize: '11px', fontWeight: 800, color: 'rgba(255,255,255,0.65)' }}>
               {stepInfo.badge}
             </span>
           </div>
 
-          <button
-            onClick={() => setShowAbortModal(true)}
-            style={{
-              background: 'rgba(255,255,255,0.06)',
-              border: '1px solid rgba(255,255,255,0.1)',
-              borderRadius: '50%',
-              width: '24px',
-              height: '24px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: 'rgba(255,255,255,0.6)',
-              cursor: 'pointer',
-            }}
-            title="Tutorial abbrechen"
-          >
-            <X size={13} />
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            {spotlightRect && (
+              <span
+                style={{
+                  fontSize: '9.5px',
+                  fontWeight: 800,
+                  color: '#00f2fe',
+                  background: 'rgba(0,242,254,0.1)',
+                  borderRadius: '6px',
+                  padding: '2px 6px',
+                  border: '1px solid rgba(0,242,254,0.25)',
+                }}
+              >
+                {isTargetInLowerHalf ? '⬇️ Unten' : '⬆️ Oben'}
+              </span>
+            )}
+            <button
+              onClick={() => setShowAbortModal(true)}
+              style={{
+                background: 'rgba(255,255,255,0.06)',
+                border: '1px solid rgba(255,255,255,0.1)',
+                borderRadius: '50%',
+                width: '24px',
+                height: '24px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'rgba(255,255,255,0.6)',
+                cursor: 'pointer',
+              }}
+              title="Tutorial abbrechen"
+            >
+              <X size={13} />
+            </button>
+          </div>
         </div>
 
         {/* Title */}
@@ -577,11 +642,11 @@ export function TutorialOverlay({
             style={{
               width: '100%',
               marginTop: '4px',
-              padding: '10px 14px',
+              padding: '11px 14px',
               borderRadius: '12px',
               background: 'linear-gradient(135deg, #00f2fe 0%, #4facfe 100%)',
               color: '#000',
-              fontSize: '12.5px',
+              fontSize: '13px',
               fontWeight: 900,
               border: 'none',
               cursor: 'pointer',
@@ -589,11 +654,11 @@ export function TutorialOverlay({
               alignItems: 'center',
               justifyContent: 'center',
               gap: '6px',
-              boxShadow: '0 0 16px rgba(0,242,254,0.35)',
+              boxShadow: '0 0 18px rgba(0,242,254,0.35)',
             }}
           >
             <span>{stepInfo.buttonText || 'Weiter'}</span>
-            <ChevronRight size={15} />
+            <ChevronRight size={16} />
           </button>
         )}
       </div>

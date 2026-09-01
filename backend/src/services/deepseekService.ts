@@ -659,8 +659,8 @@ export function generateFallbackScript(theme: string, coins: any[]): Generated12
         reward_coin_symbol: primaryCoin,
         reward_amount: 300,
         reward_max_claims: 20,
-        reward_valid_hours: 4,
-        scheduled_minutes_from_now: 40
+        reward_valid_hours: 6,
+        scheduled_minutes_from_now: 120
       },
       {
         post_text_de: `🔋 *[Energie-Überladung]*: Die Arcade-Server laufen auf Hochtouren! Für die schnellsten 15 aktiven Leser gibt es jetzt *+5 Gratis-Energie* direkt aufs Spielerkonto:`,
@@ -670,8 +670,8 @@ export function generateFallbackScript(theme: string, coins: any[]): Generated12
         reward_type: 'ENERGY',
         reward_amount: 5,
         reward_max_claims: 15,
-        reward_valid_hours: 4,
-        scheduled_minutes_from_now: 180
+        reward_valid_hours: 6,
+        scheduled_minutes_from_now: 260
       },
       {
         post_text_de: `🔥 *[Rallye-Spezial]*: Passend zur aktuellen Marktbewegung verteilt der CoinCade Newsroom *400 $${secondaryCoin}* an die ersten 25 Leser im Chat! Schnell zugreifen:`,
@@ -683,7 +683,7 @@ export function generateFallbackScript(theme: string, coins: any[]): Generated12
         reward_amount: 400,
         reward_max_claims: 25,
         reward_valid_hours: 6,
-        scheduled_minutes_from_now: 340
+        scheduled_minutes_from_now: 420
       },
       {
         post_text_de: `🎁 *[Airdrop-Vorschub]*: Großartiger Team-Geist im Chat! Die schnellsten 20 Klicker erhalten *350 $${tertiaryCoin}* als Dankeschön für die Treue:`,
@@ -695,7 +695,7 @@ export function generateFallbackScript(theme: string, coins: any[]): Generated12
         reward_amount: 350,
         reward_max_claims: 20,
         reward_valid_hours: 6,
-        scheduled_minutes_from_now: 500
+        scheduled_minutes_from_now: 580
       }
     ],
     crypto_events: [
@@ -760,7 +760,7 @@ You will generate a cohesive, thrilling 12-hour episodic storyline arc with THRE
    - impact_duration_minutes: 60 to 240 minutes.
    - scheduled_minutes_from_now: Evenly distributed over 12 hours (spaced every 60-90 minutes).
 
-2. BILINGUAL TELEGRAM MODERATOR DROPS FOR ACTIVE CHAT READERS ("channel_posts", generate 4 to 6 items):
+2. BILINGUAL TELEGRAM MODERATOR DROPS FOR ACTIVE CHAT READERS ("channel_posts", generate 4 to 5 items):
    - post_text_de & post_text_en: High-energy, engaging moderator posts by the CoinCade Host directly addressing active chat readers.
    - CRITICAL RULE: Active readers in the chat are rewarded directly for their attention and speed. DO NOT require gaming hurdles (e.g. DO NOT require 'reach score X in minigame Y'). The fastest readers who tap the link/button claim the bonus!
    - THEMATIC REWARD MATCHING: The reward MUST directly match the message content!
@@ -774,8 +774,8 @@ You will generate a cohesive, thrilling 12-hour episodic storyline arc with THRE
    - reward_coin_symbol: 'DOODLE', 'FLAPPY', 'CROSSY', or 'STACK' (or null if ENERGY).
    - reward_amount: Safe integer (e.g. 200-500 coins or 2-5 energy).
    - reward_max_claims: Limited quota (15 to 35 fastest readers).
-   - reward_valid_hours: 4 to 8 hours.
-   - scheduled_minutes_from_now: Timed distribution over 12 hours (spaced every 90-150 minutes).
+   - reward_valid_hours: 6 to 12 hours.
+   - scheduled_minutes_from_now: Timed distribution over 12 hours, spaced 120 to 180 minutes (2 to 3 hours) apart (e.g. at 120, 260, 400, 540 minutes from now). NEVER schedule drops closer than 120 minutes (2 hours) apart.
 
 3. LIVE CRYPTO EVENTS ("crypto_events", generate 3 to 5 items):
    - event_type: 'CYBER_RALLY' | 'PUMP' | 'CRASH' | 'WHALE_ALERT' | 'QUANTUM_GLITCH' | 'ENERGY_SURGE'.

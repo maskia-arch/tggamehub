@@ -417,19 +417,77 @@ export async function runAutoMigrations(knex: Knex): Promise<void> {
       await ensureColumn(knex, 'market_coins', 'virtual_token_reserve', (t) => t.float('virtual_token_reserve').defaultTo(10000000000000.0));
       await ensureColumn(knex, 'market_coins', 'constant_product_k', (t) => t.float('constant_product_k').defaultTo(1000000000000000000.0));
 
-      // Ensure canonical names & initialize pool reserves if missing or 0
-      await knex('market_coins').where({ symbol: 'DOODLE' }).update({
-        name: 'Neon Jump Coin',
-      });
-      await knex('market_coins').where({ symbol: 'FLAPPY' }).update({
-        name: 'Neon Bird Coin',
-      });
-      await knex('market_coins').where({ symbol: 'CROSSY' }).update({
-        name: 'Crossy Neon Road Coin',
-      });
-      await knex('market_coins').where({ symbol: 'STACK' }).update({
-        name: 'NEON STACK Coin',
-      });
+      // Ensure all 4 canonical coins exist in market_coins (Insert if missing!)
+      const defaultCoins = [
+        {
+          symbol: 'DOODLE',
+          name: 'Neon Jump Coin',
+          game_id: 'doodlejump',
+          current_price: 0.00000001,
+          base_price: 0.00000001,
+          virtual_game_reserve: 100000.0,
+          virtual_token_reserve: 10000000000000.0,
+          constant_product_k: 1000000000000000000.0,
+          circulating_supply: 10000000000000.0,
+          total_burned: 0.0,
+          volume_24h: 0.0
+        },
+        {
+          symbol: 'FLAPPY',
+          name: 'Neon Bird Coin',
+          game_id: 'neonbird',
+          current_price: 0.00000001,
+          base_price: 0.00000001,
+          virtual_game_reserve: 100000.0,
+          virtual_token_reserve: 10000000000000.0,
+          constant_product_k: 1000000000000000000.0,
+          circulating_supply: 10000000000000.0,
+          total_burned: 0.0,
+          volume_24h: 0.0
+        },
+        {
+          symbol: 'CROSSY',
+          name: 'Crossy Neon Road Coin',
+          game_id: 'crossyneonroad',
+          current_price: 0.00000001,
+          base_price: 0.00000001,
+          virtual_game_reserve: 100000.0,
+          virtual_token_reserve: 10000000000000.0,
+          constant_product_k: 1000000000000000000.0,
+          circulating_supply: 10000000000000.0,
+          total_burned: 0.0,
+          volume_24h: 0.0
+        },
+        {
+          symbol: 'STACK',
+          name: 'NEON STACK Coin',
+          game_id: 'neonstacking',
+          current_price: 0.00000001,
+          base_price: 0.00000001,
+          virtual_game_reserve: 100000.0,
+          virtual_token_reserve: 10000000000000.0,
+          constant_product_k: 1000000000000000000.0,
+          circulating_supply: 10000000000000.0,
+          total_burned: 0.0,
+          volume_24h: 0.0
+        },
+      ];
+
+      for (const dc of defaultCoins) {
+        const coinExists = await knex('market_coins').where({ symbol: dc.symbol }).first();
+        if (!coinExists) {
+          await knex('market_coins').insert({
+            ...dc,
+            updated_at: new Date().toISOString()
+          });
+          console.log(`[DATABASE AUTO-SYNC]: Inserted missing coin $${dc.symbol} (${dc.name})`);
+        } else {
+          await knex('market_coins').where({ symbol: dc.symbol }).update({
+            name: dc.name,
+            game_id: dc.game_id,
+          });
+        }
+      }
 
       // Self-heal pool reserves for any coins with 0 or null reserves
       const allCoins = await knex('market_coins').select('*');
@@ -489,6 +547,17 @@ export async function runAutoMigrations(knex: Knex): Promise<void> {
           updated_at: new Date().toISOString(),
         });
         console.log(`[DATABASE AUTO-SYNC]: Seeded game setting for ${dg.game_id} (${dg.status}, sort_order: ${dg.sort_order})`);
+      } else {
+        // Ensure neonstacking is active
+        if (dg.game_id === 'neonstacking' && exists.status !== 'active') {
+          await knex('hub_game_settings').where({ game_id: 'neonstacking' }).update({
+            status: 'active',
+            target_score: 15,
+            sort_order: 3,
+            updated_at: new Date().toISOString(),
+          });
+          console.log('[DATABASE AUTO-SYNC]: Activated NEON STACK in hub_game_settings.');
+        }
       }
     }
 

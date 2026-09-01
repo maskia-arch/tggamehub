@@ -217,10 +217,19 @@ export async function trigger12HourAiCycle(
       }
     }
 
-    // ── 2. Insert Scheduled Telegram Channel Posts ──────────────────────────
-    for (const post of script.channel_posts) {
-      const scheduledAt = new Date(now.getTime() + (Number(post.scheduled_minutes_from_now) || 30) * 60 * 1000);
-      const validHours = Number(post.reward_valid_hours) || 6;
+    // ── 2. Insert Scheduled Telegram Channel Posts (2-3 hours interval) ─────
+    for (let i = 0; i < script.channel_posts.length; i++) {
+      const post = script.channel_posts[i];
+      let scheduledMins = Number(post.scheduled_minutes_from_now);
+      
+      // Enforce 2-3 hours spacing (minimum 120 minutes offset per post)
+      const minimumMins = 120 + (i * 120);
+      if (isNaN(scheduledMins) || scheduledMins < minimumMins) {
+        scheduledMins = 120 + (i * 135); // 120m (2h), 255m (4.25h), 390m (6.5h), 525m (8.75h)
+      }
+
+      const scheduledAt = new Date(now.getTime() + scheduledMins * 60 * 1000);
+      const validHours = Math.max(6, Number(post.reward_valid_hours) || 6);
       const expiresAt = new Date(scheduledAt.getTime() + validHours * 60 * 60 * 1000);
       const hasReward = post.reward_type && post.reward_type !== 'NONE' && Number(post.reward_amount) > 0;
       const claimCode = hasReward ? generateSecureClaimCode() : null;
@@ -414,7 +423,7 @@ export async function dispatchDueAiActions(): Promise<void> {
                 : `🪙 +${Number(post.reward_amount).toLocaleString()} $${post.reward_coin_symbol} Story-Bonus sichern`;
 
               // Deep link to Bot: https://t.me/<bot_username>?start=claim_<reward_claim_code>
-              const botUsername = (bot.botInfo?.username) || 'CoinCadeGameBot';
+              const botUsername = (bot.botInfo?.username) || config.telegramBotUsername || 'CoinCadeGameBot';
               const claimUrl = `https://t.me/${botUsername}?start=${post.reward_claim_code}`;
               
               messageText += `\n\n[GIFT] <b>Community-Bonus:</b> Exklusiv für die ersten <b>${post.reward_max_claims}</b> Spieler verfügbar! Tippe auf den Button unten, um dir deinen Bonus direkt abzuholen:`;
@@ -422,10 +431,10 @@ export async function dispatchDueAiActions(): Promise<void> {
               buttons.push([Markup.button.url(rewardLabel, claimUrl)]);
             }
 
-            // Also add button to open Arcade Mini App
-            if (config.frontendUrl) {
-              buttons.push([Markup.button.url('🎮 CoinCade Arcade öffnen', config.frontendUrl)]);
-            }
+            // Also add button to open Telegram Bot / Arcade
+            const botUsername = (bot.botInfo?.username) || config.telegramBotUsername || 'CoinCadeGameBot';
+            const botUrl = `https://t.me/${botUsername}`;
+            buttons.push([Markup.button.url('🎮 CoinCade Arcade öffnen', botUrl)]);
 
             const formattedHtml = formatCoinCadeHtml(messageText);
 
@@ -630,8 +639,9 @@ export async function startChannelModerationWelcomeMessage(): Promise<{
 
     // Dispatch broadcast immediately
     const { formatCoinCadeHtml } = require('./customEmojiFormatter');
-    const botUsername = (bot.botInfo?.username) || 'CoinCadeGameBot';
+    const botUsername = (bot.botInfo?.username) || config.telegramBotUsername || 'CoinCadeGameBot';
     const claimUrl = `https://t.me/${botUsername}?start=${claimCode}`;
+    const botUrl = `https://t.me/${botUsername}`;
 
     let msg = `[COINCADE]\n\n` +
       `[NEWS] <b>CoinCade Community Hub — Live Eröffnung</b>\n\n` +
@@ -644,7 +654,7 @@ export async function startChannelModerationWelcomeMessage(): Promise<{
     const formattedHtml = formatCoinCadeHtml(msg);
     const buttons = [
       [Markup.button.url('🎁 +500 $DOODLE Genesis-Bonus sichern (Noch 25/25)', claimUrl)],
-      ...(config.frontendUrl ? [[Markup.button.url('🎮 CoinCade Arcade öffnen', config.frontendUrl)]] : [])
+      [Markup.button.url('🎮 CoinCade Arcade öffnen', botUrl)]
     ];
 
     const sent = await bot.telegram.sendMessage(channelId, formattedHtml, {

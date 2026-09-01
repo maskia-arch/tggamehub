@@ -58,8 +58,9 @@ export async function liveEditTelegramChannelPost(postId: number): Promise<void>
     }
 
     const buttons: any[] = [];
-    const botUsername = (bot.botInfo?.username) || 'CoinCadeGameBot';
+    const botUsername = (bot.botInfo?.username) || config.telegramBotUsername || 'CoinCadeGameBot';
     const claimUrl = `https://t.me/${botUsername}?start=${post.reward_claim_code}`;
+    const botUrl = `https://t.me/${botUsername}`;
 
     if (!isSoldOut) {
       const rewardLabel = post.reward_type === 'ENERGY'
@@ -70,9 +71,7 @@ export async function liveEditTelegramChannelPost(postId: number): Promise<void>
       buttons.push([Markup.button.url('🔒 Ausverkauft (Alle Boni vergeben)', claimUrl)]);
     }
 
-    if (config.frontendUrl) {
-      buttons.push([Markup.button.url('🎮 CoinCade Arcade öffnen', config.frontendUrl)]);
-    }
+    buttons.push([Markup.button.url('🎮 CoinCade Arcade öffnen', botUrl)]);
 
     const { formatCoinCadeHtml } = require('../services/customEmojiFormatter');
     const formattedHtml = formatCoinCadeHtml(updatedMsgText);

@@ -12,6 +12,7 @@ export const config = {
   port: parseInt(process.env.PORT || '5000', 10),
   nodeEnv: (process.env.NODE_ENV || 'development').trim(),
   telegramBotToken: (process.env.TELEGRAM_BOT_TOKEN || '').trim(),
+  telegramBotUsername: (process.env.TELEGRAM_BOT_USERNAME || 'CoinCadeGameBot').trim(),
   databaseUrl: (process.env.DATABASE_URL || 'sqlite://./local.db').trim(),
   redisUrl: (process.env.REDIS_URL || '').trim(),
   jwtSecret: (process.env.JWT_SECRET || 'local_development_only_secret_key_12345').trim(),
