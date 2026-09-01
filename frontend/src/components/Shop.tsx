@@ -290,7 +290,9 @@ export function Shop({ initData, backendUrl, onPurchaseSuccess, profile }: ShopP
       {!checkout && (
         <>
           {/* ── Shop Header ────────────────────────────────────────────────── */}
-          <div style={{
+          <div
+            data-tutorial="shop-header-card"
+            style={{
             background: 'linear-gradient(135deg, rgba(0,242,254,0.08) 0%, rgba(167,139,250,0.06) 100%)',
             border: '1px solid rgba(0,242,254,0.15)',
             borderRadius: '22px',

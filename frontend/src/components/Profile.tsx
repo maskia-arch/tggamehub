@@ -61,6 +61,8 @@ interface ProfileProps {
   onRefresh: () => void;
   initData: string;
   backendUrl: string;
+  onTutorialAvatarSelected?: () => void;
+  autoOpenAvatarModal?: boolean;
 }
 
 /* ─── Small section card ─────────────────────────────────────────────────── */
@@ -95,7 +97,7 @@ function SectionTitle({ icon, label }: { icon: React.ReactNode; label: string })
 import { useLanguage } from '../i18n/LanguageContext';
 
 /* ─── Main Component ──────────────────────────────────────────────────────── */
-export function Profile({ profile, onRefresh, initData, backendUrl }: ProfileProps) {
+export function Profile({ profile, onRefresh, initData, backendUrl, onTutorialAvatarSelected, autoOpenAvatarModal }: ProfileProps) {
   const { t, language } = useLanguage();
   const [copied, setCopied] = useState(false);
   const [adLoading, setAdLoading] = useState(false);
@@ -126,6 +128,12 @@ export function Profile({ profile, onRefresh, initData, backendUrl }: ProfilePro
 
   // Avatar Selection Modal state
   const [showAvatarModal, setShowAvatarModal] = useState(false);
+
+  useEffect(() => {
+    if (autoOpenAvatarModal) {
+      setShowAvatarModal(true);
+    }
+  }, [autoOpenAvatarModal]);
 
   // Live sync countdown directly from App root state
   useEffect(() => {
@@ -277,6 +285,7 @@ export function Profile({ profile, onRefresh, initData, backendUrl }: ProfilePro
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: '16px' }}>
           {/* Neon Avatar with Glow & Click-to-Edit */}
           <div
+            data-tutorial="profile-avatar-btn"
             onClick={() => setShowAvatarModal(true)}
             style={{
               position: 'relative',
@@ -1094,7 +1103,12 @@ export function Profile({ profile, onRefresh, initData, backendUrl }: ProfilePro
           currentAvatarId={profile.user.avatar_id}
           initData={initData}
           backendUrl={backendUrl}
-          onAvatarSaved={() => onRefresh()}
+          onAvatarSaved={() => {
+            onRefresh();
+            if (onTutorialAvatarSelected) {
+              onTutorialAvatarSelected();
+            }
+          }}
         />
       )}
     </div>

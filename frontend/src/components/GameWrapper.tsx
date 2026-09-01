@@ -32,6 +32,8 @@ interface GameWrapperProps {
   referralLink: string;
   dailyAdCount: number;
   onOpenShop?: () => void;
+  isTutorialStep2?: boolean;
+  onTutorialGameCompleted?: () => void;
 }
 
 export function GameWrapper({
@@ -45,6 +47,8 @@ export function GameWrapper({
   referralLink,
   dailyAdCount,
   onOpenShop,
+  isTutorialStep2,
+  onTutorialGameCompleted,
 }: GameWrapperProps) {
   const { t, language } = useLanguage();
   const [activeGame, setActiveGame] = useState<Game | null>(null);
@@ -121,7 +125,7 @@ export function GameWrapper({
     },
     {
       id: 'neonstacking',
-      title: 'Neon Stacking',
+      title: 'NEON STACK',
       description: 'Stapele die Neon-Bloecke so praezise wie moeglich! Schneide ueberstehende Kanten ab. Touch-optimiert.',
       path: '/games/neonstacking/index.html',
       genre: 'Arcade / Stacking',
@@ -129,7 +133,7 @@ export function GameWrapper({
       preview: '/images/neon_stacking_preview.png',
       targetScore: 15,
       coinSymbol: 'STACK',
-      hidden: true,
+      hidden: false,
     }
   ];
 
@@ -247,9 +251,18 @@ export function GameWrapper({
         }
         onGameFinished(); // Refresh energy/leaderboards in main app
         fetchBenchmarks(); // Refresh dynamic benchmarks
+
+        if (isTutorialStep2) {
+          setTimeout(() => {
+            handleCloseGame();
+            if (onTutorialGameCompleted) {
+              onTutorialGameCompleted();
+            }
+          }, 600);
+        }
       }
     },
-    [activeGame, gameSessionToken, initData, backendUrl, onGameFinished, fetchBenchmarks]
+    [activeGame, gameSessionToken, initData, backendUrl, onGameFinished, fetchBenchmarks, isTutorialStep2, handleCloseGame, onTutorialGameCompleted]
   );
 
   // Rewarded Ad Timer Effect for In-Game Revival (15 seconds standard rewarded video duration)
@@ -498,6 +511,7 @@ export function GameWrapper({
                     </button>
                   ) : (
                     <button
+                      data-tutorial={game.id === 'doodlejump' ? 'game-play-btn-doodlejump' : undefined}
                       onClick={() => handleStartGame(game)}
                       style={{
                         width: '100%', padding: '14px',

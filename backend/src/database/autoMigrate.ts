@@ -50,6 +50,10 @@ export async function runAutoMigrations(knex: Knex): Promise<void> {
         table.integer('last_bot_message_id').nullable();
         table.integer('last_notification_message_id').nullable();
         table.integer('last_market_alert_message_id').nullable();
+        table.string('avatar_id', 50).defaultTo('avatar_1');
+        table.string('tutorial_status', 30).defaultTo('NOT_STARTED');
+        table.integer('tutorial_step').defaultTo(1);
+        table.boolean('tutorial_reward_claimed').defaultTo(false);
         table.timestamp('created_at').defaultTo(knex.fn.now());
       });
       console.log('[DATABASE AUTO-SYNC]: Created users table.');
@@ -83,6 +87,9 @@ export async function runAutoMigrations(knex: Knex): Promise<void> {
       await ensureColumn(knex, 'users', 'last_name_change_at', (t) => t.timestamp('last_name_change_at').nullable());
       await ensureColumn(knex, 'users', 'name_changes_count', (t) => t.integer('name_changes_count').defaultTo(0));
       await ensureColumn(knex, 'users', 'avatar_id', (t) => t.string('avatar_id', 50).defaultTo('avatar_1'));
+      await ensureColumn(knex, 'users', 'tutorial_status', (t) => t.string('tutorial_status', 30).defaultTo('NOT_STARTED'));
+      await ensureColumn(knex, 'users', 'tutorial_step', (t) => t.integer('tutorial_step').defaultTo(1));
+      await ensureColumn(knex, 'users', 'tutorial_reward_claimed', (t) => t.boolean('tutorial_reward_claimed').defaultTo(false));
     }
 
     // ── Table: SCORES ─────────────────────────────────────────────────────────
@@ -391,6 +398,19 @@ export async function runAutoMigrations(knex: Knex): Promise<void> {
           total_burned: 0.0,
           volume_24h: 0.0
         },
+        {
+          symbol: 'STACK',
+          name: 'NEON STACK Coin',
+          game_id: 'neonstacking',
+          current_price: 0.00000001,
+          base_price: 0.00000001,
+          virtual_game_reserve: 100000.0,
+          virtual_token_reserve: 10000000000000.0,
+          constant_product_k: 1000000000000000000.0,
+          circulating_supply: 10000000000000.0,
+          total_burned: 0.0,
+          volume_24h: 0.0
+        },
       ]);
     } else {
       await ensureColumn(knex, 'market_coins', 'virtual_game_reserve', (t) => t.float('virtual_game_reserve').defaultTo(100000.0));
@@ -407,6 +427,9 @@ export async function runAutoMigrations(knex: Knex): Promise<void> {
       await knex('market_coins').where({ symbol: 'CROSSY' }).update({
         name: 'Crossy Neon Road Coin',
       });
+      await knex('market_coins').where({ symbol: 'STACK' }).update({
+        name: 'NEON STACK Coin',
+      });
 
       // Self-heal pool reserves for any coins with 0 or null reserves
       const allCoins = await knex('market_coins').select('*');
@@ -420,6 +443,7 @@ export async function runAutoMigrations(knex: Knex): Promise<void> {
         if (!vTokens || vTokens <= 0) updates.virtual_token_reserve = 10000000000000.0;
         if (!k || k <= 0) updates.constant_product_k = 1000000000000000000.0;
         if (Number(coin.circulating_supply || 0) < 10000000000.0) updates.circulating_supply = 10000000000000.0;
+        if (!coin.base_price || Number(coin.base_price) <= 0) updates.base_price = 0.00000001;
 
         if (Object.keys(updates).length > 0) {
           await knex('market_coins').where({ symbol: coin.symbol }).update(updates);
@@ -452,7 +476,7 @@ export async function runAutoMigrations(knex: Knex): Promise<void> {
       { game_id: 'doodlejump', status: 'active', target_score: 1500, sort_order: 0 },
       { game_id: 'neonbird', status: 'active', target_score: 25, sort_order: 1 },
       { game_id: 'crossyneonroad', status: 'active', target_score: 40, sort_order: 2 },
-      { game_id: 'neonstacking', status: 'hidden', target_score: 15, sort_order: 3 },
+      { game_id: 'neonstacking', status: 'active', target_score: 15, sort_order: 3 },
     ];
 
     for (const dg of defaultGames) {

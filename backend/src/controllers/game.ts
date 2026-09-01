@@ -190,7 +190,7 @@ export async function submitScore(req: AuthenticatedRequest, res: Response) {
     } else if (gameId === 'crossyneonroad') {
       maxVelocity = 25;
     } else if (gameId === 'neonstacking') {
-      maxVelocity = 4; // Stacking blocks takes at least 0.25-0.5s per placement
+      maxVelocity = 8; // Accommodates +2 points on rapid perfect combos
     }
 
     const scoreVelocity = parsedScore / elapsedSeconds;
@@ -232,7 +232,18 @@ export async function submitScore(req: AuthenticatedRequest, res: Response) {
 
     // Record score volume in Market Engine with Normalized Score Impact & AMM
     const marketResult = await processGameScoreAmmImpact(gameId, parsedScore, userId);
-    const earnedCash = parseFloat(Number(marketResult.earnedCash || 0.0).toFixed(4));
+    let earnedCash = parseFloat(Number(marketResult.earnedCash || 0.0).toFixed(4));
+
+    // Tutorial Bonus Guarantee for Step 2: Ensure user receives at least 0.10$ InGame$
+    const currentUser = await db('users').where({ id: userId }).first();
+    if (currentUser && (currentUser.tutorial_status === 'IN_PROGRESS' || currentUser.tutorial_status === 'NOT_STARTED') && Number(currentUser.tutorial_step || 1) <= 2) {
+      if (earnedCash < 0.10) {
+        earnedCash = 0.10;
+      }
+      if (currentUser.tutorial_status === 'IN_PROGRESS') {
+        await db('users').where({ id: userId }).update({ tutorial_step: 3 });
+      }
+    }
 
     if (earnedCash > 0) {
       await db('users')
@@ -417,10 +428,21 @@ export async function createDevSandboxToken(req: Request, res: Response) {
 
     const token = jwt.sign(payload, config.jwtSecret, { expiresIn: '4h' });
 
+    let personalHighscore = 0;
+    try {
+      const userBest = await db('scores')
+        .where({ game_id: gameId })
+        .where('user_id', 'dev_sandbox_tester')
+        .max('score as max_score')
+        .first();
+      personalHighscore = userBest?.max_score ? parseInt(userBest.max_score, 10) : 0;
+    } catch (e) {}
+
     return res.json({
       success: true,
       gameSessionToken: token,
       gameId,
+      highscore: personalHighscore,
       mode: 'sandbox_dev',
     });
   } catch (error) {

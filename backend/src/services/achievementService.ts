@@ -3,7 +3,7 @@ import { getCurrentSeason } from './seasonService';
 
 export interface AchievementItem {
   id: string;
-  category: 'og' | 'game_jump' | 'game_bird' | 'game_crossy' | 'market' | 'season' | 'community';
+  category: 'og' | 'game_jump' | 'game_bird' | 'game_crossy' | 'game_stack' | 'market' | 'season' | 'community';
   title: string;
   title_de?: string;
   title_en?: string;
@@ -192,7 +192,74 @@ export const ACHIEVEMENTS_CATALOG: AchievementItem[] = [
     sort_order: 34,
   },
 
-  // ── 5. Leaderboard Ranking Badges ──────────────────────────────────────────
+  // ── 5. NEON STACK ($STACK) Achievements ──────────────────────────────────
+  {
+    id: 'stack_builder',
+    category: 'game_stack',
+    title: '🧱 Fundament-Architekt',
+    title_de: '🧱 Fundament-Architekt',
+    title_en: '🧱 Foundation Architect',
+    description: 'Erreiche 15 Punkte in NEON STACK',
+    description_de: 'Erreiche 15 Punkte in NEON STACK',
+    description_en: 'Score 15 points in NEON STACK',
+    badge_icon: '🧱',
+    badge_rarity: 'BRONZE',
+    sort_order: 35,
+  },
+  {
+    id: 'stack_climber',
+    category: 'game_stack',
+    title: '🧱 Stratosphären-Stapler',
+    title_de: '🧱 Stratosphären-Stapler',
+    title_en: '🧱 Stratosphere Stacker',
+    description: 'Erreiche 35 Punkte in NEON STACK',
+    description_de: 'Erreiche 35 Punkte in NEON STACK',
+    description_en: 'Score 35 points in NEON STACK',
+    badge_icon: '🧱',
+    badge_rarity: 'SILVER',
+    sort_order: 36,
+  },
+  {
+    id: 'stack_master',
+    category: 'game_stack',
+    title: '🧱 Orbit-Baumeister',
+    title_de: '🧱 Orbit-Baumeister',
+    title_en: '🧱 Orbit Constructor',
+    description: 'Erreiche 60 Punkte in NEON STACK',
+    description_de: 'Erreiche 60 Punkte in NEON STACK',
+    description_en: 'Score 60 points in NEON STACK',
+    badge_icon: '🧱',
+    badge_rarity: 'GOLD',
+    sort_order: 37,
+  },
+  {
+    id: 'stack_god',
+    category: 'game_stack',
+    title: '🧱 Kosmischer Stack-Titan',
+    title_de: '🧱 Kosmischer Stack-Titan',
+    title_en: '🧱 Cosmic Stack Titan',
+    description: 'Erreiche 100 Punkte in NEON STACK',
+    description_de: 'Erreiche 100 Punkte in NEON STACK',
+    description_en: 'Score 100 points in NEON STACK',
+    badge_icon: '🧱',
+    badge_rarity: 'DIAMOND',
+    sort_order: 38,
+  },
+  {
+    id: 'stack_veteran',
+    category: 'game_stack',
+    title: '🧱 Neon Stack Veteran',
+    title_de: '🧱 Neon Stack Veteran',
+    title_en: '🧱 Neon Stack Veteran',
+    description: 'Spiele 50 Runden NEON STACK',
+    description_de: 'Spiele 50 Runden NEON STACK',
+    description_en: 'Play 50 rounds of NEON STACK',
+    badge_icon: '🎮',
+    badge_rarity: 'SILVER',
+    sort_order: 39,
+  },
+
+  // ── 6. Leaderboard Ranking Badges ──────────────────────────────────────────
   {
     id: 'rank_champion',
     category: 'season',
@@ -424,8 +491,8 @@ export async function checkAndAwardAchievements(userId: string): Promise<{ newly
     if (maxBird >= 100 && await unlockAchievement(userId, 'bird_god')) newlyUnlocked.push('bird_god');
     if (birdRounds >= 50 && await unlockAchievement(userId, 'bird_veteran')) newlyUnlocked.push('bird_veteran');
 
-    // Crossy Neon Road (crossyroad / crossy)
-    const crossyScores = scores.filter(s => s.game_id === 'crossyroad' || s.game_id === 'crossy');
+    // Crossy Neon Road (crossyroad / crossy / crossyneonroad)
+    const crossyScores = scores.filter(s => s.game_id === 'crossyneonroad' || s.game_id === 'crossyroad' || s.game_id === 'crossy');
     const maxCrossy = crossyScores.reduce((max, s) => Math.max(max, Number(s.score) || 0), 0);
     const crossyRounds = crossyScores.length;
 
@@ -434,6 +501,17 @@ export async function checkAndAwardAchievements(userId: string): Promise<{ newly
     if (maxCrossy >= 150 && await unlockAchievement(userId, 'crossy_master')) newlyUnlocked.push('crossy_master');
     if (maxCrossy >= 300 && await unlockAchievement(userId, 'crossy_god')) newlyUnlocked.push('crossy_god');
     if (crossyRounds >= 50 && await unlockAchievement(userId, 'crossy_veteran')) newlyUnlocked.push('crossy_veteran');
+
+    // NEON STACK (neonstacking / neonstack / stacking)
+    const stackScores = scores.filter(s => s.game_id === 'neonstacking' || s.game_id === 'neonstack' || s.game_id === 'stacking');
+    const maxStack = stackScores.reduce((max, s) => Math.max(max, Number(s.score) || 0), 0);
+    const stackRounds = stackScores.length;
+
+    if (maxStack >= 15 && await unlockAchievement(userId, 'stack_builder')) newlyUnlocked.push('stack_builder');
+    if (maxStack >= 35 && await unlockAchievement(userId, 'stack_climber')) newlyUnlocked.push('stack_climber');
+    if (maxStack >= 60 && await unlockAchievement(userId, 'stack_master')) newlyUnlocked.push('stack_master');
+    if (maxStack >= 100 && await unlockAchievement(userId, 'stack_god')) newlyUnlocked.push('stack_god');
+    if (stackRounds >= 50 && await unlockAchievement(userId, 'stack_veteran')) newlyUnlocked.push('stack_veteran');
 
     // 6. Market Trade & Whale Check
     if (await db.schema.hasTable('market_transactions')) {
@@ -506,6 +584,7 @@ export async function calculatePlayerRankRecords(targetUserId: string): Promise<
     { id: 'doodlejump', title: 'Neon Jump', icon: '👾', aliases: ['doodlejump', 'doodle'] },
     { id: 'neonbird', title: 'Neon Bird', icon: '🐦', aliases: ['neonbird', 'flappy'] },
     { id: 'crossyneonroad', title: 'Crossy Neon Road', icon: '🐔', aliases: ['crossyneonroad', 'crossyroad', 'crossy'] },
+    { id: 'neonstacking', title: 'NEON STACK', icon: '🧱', aliases: ['neonstacking', 'neonstack', 'stacking'] },
   ];
 
   let totalDaysRank1 = 0;
@@ -685,6 +764,7 @@ export async function getPublicProfileData(targetUserId: string): Promise<any> {
     { id: 'doodlejump', title: 'Neon Jump', icon: '👾', scoreUnit: 'Pkt.' },
     { id: 'neonbird', title: 'Neon Bird', icon: '🐦', scoreUnit: 'Pkt.' },
     { id: 'crossyneonroad', title: 'Crossy Neon Road', icon: '🐔', scoreUnit: 'Pkt.' },
+    { id: 'neonstacking', title: 'NEON STACK', icon: '🧱', scoreUnit: 'Pkt.' },
   ];
 
   const gameStats: any[] = [];
@@ -696,6 +776,7 @@ export async function getPublicProfileData(targetUserId: string): Promise<any> {
         if (game.id === 'doodlejump') qb.whereIn('game_id', ['doodlejump', 'doodle']);
         else if (game.id === 'neonbird') qb.whereIn('game_id', ['neonbird', 'flappy']);
         else if (game.id === 'crossyneonroad' || game.id === 'crossyroad') qb.whereIn('game_id', ['crossyneonroad', 'crossyroad', 'crossy']);
+        else if (game.id === 'neonstacking' || game.id === 'stacking') qb.whereIn('game_id', ['neonstacking', 'neonstack', 'stacking']);
         else qb.where({ game_id: game.id });
       });
 
@@ -707,7 +788,9 @@ export async function getPublicProfileData(targetUserId: string): Promise<any> {
     if (maxScore > 0) {
       const aliasList = game.id === 'doodlejump'
         ? ['doodlejump', 'doodle']
-        : (game.id === 'neonbird' ? ['neonbird', 'flappy'] : ['crossyneonroad', 'crossyroad', 'crossy']);
+        : (game.id === 'neonbird'
+          ? ['neonbird', 'flappy']
+          : (game.id === 'crossyneonroad' ? ['crossyneonroad', 'crossyroad', 'crossy'] : ['neonstacking', 'neonstack', 'stacking']));
 
       const betterCount = await db('scores')
         .whereIn('game_id', aliasList)

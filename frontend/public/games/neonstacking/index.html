@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Neon Stacking: Cyber Hub</title>
+  <title>NEON STACK: Cyber Hub</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800;900&display=swap" rel="stylesheet">
@@ -243,28 +243,6 @@
       transform: rotate(45deg);
       border-radius: 2px;
     }
-
-    /* Glow labels */
-    .combo-label {
-      position: absolute;
-      top: 75px;
-      width: 100%;
-      text-align: center;
-      font-size: 20px;
-      font-weight: 900;
-      color: #00f2fe;
-      text-shadow: 0 0 10px rgba(0, 242, 254, 0.8);
-      pointer-events: none;
-      opacity: 0;
-      transform: translateY(10px);
-      transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-      z-index: 5;
-    }
-
-    .combo-label.show {
-      opacity: 1;
-      transform: translateY(0);
-    }
   </style>
 </head>
 <body>
@@ -273,7 +251,7 @@
     <!-- Start Screen Overlay -->
     <div id="startScreen" class="overlay">
       <div style="font-size: 40px; margin-bottom: 5px;">🧱⚡</div>
-      <h1 id="gameTitle">Neon Stacking</h1>
+      <h1 id="gameTitle">NEON STACK</h1>
       <p id="gameDesc">Stapele die leuchtenden Neon-Blöcke übereinander. Schneide Überstände ab und erreiche neue Höhen!</p>
       
       <div class="controls-guide">
@@ -303,9 +281,6 @@
       <button class="btn btn-secondary" id="backMenuBtn">Spiel verlassen</button>
     </div>
 
-    <!-- Perfect Feedback label -->
-    <div id="comboLabel" class="combo-label">PERFEKT!</div>
-
     <!-- Audio controls (SFX & Music separate) -->
     <div class="audio-controls">
       <button id="sfxBtn" class="audio-btn" title="Soundeffekte (S)">🔊</button>
@@ -316,46 +291,162 @@
     <canvas id="gameCanvas" width="360" height="550"></canvas>
   </div>
 
-  <!-- J.S. Bach - Invention No. 8 in F-Dur (BWV 779) MIDI notes -->
+  <!-- Nils Frahm - Says (Arranged & Synthesized for Cyber Neon Stack) -->
   <script>
-    const BACH_NOTES = [
-      // Measure 1
-      [65, 0.5, 0.25], [69, 0.75, 0.25], [65, 1.0, 0.25], [72, 1.25, 0.25], [77, 1.5, 0.25], [76, 1.75, 0.25], [74, 2.0, 0.25], [72, 2.25, 0.25], [70, 2.5, 0.25], [69, 2.75, 0.25],
-      // Measure 2
-      [67, 3.0, 0.25], [65, 3.25, 0.25], [72, 3.5, 0.5], [76, 4.0, 0.25], [72, 4.25, 0.25], [79, 4.5, 0.25], [84, 4.75, 0.25], [83, 5.0, 0.25], [81, 5.25, 0.25], [79, 5.5, 0.25], [77, 5.75, 0.25],
-      // LH enters in Measure 2
-      [53, 3.5, 0.25], [57, 3.75, 0.25], [53, 4.0, 0.25], [60, 4.25, 0.25], [65, 4.5, 0.25], [64, 4.75, 0.25], [62, 5.0, 0.25], [60, 5.25, 0.25], [58, 5.5, 0.25], [57, 5.75, 0.25],
-      // Measure 3
-      [76, 6.0, 0.25], [74, 6.25, 0.25], [72, 6.5, 0.25], [70, 6.75, 0.25], [69, 7.0, 0.25], [67, 7.25, 0.25], [65, 7.5, 0.25], [67, 7.75, 0.25], [69, 8.0, 0.25], [70, 8.25, 0.25], [72, 8.5, 0.25], [74, 8.75, 0.25],
-      // LH Measure 3
-      [55, 6.0, 0.25], [53, 6.25, 0.25], [60, 6.5, 0.5], [64, 7.0, 0.25], [60, 7.25, 0.25], [67, 7.5, 0.25], [72, 7.75, 0.25], [71, 8.0, 0.25], [69, 8.25, 0.25], [67, 8.5, 0.25], [65, 8.75, 0.25],
-      // Measure 4
-      [70, 9.0, 0.25], [72, 9.25, 0.25], [74, 9.5, 0.25], [76, 9.75, 0.25], [77, 10.0, 0.25], [79, 10.25, 0.25], [76, 10.5, 0.25], [77, 10.75, 0.25], [79, 11.0, 0.25], [81, 11.25, 0.25], [82, 11.5, 0.25], [84, 11.75, 0.25],
-      // LH Measure 4
-      [64, 9.0, 0.25], [62, 9.25, 0.25], [60, 9.5, 0.25], [58, 9.75, 0.25], [57, 10.0, 0.25], [55, 10.25, 0.25], [53, 10.5, 0.25], [55, 10.75, 0.25], [57, 11.0, 0.25], [58, 11.25, 0.25], [60, 11.5, 0.25], [62, 11.75, 0.25],
-      // Measure 5
-      [81, 12.0, 0.25], [82, 12.25, 0.25], [84, 12.5, 0.25], [82, 12.75, 0.25], [81, 13.0, 0.25], [79, 13.25, 0.25], [77, 13.5, 0.5], [79, 14.0, 0.5], [81, 14.5, 0.5],
-      // LH Measure 5
-      [58, 12.0, 0.25], [60, 12.25, 0.25], [62, 12.5, 0.25], [64, 12.75, 0.25], [65, 13.0, 0.25], [67, 13.25, 0.25], [64, 13.5, 0.25], [65, 13.75, 0.25], [67, 14.0, 0.25], [69, 14.25, 0.25], [70, 14.5, 0.25], [72, 14.75, 0.25],
-      // Measure 6
-      [79, 15.0, 0.25], [77, 15.25, 0.25], [76, 15.5, 0.25], [74, 15.75, 0.25], [72, 16.0, 0.25], [70, 16.25, 0.25], [72, 16.5, 0.5], [74, 17.0, 0.5], [76, 17.5, 0.5],
-      // LH Measure 6
-      [69, 15.0, 0.25], [70, 15.25, 0.25], [72, 15.5, 0.25], [70, 15.75, 0.25], [69, 16.0, 0.25], [67, 16.25, 0.25], [65, 16.5, 0.5], [67, 17.0, 0.5], [69, 17.5, 0.5],
-      // Measure 7
-      [77, 18.0, 0.25], [76, 18.25, 0.25], [74, 18.5, 0.25], [72, 18.75, 0.25], [70, 19.0, 0.25], [69, 19.25, 0.25], [67, 19.5, 0.5], [69, 20.0, 0.5], [70, 20.5, 0.5],
-      // LH Measure 7
-      [67, 18.0, 0.25], [65, 18.25, 0.25], [64, 18.5, 0.25], [62, 18.75, 0.25], [60, 19.0, 0.25], [58, 19.25, 0.25], [60, 19.5, 0.5], [62, 20.0, 0.5], [64, 20.5, 0.5],
-      // Measure 8
-      [69, 21.0, 0.25], [67, 21.25, 0.25], [65, 21.5, 0.25], [64, 21.75, 0.25], [62, 22.0, 0.25], [60, 22.25, 0.25], [65, 22.5, 0.5], [67, 23.0, 0.5], [64, 23.5, 0.5],
-      // LH Measure 8
-      [65, 21.0, 0.25], [64, 21.25, 0.25], [62, 21.5, 0.25], [60, 21.75, 0.25], [58, 22.0, 0.25], [57, 22.25, 0.25], [55, 22.5, 0.5], [57, 23.0, 0.5], [58, 23.5, 0.5],
-      // Measure 9
-      [65, 24.0, 1.5],
-      // LH Measure 9
-      [57, 24.0, 0.25], [55, 24.25, 0.25], [53, 24.5, 0.25], [52, 24.75, 0.25], [50, 25.0, 0.25], [48, 25.25, 0.25], [53, 25.5, 0.5], [55, 26.0, 0.5], [52, 26.5, 0.5],
-      // LH Measure 10
-      [53, 27.0, 1.5]
-    ];
+    function generateSaysTrack() {
+      const notes = [];
+      const n = (pitch, time, dur) => notes.push([pitch, Math.round(time * 1000) / 1000, Math.round(dur * 1000) / 1000]);
+      let t = 0;
+
+      // 16th-note arpeggiator patterns for the 4 core chords of Nils Frahm - 'Says'
+      const arpPatterns = [
+        // Chord 1: F minor (Fm)
+        [53, 60, 65, 68, 72, 75, 72, 68, 65, 60, 65, 68, 72, 75, 77, 75],
+        // Chord 2: Db major (Db)
+        [49, 56, 61, 65, 68, 73, 68, 65, 61, 56, 61, 65, 68, 73, 77, 73],
+        // Chord 3: Bb minor (Bbm)
+        [46, 53, 58, 61, 65, 70, 65, 61, 58, 53, 58, 61, 65, 70, 73, 70],
+        // Chord 4: C minor / Csus4 / Eb (Cm / C)
+        [48, 55, 60, 63, 67, 72, 67, 63, 60, 55, 60, 63, 67, 72, 75, 72]
+      ];
+
+      const bassNotes = [
+        [41, 29], // F2, F1
+        [37, 25], // Db2, Db1
+        [34, 22], // Bb1, Bb0
+        [36, 24]  // C2, C1
+      ];
+
+      const padChords = [
+        [60, 65, 68, 72], // Fm (C4, F4, Ab4, C5)
+        [56, 61, 65, 68], // Db (Ab3, Db4, F4, Ab4)
+        [53, 58, 61, 65], // Bbm (F3, Bb3, Db4, F4)
+        [55, 60, 63, 67]  // Cm (G3, C4, Eb4, G4)
+      ];
+
+      const addCycleArp = (baseT) => {
+        for (let chordIdx = 0; chordIdx < 4; chordIdx++) {
+          const chordStart = baseT + chordIdx * 4;
+          const pattern = arpPatterns[chordIdx];
+          for (let step = 0; step < 16; step++) {
+            n(pattern[step], chordStart + step * 0.25, 0.28);
+          }
+        }
+      };
+
+      const addCycleBass = (baseT) => {
+        for (let chordIdx = 0; chordIdx < 4; chordIdx++) {
+          const chordStart = baseT + chordIdx * 4;
+          n(bassNotes[chordIdx][0], chordStart, 3.8);
+          n(bassNotes[chordIdx][1], chordStart, 3.8);
+        }
+      };
+
+      const addCyclePads = (baseT) => {
+        for (let chordIdx = 0; chordIdx < 4; chordIdx++) {
+          const chordStart = baseT + chordIdx * 4;
+          for (const p of padChords[chordIdx]) {
+            n(p, chordStart, 3.7);
+          }
+        }
+      };
+
+      // Phase 1: Hypnotic Intro (Pure arpeggios + subtle sub-bass pulses)
+      addCycleArp(t);
+      addCycleBass(t);
+      t += 16;
+
+      // Phase 2: Warm Analog Atmosphere (Arpeggios + sub-bass + lush chord pads)
+      addCycleArp(t);
+      addCycleBass(t);
+      addCyclePads(t);
+      t += 16;
+
+      // Phase 3: The Iconic Nils Frahm Lead Melody (Exposition)
+      addCycleArp(t);
+      addCycleBass(t);
+      addCyclePads(t);
+      n(72, t + 0, 1.8);    // C5
+      n(75, t + 2, 0.9);    // Eb5
+      n(77, t + 3, 0.9);    // F5
+      n(80, t + 4, 1.8);    // Ab5
+      n(79, t + 6, 0.9);    // G5
+      n(77, t + 7, 0.9);    // F5
+      n(77, t + 8, 1.8);    // F5
+      n(75, t + 10, 0.9);   // Eb5
+      n(73, t + 11, 0.9);   // Db5
+      n(72, t + 12, 1.4);   // C5
+      n(75, t + 13.5, 0.8); // Eb5
+      n(79, t + 14.5, 1.4); // G5
+      t += 16;
+
+      // Phase 4: Melodic Expansion & Ascending Counterpoint
+      addCycleArp(t);
+      addCycleBass(t);
+      addCyclePads(t);
+      n(77, t + 0, 1.8);    // F5
+      n(80, t + 2, 0.9);    // Ab5
+      n(84, t + 3, 0.9);    // C6
+      n(85, t + 4, 1.9);    // Db6
+      n(84, t + 6, 0.9);    // C6
+      n(80, t + 7, 0.9);    // Ab5
+      n(82, t + 8, 1.8);    // Bb5
+      n(80, t + 10, 0.9);   // Ab5
+      n(77, t + 11, 0.9);   // F5
+      n(79, t + 12, 1.4);   // G5
+      n(82, t + 13.5, 0.9); // Bb5
+      n(84, t + 14.5, 1.4); // C6
+      t += 16;
+
+      // Phase 5: The Grand Climax (Octave-doubled soaring melodic peak)
+      addCycleArp(t);
+      addCycleBass(t);
+      addCyclePads(t);
+      // Upper octave lead
+      n(84, t + 0, 1.8);    // C6
+      n(87, t + 2, 0.9);    // Eb6
+      n(89, t + 3, 0.9);    // F6
+      n(92, t + 4, 1.9);    // Ab6
+      n(91, t + 6, 0.9);    // G6
+      n(89, t + 7, 0.9);    // F6
+      n(89, t + 8, 1.4);    // F6
+      n(87, t + 9.5, 0.9);  // Eb6
+      n(85, t + 10.5, 0.9); // Db6
+      n(82, t + 11.5, 0.5); // Bb5
+      n(84, t + 12, 1.8);   // C6
+      n(87, t + 14, 0.9);   // Eb6
+      n(84, t + 15, 0.9);   // C6
+      // Lower unison harmony
+      n(72, t + 0, 1.8);    // C5
+      n(75, t + 2, 0.9);    // Eb5
+      n(77, t + 3, 0.9);    // F5
+      n(80, t + 4, 1.9);    // Ab5
+      n(79, t + 6, 0.9);    // G5
+      n(77, t + 7, 0.9);    // F5
+      n(77, t + 8, 1.4);    // F5
+      n(75, t + 9.5, 0.9);  // Eb5
+      n(73, t + 10.5, 0.9); // Db5
+      n(70, t + 11.5, 0.5); // Bb4
+      n(72, t + 12, 1.8);   // C5
+      n(75, t + 14, 0.9);   // Eb5
+      n(72, t + 15, 0.9);   // C5
+      t += 16;
+
+      // Phase 6: Ethereal Resolution & Ambient Decay
+      addCycleArp(t);
+      addCycleBass(t);
+      n(72, t + 0, 3.5);    // C5
+      n(68, t + 4, 3.5);    // Ab4
+      n(65, t + 8, 3.5);    // F4
+      n(60, t + 12, 3.5);   // C4
+      t += 16;
+
+      // Sort notes by start time for high-performance sequencer scheduling
+      notes.sort((a, b) => a[1] - b[1]);
+      return notes;
+    }
+
+    const SAYS_NOTES = generateSaysTrack();
   </script>
 
   <!-- Sound Synthesis and Sequencing Logic -->
@@ -375,12 +466,12 @@
           this.isMusicMuted = false;
         }
 
-        // Sequencer settings
+        // Sequencer settings (Nils Frahm - Says at 124 BPM)
         this.notePointer = 0;
         this.startTime = 0;
         this.lookAhead = 0.25; // 250ms ahead
         this.scheduleInterval = 60; // poll every 60ms
-        this.bpm = 92;
+        this.bpm = 124;
         this.beatsPerSec = this.bpm / 60;
         
         this.activeOscillators = [];
@@ -398,15 +489,20 @@
       updateButtons() {
         const sfxBtn = document.getElementById('sfxBtn');
         const musicBtn = document.getElementById('musicBtn');
+        const isDe = !window.location.search.includes('lang=en');
         if (sfxBtn) {
           sfxBtn.innerHTML = this.isSfxMuted ? '🔇' : '🔊';
           sfxBtn.className = 'audio-btn' + (this.isSfxMuted ? ' muted' : '');
-          sfxBtn.title = this.isSfxMuted ? 'Soundeffekte einschalten (S)' : 'Soundeffekte stummschalten (S)';
+          sfxBtn.title = this.isSfxMuted 
+            ? (isDe ? 'Soundeffekte einschalten (S)' : 'Unmute Sound FX (S)') 
+            : (isDe ? 'Soundeffekte stummschalten (S)' : 'Mute Sound FX (S)');
         }
         if (musicBtn) {
           musicBtn.innerHTML = '🎵';
           musicBtn.className = 'audio-btn' + (this.isMusicMuted ? ' muted' : '');
-          musicBtn.title = this.isMusicMuted ? 'Musik einschalten (M)' : 'Musik stummschalten (M)';
+          musicBtn.title = this.isMusicMuted 
+            ? (isDe ? 'Musik einschalten (M)' : 'Unmute Music (M)') 
+            : (isDe ? 'Musik stummschalten (M)' : 'Mute Music (M)');
         }
       }
 
@@ -429,176 +525,229 @@
 
       // Short cyber laser beep on block placement tap
       playTap() {
-        this.init();
-        if (!this.ctx || this.isSfxMuted) return;
-        if (this.ctx.state === 'suspended') this.ctx.resume();
+        try {
+          this.init();
+          if (!this.ctx || this.isSfxMuted) return;
+          if (this.ctx.state === 'suspended') this.ctx.resume();
 
-        const osc = this.ctx.createOscillator();
-        const gain = this.ctx.createGain();
-        
-        osc.connect(gain);
-        gain.connect(this.ctx.destination);
-        
-        osc.type = 'triangle';
-        // Pitch sweep
-        osc.frequency.setValueAtTime(350, this.ctx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(620, this.ctx.currentTime + 0.08);
-        
-        gain.gain.setValueAtTime(0.07, this.ctx.currentTime);
-        gain.gain.linearRampToValueAtTime(0.001, this.ctx.currentTime + 0.1);
-        
-        osc.start();
-        osc.stop(this.ctx.currentTime + 0.1);
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          
+          osc.type = 'triangle';
+          // Pitch sweep
+          osc.frequency.setValueAtTime(350, this.ctx.currentTime);
+          osc.frequency.exponentialRampToValueAtTime(620, this.ctx.currentTime + 0.08);
+          
+          gain.gain.setValueAtTime(0.07, this.ctx.currentTime);
+          gain.gain.linearRampToValueAtTime(0.001, this.ctx.currentTime + 0.1);
+          
+          osc.start();
+          osc.stop(this.ctx.currentTime + 0.1);
+        } catch (e) {}
       }
 
       // Deep clunk sound when block cuts off
       playCut() {
-        this.init();
-        if (!this.ctx || this.isSfxMuted) return;
-        if (this.ctx.state === 'suspended') this.ctx.resume();
+        try {
+          this.init();
+          if (!this.ctx || this.isSfxMuted) return;
+          if (this.ctx.state === 'suspended') this.ctx.resume();
 
-        const osc = this.ctx.createOscillator();
-        const gain = this.ctx.createGain();
-        
-        osc.connect(gain);
-        gain.connect(this.ctx.destination);
-        
-        osc.type = 'square';
-        osc.frequency.setValueAtTime(100, this.ctx.currentTime);
-        osc.frequency.linearRampToValueAtTime(40, this.ctx.currentTime + 0.15);
-        
-        gain.gain.setValueAtTime(0.05, this.ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.2);
-        
-        osc.start();
-        osc.stop(this.ctx.currentTime + 0.2);
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          
+          osc.type = 'square';
+          osc.frequency.setValueAtTime(100, this.ctx.currentTime);
+          osc.frequency.linearRampToValueAtTime(40, this.ctx.currentTime + 0.15);
+          
+          gain.gain.setValueAtTime(0.05, this.ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.2);
+          
+          osc.start();
+          osc.stop(this.ctx.currentTime + 0.2);
+        } catch (e) {}
+      }
+
+      // Alias for cutting sound
+      playSlice() {
+        this.playCut();
       }
 
       // Ascending retro neon coin chime for perfect stack
       playPerfect() {
-        this.init();
-        if (!this.ctx || this.isSfxMuted) return;
-        if (this.ctx.state === 'suspended') this.ctx.resume();
+        try {
+          this.init();
+          if (!this.ctx || this.isSfxMuted) return;
+          if (this.ctx.state === 'suspended') this.ctx.resume();
 
-        const now = this.ctx.currentTime;
-        const playSubChime = (freq, delay, vol) => {
-          const osc = this.ctx.createOscillator();
-          const subOsc = this.ctx.createOscillator();
-          const gain = this.ctx.createGain();
-          
-          osc.connect(gain);
-          subOsc.connect(gain);
-          gain.connect(this.ctx.destination);
-          
-          osc.type = 'sine';
-          osc.frequency.setValueAtTime(freq, now + delay);
-          subOsc.type = 'triangle';
-          subOsc.frequency.setValueAtTime(freq * 1.5, now + delay); // Perfect fifth harmonic
-          
-          gain.gain.setValueAtTime(vol, now + delay);
-          gain.gain.exponentialRampToValueAtTime(0.001, now + delay + 0.18);
-          
-          osc.start(now + delay);
-          osc.stop(now + delay + 0.2);
-          subOsc.start(now + delay);
-          subOsc.stop(now + delay + 0.2);
-        };
+          const now = this.ctx.currentTime;
+          const playSubChime = (freq, delay, vol) => {
+            const osc = this.ctx.createOscillator();
+            const subOsc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            
+            osc.connect(gain);
+            subOsc.connect(gain);
+            gain.connect(this.ctx.destination);
+            
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(freq, now + delay);
+            subOsc.type = 'triangle';
+            subOsc.frequency.setValueAtTime(freq * 1.5, now + delay); // Perfect fifth harmonic
+            
+            gain.gain.setValueAtTime(vol, now + delay);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + delay + 0.18);
+            
+            osc.start(now + delay);
+            osc.stop(now + delay + 0.2);
+            subOsc.start(now + delay);
+            subOsc.stop(now + delay + 0.2);
+          };
 
-        playSubChime(523.25, 0, 0.08); // C5
-        playSubChime(783.99, 0.06, 0.06); // G5
-        playSubChime(1046.50, 0.12, 0.08); // C6
+          playSubChime(523.25, 0, 0.08); // C5
+          playSubChime(783.99, 0.06, 0.06); // G5
+          playSubChime(1046.50, 0.12, 0.08); // C6
+        } catch(e) {}
       }
 
       // Tragic descending detuned synth chord on game over
       playGameOver() {
-        this.init();
-        if (!this.ctx || this.isSfxMuted) return;
-        if (this.ctx.state === 'suspended') this.ctx.resume();
+        try {
+          this.init();
+          if (!this.ctx || this.isSfxMuted) return;
+          if (this.ctx.state === 'suspended') this.ctx.resume();
 
-        const now = this.ctx.currentTime;
-        const playBass = (freq, delay, duration) => {
-          const osc = this.ctx.createOscillator();
-          const oscDetune = this.ctx.createOscillator();
-          const gain = this.ctx.createGain();
-          
-          osc.connect(gain);
-          oscDetune.connect(gain);
-          gain.connect(this.ctx.destination);
-          
-          osc.type = 'sawtooth';
-          osc.frequency.setValueAtTime(freq, now + delay);
-          
-          oscDetune.type = 'sawtooth';
-          oscDetune.frequency.setValueAtTime(freq * 1.02, now + delay); // Slight detune for chorus effect
-          
-          gain.gain.setValueAtTime(0.08, now + delay);
-          gain.gain.exponentialRampToValueAtTime(0.001, now + delay + duration);
-          
-          osc.start(now + delay);
-          osc.stop(now + delay + duration + 0.1);
-          oscDetune.start(now + delay);
-          oscDetune.stop(now + delay + duration + 0.1);
-        };
+          const now = this.ctx.currentTime;
+          const playBass = (freq, delay, duration) => {
+            const osc = this.ctx.createOscillator();
+            const oscDetune = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            
+            osc.connect(gain);
+            oscDetune.connect(gain);
+            gain.connect(this.ctx.destination);
+            
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(freq, now + delay);
+            
+            oscDetune.type = 'sawtooth';
+            oscDetune.frequency.setValueAtTime(freq * 1.02, now + delay); // Slight detune for chorus effect
+            
+            gain.gain.setValueAtTime(0.08, now + delay);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + delay + duration);
+            
+            osc.start(now + delay);
+            osc.stop(now + delay + duration + 0.1);
+            oscDetune.start(now + delay);
+            oscDetune.stop(now + delay + duration + 0.1);
+          };
 
-        playBass(146.83, 0, 0.6); // D3
-        playBass(110.00, 0.15, 0.7); // A2
-        playBass(73.42, 0.3, 0.9); // D2
+          playBass(146.83, 0, 0.6); // D3
+          playBass(110.00, 0.15, 0.7); // A2
+          playBass(73.42, 0.3, 0.9); // D2
+        } catch(e) {}
       }
 
-      // FM-like synthesized organ note voicing
+      // Roland Juno-60 style analog synth voice modeling for Nils Frahm - Says
       playSynthNote(midiNote, time, duration) {
         if (!this.ctx || this.isMusicMuted) return;
 
-        const osc = this.ctx.createOscillator();
-        const mod = this.ctx.createOscillator();
-        const gainNode = this.ctx.createGain();
-        const filter = this.ctx.createBiquadFilter();
+        try {
+          const osc = this.ctx.createOscillator();
+          const subOsc = this.ctx.createOscillator();
+          const gainNode = this.ctx.createGain();
+          const filter = this.ctx.createBiquadFilter();
 
-        osc.connect(filter);
-        filter.connect(gainNode);
-        gainNode.connect(this.ctx.destination);
+          osc.connect(filter);
+          subOsc.connect(filter);
+          filter.connect(gainNode);
+          gainNode.connect(this.ctx.destination);
 
-        const freq = 440 * Math.pow(2, (midiNote - 69) / 12);
-        osc.frequency.setValueAtTime(freq, time);
+          const freq = 440 * Math.pow(2, (midiNote - 69) / 12);
 
-        // Synth settings based on note pitch (Treble vs Bass)
-        if (midiNote < 60) {
-          // Deep warmth for left hand bass
-          osc.type = 'triangle';
-          filter.type = 'lowpass';
-          filter.frequency.setValueAtTime(450, time);
+          if (midiNote < 48) {
+            // 1. Deep Sub-Bass Pedal
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(freq, time);
 
-          const bassVol = 0.024;
-          gainNode.gain.setValueAtTime(0, time);
-          gainNode.gain.linearRampToValueAtTime(bassVol, time + 0.04);
-          gainNode.gain.exponentialRampToValueAtTime(0.0001, time + duration + 0.3);
-        } else {
-          // Bright neon chime for right hand melody
-          osc.type = 'triangle';
-          
-          // Connect subtle frequency modulator to add bell vibrato
-          mod.frequency.value = 6; // LFO frequency
-          const modGain = this.ctx.createGain();
-          modGain.gain.value = 5; // Mod depth
-          mod.connect(modGain);
-          modGain.connect(osc.frequency);
-          
-          filter.type = 'lowpass';
-          filter.frequency.setValueAtTime(1400, time);
+            subOsc.type = 'triangle';
+            subOsc.frequency.setValueAtTime(freq * 2, time);
 
-          const melodyVol = 0.016;
-          gainNode.gain.setValueAtTime(0, time);
-          gainNode.gain.linearRampToValueAtTime(melodyVol, time + 0.01);
-          gainNode.gain.exponentialRampToValueAtTime(0.0001, time + duration + 0.2);
-          
-          mod.start(time);
-          mod.stop(time + duration + 0.3);
-        }
+            filter.type = 'lowpass';
+            filter.frequency.setValueAtTime(220, time);
 
-        osc.start(time);
-        osc.stop(time + duration + 0.3);
+            const bassVol = 0.018;
+            gainNode.gain.setValueAtTime(0, time);
+            gainNode.gain.linearRampToValueAtTime(bassVol, time + 0.04);
+            gainNode.gain.exponentialRampToValueAtTime(0.0001, time + duration + 1.2);
 
-        this.activeOscillators.push(osc);
+            osc.start(time);
+            osc.stop(time + duration + 1.3);
+            subOsc.start(time);
+            subOsc.stop(time + duration + 1.3);
+          } else if (midiNote < 72) {
+            // 2. Hypnotic Juno Arpeggiator & Pad Voices
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(freq, time);
+
+            subOsc.type = 'sawtooth';
+            subOsc.frequency.setValueAtTime(freq * 1.002, time); // Analog chorus detune
+
+            filter.type = 'lowpass';
+            filter.frequency.setValueAtTime(950, time);
+            filter.Q.value = 1.6;
+
+            const arpVol = 0.013;
+            gainNode.gain.setValueAtTime(0, time);
+            gainNode.gain.linearRampToValueAtTime(arpVol, time + 0.012);
+            gainNode.gain.exponentialRampToValueAtTime(0.0001, time + duration + 0.45);
+
+            osc.start(time);
+            osc.stop(time + duration + 0.5);
+            subOsc.start(time);
+            subOsc.stop(time + duration + 0.5);
+          } else {
+            // 3. Soaring Nils Frahm Singing Lead Melody
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(freq, time);
+
+            subOsc.type = 'sine';
+            subOsc.frequency.setValueAtTime(freq * 1.0035, time); // Lush stereo unison detune
+
+            // Subtle analog LFO vibrato
+            const lfo = this.ctx.createOscillator();
+            const lfoGain = this.ctx.createGain();
+            lfo.frequency.value = 5.2; // 5.2 Hz human vibrato
+            lfoGain.gain.value = 3.2; // subtle pitch drift
+            lfo.connect(osc.frequency);
+            lfo.connect(subOsc.frequency);
+            lfo.start(time);
+            lfo.stop(time + duration + 1.5);
+
+            filter.type = 'lowpass';
+            filter.frequency.setValueAtTime(1500, time);
+            filter.Q.value = 1.4;
+
+            const leadVol = 0.019;
+            gainNode.gain.setValueAtTime(0, time);
+            gainNode.gain.linearRampToValueAtTime(leadVol, time + 0.025);
+            gainNode.gain.exponentialRampToValueAtTime(0.0001, time + duration + 1.4);
+
+            osc.start(time);
+            osc.stop(time + duration + 1.5);
+            subOsc.start(time);
+            subOsc.stop(time + duration + 1.5);
+            this.activeOscillators.push(lfo);
+          }
+
+          this.activeOscillators.push(osc, subOsc);
+        } catch(e) {}
       }
 
       startMusic() {
@@ -618,8 +767,8 @@
           const elapsedSecs = this.ctx.currentTime - this.startTime;
           const currentBeat = elapsedSecs * this.beatsPerSec;
           
-          while (this.notePointer < BACH_NOTES.length) {
-            const note = BACH_NOTES[this.notePointer];
+          while (this.notePointer < SAYS_NOTES.length) {
+            const note = SAYS_NOTES[this.notePointer];
             const noteBeat = note[1];
             
             // If the note starts within the lookahead window
@@ -634,8 +783,8 @@
           }
 
           // Loop the piece once the final note ends
-          if (this.notePointer >= BACH_NOTES.length) {
-            const lastNote = BACH_NOTES[BACH_NOTES.length - 1];
+          if (this.notePointer >= SAYS_NOTES.length) {
+            const lastNote = SAYS_NOTES[SAYS_NOTES.length - 1];
             const pieceEndBeat = lastNote[1] + lastNote[2] + 1.0;
             if (currentBeat > pieceEndBeat) {
               this.notePointer = 0;
@@ -672,10 +821,10 @@
 
     const I18N = {
       de: {
-        title: 'Neon Stacking',
+        title: 'NEON STACK',
         desc: 'Stapele die leuchtenden Neon-Blöcke übereinander. Schneide Überstände ab und erreiche neue Höhen!',
-        ctrlKb: 'Stoppen (Tastatur)',
-        ctrlTouch: 'Stoppen (Touch/Maus)',
+        ctrlKb: 'Stoppen (Leertaste / ◀ / ▶)',
+        ctrlTouch: 'Stoppen (Tippen / Klick)',
         startBtn: 'Turm bauen',
         crashed: 'Eingestürzt',
         scoreLabel: 'Gestapelte Blöcke:',
@@ -686,12 +835,25 @@
         newRecordPrefix: '🔥 Rekord: ',
         countdownReady: 'BEREIT MACHEN',
         countdownGo: 'LOS!',
+        perfect: 'PERFEKT',
+        sfxOn: 'Soundeffekte einschalten (S)',
+        sfxOff: 'Soundeffekte stummschalten (S)',
+        musicOn: 'Musik einschalten (M)',
+        musicOff: 'Musik stummschalten (M)',
+        stages: {
+          1: 'EBENE 1: CYBER ERDE (1.0x)',
+          2: 'EBENE 2: TROPOSPHÄRE (1.1x)',
+          3: 'EBENE 3: STRATOSPHÄRE (1.2x)',
+          4: 'EBENE 4: MESOSPHÄRE (1.5x)',
+          5: 'EBENE 5: WELTRAUM (2.0x)',
+          6: 'EBENE 6: TIEFENKOSMOS',
+        }
       },
       en: {
-        title: 'Neon Stacking',
+        title: 'NEON STACK',
         desc: 'Stack glowing neon blocks atop each other. Slice edges and reach towering heights!',
-        ctrlKb: 'Stop (Keyboard)',
-        ctrlTouch: 'Stop (Touch/Mouse)',
+        ctrlKb: 'Stop (Space / ◀ / ▶)',
+        ctrlTouch: 'Stop (Tap / Click)',
         startBtn: 'Build Tower',
         crashed: 'Collapsed',
         scoreLabel: 'Stacked Blocks:',
@@ -702,11 +864,25 @@
         newRecordPrefix: '🔥 Record: ',
         countdownReady: 'GET READY',
         countdownGo: 'GO!',
+        perfect: 'PERFECT',
+        sfxOn: 'Unmute Sound FX (S)',
+        sfxOff: 'Mute Sound FX (S)',
+        musicOn: 'Unmute Music (M)',
+        musicOff: 'Mute Music (M)',
+        stages: {
+          1: 'STAGE 1: CYBER GROUND (1.0x)',
+          2: 'STAGE 2: TROPOSPHERE (1.1x)',
+          3: 'STAGE 3: STRATOSPHERE (1.2x)',
+          4: 'STAGE 4: MESOSPHERE (1.5x)',
+          5: 'STAGE 5: OUTER SPACE (2.0x)',
+          6: 'STAGE 6: DEEP COSMOS',
+        }
       }
     };
     const t = I18N[currentLang] || I18N.de;
 
     // Apply translations to DOM elements
+    if (document.getElementById('gameTitle')) document.getElementById('gameTitle').innerText = t.title;
     if (document.getElementById('gameDesc')) document.getElementById('gameDesc').innerText = t.desc;
     if (document.getElementById('ctrlKbText')) document.getElementById('ctrlKbText').innerText = t.ctrlKb;
     if (document.getElementById('ctrlTouchText')) document.getElementById('ctrlTouchText').innerText = t.ctrlTouch;
@@ -720,23 +896,66 @@
     // UI Elements
     const startScreen = document.getElementById('startScreen');
     const gameOverScreen = document.getElementById('gameOverScreen');
-    const finalScoreEl = document.getElementById('finalScore');
     const startBtn = document.getElementById('startBtn');
     const reviveBtn = document.getElementById('reviveBtn');
-    const backMenuBtn = document.getElementById('backMenuBtn');
     const retryBtn = document.getElementById('retryBtn');
+    const backMenuBtn = document.getElementById('backMenuBtn');
     const sfxBtn = document.getElementById('sfxBtn');
     const musicBtn = document.getElementById('musicBtn');
-    const comboLabel = document.getElementById('comboLabel');
+    const finalScoreEl = document.getElementById('finalScore');
+    let perfectBonusTimer = 0;
 
     const soundManager = new SoundSynth();
 
     // Game parameters
     const BLOCK_HEIGHT = 40;
     const INITIAL_WIDTH = 180;
-    const INITIAL_SPEED = 2.5;
-    const SPEED_INCREMENT = 0.08;
+    const INITIAL_SPEED = 2.4; // Base speed (1.0x)
+    const BASE_Y = 490; // Bottom footer foundation anchor
+    const TOP_ANCHOR_Y = 170; // Upper-third screen anchor threshold (under score HUD)
     const PERFECT_TOLERANCE = 3.5; // aligned within 3.5px counts as perfect stack
+
+    // Multi-tier Progressive Stage System
+    function getStageInfo(score) {
+      let multiplier = 1.0;
+      let level = 1;
+      let badgeColor = '#10b981';
+
+      if (score <= 20) {
+        multiplier = 1.0;
+        level = 1;
+        badgeColor = '#10b981';
+      } else if (score <= 30) {
+        multiplier = 1.1;
+        level = 2;
+        badgeColor = '#00f2fe';
+      } else if (score <= 40) {
+        multiplier = 1.2;
+        level = 3;
+        badgeColor = '#a855f7';
+      } else if (score <= 50) {
+        multiplier = 1.5;
+        level = 4;
+        badgeColor = '#ff007f';
+      } else if (score <= 100) {
+        multiplier = 2.0;
+        level = 5;
+        badgeColor = '#fbbf24';
+      } else {
+        const extraSteps = Math.floor((score - 100) / 10);
+        multiplier = +(2.0 + extraSteps * 0.1).toFixed(1);
+        level = 6;
+        badgeColor = '#ef4444';
+      }
+
+      let levelName = (t.stages && t.stages[level]) ? t.stages[level] : `STAGE ${level}`;
+      if (level === 6) {
+        levelName = `${levelName} (${multiplier}x)`;
+      }
+      const speed = INITIAL_SPEED * multiplier;
+
+      return { multiplier, level, levelName, badgeColor, speed };
+    }
 
     let score = 0;
     let gameState = 'start'; // 'start', 'playing', 'revive_countdown', 'gameover'
@@ -745,14 +964,41 @@
     let perfectPlacements = 0;
     let comboStreak = 0;
 
+    // Authoritative Server-Synced Highscore (Resets immediately to 0 if server highscore is wiped)
+    const serverHsParam = urlParams.get('highscore');
+    let savedHighscore = 0;
+    if (serverHsParam !== null && serverHsParam !== undefined) {
+      savedHighscore = parseInt(serverHsParam, 10) || 0;
+      try {
+        localStorage.setItem('tggamehub_neonstacking_highscore', savedHighscore.toString());
+      } catch(e) {}
+    } else {
+      try {
+        savedHighscore = parseInt(localStorage.getItem('tggamehub_neonstacking_highscore') || '0', 10);
+      } catch(e) {
+        savedHighscore = 0;
+      }
+    }
+
+    // Message listener for live highscore resets from parent app
+    window.addEventListener('message', (event) => {
+      if (!event.data) return;
+      if (event.data.type === 'SET_SERVER_HIGHSCORE' || event.data.type === 'RESET_HIGHSCORE') {
+        savedHighscore = parseInt(event.data.highscore || 0, 10) || 0;
+        try {
+          localStorage.setItem('tggamehub_neonstacking_highscore', savedHighscore.toString());
+        } catch(e) {}
+      }
+    });
+
     let blocks = [];
     let activeBlock = null;
     let debrisList = [];
     let flashIntensity = 0; // Screen flash duration on perfect hit
     
-    // Camera settings
-    let camY = 0;
-    let targetCamY = 0;
+    // Smooth camera & background ascent variables
+    let towerScroll = 0;
+    let bgScrollY = 0;
 
     // Revive Variables
     let hasRevived = false; // Strictly 1x revive per round!
@@ -799,24 +1045,31 @@
       // 5. Inner glowing neon tube
       ctx.fillStyle = `rgba(255, 255, 255, ${0.28 * baseAlpha})`;
       ctx.beginPath();
-      ctx.roundRect(x + 3, y + 3, width - 6, height - 6, Math.max(1, radius - 3));
+      ctx.roundRect(x + 3, y + 3, Math.max(1, width - 6), Math.max(1, height - 6), Math.max(1, radius - 3));
       ctx.fill();
 
       ctx.restore();
     }
 
+    // Dynamic Neon HSL palette generator
+    function getBlockColor(colorIndex) {
+      return `hsl(${((colorIndex || 0) * 22 + 180) % 360}, 100%, 60%)`;
+    }
+
     class Block {
-      constructor(x, y, width, colorIndex) {
+      constructor(x, worldY, width, colorIndex) {
         this.x = x;
-        this.y = y;
+        this.worldY = worldY;
         this.width = width;
-        this.colorIndex = colorIndex;
-        // Generate beautiful neon HSL cycling colors
-        this.color = `hsl(${(colorIndex * 15) % 360}, 100%, 62%)`;
+        this.colorIndex = colorIndex || 0;
+        this.color = getBlockColor(this.colorIndex);
       }
 
-      draw() {
-        drawNeonBlock(ctx, this.x, this.y, this.width, BLOCK_HEIGHT, this.color, 6);
+      draw(scrollOffset) {
+        const screenY = this.worldY + scrollOffset;
+        if (screenY >= -BLOCK_HEIGHT && screenY <= canvas.height + BLOCK_HEIGHT) {
+          drawNeonBlock(ctx, this.x, screenY, this.width, BLOCK_HEIGHT, this.color, 6);
+        }
       }
     }
 
@@ -824,14 +1077,14 @@
       constructor(x, y, width, color, vx) {
         this.x = x;
         this.y = y;
-        this.width = width;
+        this.width = Math.max(2, width);
         this.height = BLOCK_HEIGHT;
         this.color = color;
         this.vx = vx;
-        this.vy = 0;
-        this.gravity = 0.45;
+        this.vy = 1.0;
+        this.gravity = 0.55;
         this.rotation = 0;
-        this.rotationSpeed = (Math.random() - 0.5) * 0.12;
+        this.rotationSpeed = (vx > 0 ? 1 : -1) * (0.04 + Math.random() * 0.03);
         this.alpha = 1.0;
       }
 
@@ -840,10 +1093,11 @@
         this.x += this.vx;
         this.y += this.vy;
         this.rotation += this.rotationSpeed;
-        this.alpha -= 0.02; // Fades out
+        this.alpha -= 0.035; // Clean, fast fade out
       }
 
       draw() {
+        if (this.alpha <= 0) return;
         ctx.save();
         const dAlpha = Math.max(0, this.alpha);
         ctx.translate(this.x + this.width / 2, this.y + this.height / 2);
@@ -853,30 +1107,103 @@
       }
     }
 
+    // High-energy glowing spark particles for Perfect Stack explosions
+    class SparkParticle {
+      constructor(x, y, color, speedScale = 1.0) {
+        this.x = x;
+        this.y = y;
+        const angle = Math.random() * Math.PI * 2;
+        const speed = (2.5 + Math.random() * 5.5) * speedScale;
+        this.vx = Math.cos(angle) * speed;
+        this.vy = Math.sin(angle) * speed - (1.5 * speedScale); // upward explosion bias
+        this.gravity = 0.20;
+        this.size = (2.2 + Math.random() * 3.2) * Math.min(1.0, Math.max(0.6, speedScale));
+        this.color = color;
+        this.alpha = 1.0;
+        this.decay = 0.022 + Math.random() * 0.025;
+      }
+
+      update() {
+        this.vy += this.gravity;
+        this.x += this.vx;
+        this.y += this.vy;
+        this.alpha -= this.decay;
+      }
+
+      draw() {
+        if (this.alpha <= 0) return;
+        ctx.save();
+        ctx.shadowBlur = 10;
+        ctx.shadowColor = this.color;
+        ctx.fillStyle = this.color;
+        ctx.globalAlpha = Math.max(0, this.alpha);
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+    }
+
+    // High-energy shockwave ring expansion on Perfect Stacks
+    class ShockwaveRing {
+      constructor(x, y, color, maxRadius = 60) {
+        this.x = x;
+        this.y = y;
+        this.color = color;
+        this.radius = 4;
+        this.maxRadius = maxRadius;
+        this.alpha = 1.0;
+      }
+
+      update() {
+        this.radius += (this.maxRadius - this.radius) * 0.16 + 1.2;
+        this.alpha -= 0.045;
+      }
+
+      draw() {
+        if (this.alpha <= 0) return;
+        ctx.save();
+        ctx.shadowBlur = 14;
+        ctx.shadowColor = this.color;
+        ctx.strokeStyle = this.color;
+        ctx.lineWidth = 2.2;
+        ctx.globalAlpha = Math.max(0, this.alpha);
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+      }
+    }
+
+    let sparkParticles = [];
+    let shockwaves = [];
+
     function initGame() {
       score = 0;
       tapsCount = 0;
       perfectPlacements = 0;
       comboStreak = 0;
-      camY = 0;
-      targetCamY = 0;
+      towerScroll = 0;
+      bgScrollY = 0;
       flashIntensity = 0;
       blocks = [];
       debrisList = [];
+      sparkParticles = [];
+      shockwaves = [];
       roundStartTime = Date.now();
       hasRevived = false;
       reviveCountdown = 0;
       reviveShieldTimer = 0;
+      perfectBonusTimer = 0;
       if (reviveCountdownTimer) {
         clearInterval(reviveCountdownTimer);
         reviveCountdownTimer = null;
       }
       if (reviveBtn) reviveBtn.style.display = 'none';
 
-      // Spawn initial foundation base block at the bottom
+      // Spawn initial foundation base block at the bottom footer (BASE_Y)
       const baseBlockX = (canvas.width - INITIAL_WIDTH) / 2;
-      const baseBlockY = canvas.height - BLOCK_HEIGHT - 30;
-      const baseBlock = new Block(baseBlockX, baseBlockY, INITIAL_WIDTH, 0);
+      const baseBlock = new Block(baseBlockX, BASE_Y, INITIAL_WIDTH, 0);
       blocks.push(baseBlock);
 
       spawnNextBlock();
@@ -884,106 +1211,130 @@
 
     function spawnNextBlock() {
       const prevBlock = blocks[blocks.length - 1];
-      const nextY = prevBlock.y - BLOCK_HEIGHT;
       const nextWidth = prevBlock.width;
       const colorIndex = blocks.length;
+      const nextWorldY = prevBlock.worldY - BLOCK_HEIGHT;
+
+      // Speed governed by the multi-tier progressive Stage system
+      const stageInfo = getStageInfo(score);
+      const speed = stageInfo.speed;
 
       // Determine sliding start edge and initial motion direction
       const spawnFromLeft = Math.random() < 0.5;
-      const initialX = spawnFromLeft ? -nextWidth + 5 : canvas.width - 5;
-      const speed = INITIAL_SPEED + score * SPEED_INCREMENT;
+      const initialX = spawnFromLeft ? -nextWidth - 10 : canvas.width + 10;
       const dx = spawnFromLeft ? speed : -speed;
 
       activeBlock = {
         x: initialX,
-        y: nextY,
+        worldY: nextWorldY,
         width: nextWidth,
         dx: dx,
         colorIndex: colorIndex,
-        color: `hsl(${(colorIndex * 15) % 360}, 100%, 62%)`
+        color: getBlockColor(colorIndex)
       };
-
-      // Adjust camera target to keep active tower level centered vertically
-      const centerTarget = canvas.height / 2 + 50;
-      if (nextY < centerTarget) {
-        targetCamY = centerTarget - nextY;
-      }
     }
 
-    function handleTapInput() {
-      if (gameState !== 'playing') return;
+    function handleTapInput(touchCoords = null) {
+      if (gameState !== 'playing' || !activeBlock) return;
 
       tapsCount++;
       const prevBlock = blocks[blocks.length - 1];
       
-      const leftDiff = activeBlock.x - prevBlock.x;
-      const absDiff = Math.abs(leftDiff);
+      const pLeft = prevBlock.x;
+      const pRight = prevBlock.x + prevBlock.width;
+      const aLeft = activeBlock.x;
+      const aRight = activeBlock.x + activeBlock.width;
 
-      // Hit success / overlap validation
-      if (absDiff < prevBlock.width) {
-        let finalX = activeBlock.x;
-        let finalWidth = prevBlock.width - absDiff;
-        let isPerfect = false;
+      const oLeft = Math.max(pLeft, aLeft);
+      const oRight = Math.min(pRight, aRight);
+      const overlapWidth = oRight - oLeft;
 
-        // Check if placement is close enough to snap to a perfect score
-        if (absDiff <= PERFECT_TOLERANCE) {
-          finalX = prevBlock.x; // Snaps to grid perfectly
-          finalWidth = prevBlock.width; // Maintains full width base
-          isPerfect = true;
-          perfectPlacements++;
-          comboStreak++;
-          flashIntensity = 0.5; // Flash screen white-glow overlay
-          soundManager.playPerfect();
-          showComboIndicator();
-        } else {
-          comboStreak = 0;
-          soundManager.playTap();
-          soundManager.playSlice();
-          
-          // Spawn falling debris for the sliced overhang
-          let debrisX = 0;
-          let debrisWidth = absDiff;
-          let debrisVx = leftDiff > 0 ? 1.5 : -1.5;
+      const screenActiveY = activeBlock.worldY + towerScroll;
 
-          if (leftDiff > 0) {
-            // Cut right side overhang
-            debrisX = prevBlock.x + prevBlock.width;
-          } else {
-            // Cut left side overhang
-            debrisX = activeBlock.x;
+      // Check if completely missed or remaining slice is too thin
+      if (overlapWidth <= 3) {
+        triggerGameOver();
+        return;
+      }
+
+      let finalX = oLeft;
+      let finalWidth = overlapWidth;
+      let earnedPoints = 1;
+
+      const diff = Math.abs(aLeft - pLeft);
+
+      // Check if placement is close enough to snap to a perfect score (+2 Points!)
+      if (diff <= PERFECT_TOLERANCE) {
+        finalX = pLeft; // Snaps to grid perfectly
+        finalWidth = prevBlock.width; // Maintains full width base
+        earnedPoints = 2; // +2 Points on Perfect Hit!
+        perfectPlacements++;
+        comboStreak++;
+        flashIntensity = 0.55; // Flash screen white-glow overlay
+        soundManager.playPerfect();
+        perfectBonusTimer = 1.0; // Trigger floating +2 next to score
+
+        const burstX = finalX + finalWidth / 2;
+        const burstY = screenActiveY + BLOCK_HEIGHT / 2;
+
+        if (touchCoords && typeof touchCoords.x === 'number' && typeof touchCoords.y === 'number') {
+          // Touch / Mobile Tap Input:
+          // 1. Full energetic circular shockwave directly under the player's finger position
+          shockwaves.push(new ShockwaveRing(touchCoords.x, touchCoords.y, activeBlock.color, 70));
+          shockwaves.push(new ShockwaveRing(touchCoords.x, touchCoords.y, '#ffffff', 42));
+          for (let i = 0; i < 18; i++) {
+            sparkParticles.push(new SparkParticle(touchCoords.x, touchCoords.y, activeBlock.color, 1.0));
           }
 
-          const cutDebris = new Debris(debrisX, activeBlock.y, debrisWidth, activeBlock.color, debrisVx);
-          debrisList.push(cutDebris);
-
-          // Narrow down base to slice overlap width
-          if (leftDiff > 0) {
-            finalX = activeBlock.x;
-          } else {
-            finalX = prevBlock.x;
+          // 2. Subtle, elegant neon explosion on the stacked block itself
+          shockwaves.push(new ShockwaveRing(burstX, burstY, activeBlock.color, 32));
+          for (let i = 0; i < 10; i++) {
+            sparkParticles.push(new SparkParticle(burstX, burstY, activeBlock.color, 0.55));
+          }
+        } else {
+          // Keyboard / Spacebar Input:
+          // Standard full shockwaves & sparks directly on the stacked block
+          shockwaves.push(new ShockwaveRing(burstX, burstY, activeBlock.color, 75));
+          shockwaves.push(new ShockwaveRing(burstX, burstY, '#ffffff', 45));
+          for (let i = 0; i < 28; i++) {
+            sparkParticles.push(new SparkParticle(burstX, burstY, activeBlock.color, 1.0));
           }
         }
-
-        // Add verified block to stack
-        const placedBlock = new Block(finalX, activeBlock.y, finalWidth, activeBlock.colorIndex);
-        blocks.push(placedBlock);
-        
-        score++;
-
-        // Spawn next sliding block
-        spawnNextBlock();
       } else {
-        // Completely missed the tower base! Tower collapses
-        triggerGameOver();
+        comboStreak = 0;
+        soundManager.playTap();
+        soundManager.playSlice();
+        
+        // Sliced overhang debris physics (Left or Right)
+        if (aLeft < pLeft) {
+          // Sliced on left side
+          const debrisWidth = pLeft - aLeft;
+          const cutDebris = new Debris(aLeft, screenActiveY, debrisWidth, activeBlock.color, -2.5);
+          debrisList.push(cutDebris);
+        } else if (aRight > pRight) {
+          // Sliced on right side
+          const debrisWidth = aRight - pRight;
+          const cutDebris = new Debris(pRight, screenActiveY, debrisWidth, activeBlock.color, 2.5);
+          debrisList.push(cutDebris);
+        }
       }
-    }
 
-    function showComboIndicator() {
-      comboLabel.innerText = comboStreak > 1 ? `PERFEKT x${comboStreak}!` : "PERFEKT!";
-      comboLabel.classList.add('show');
-      setTimeout(() => {
-        comboLabel.classList.remove('show');
-      }, 550);
+      // Add verified block to permanent tower stack (Exact physical intersection!)
+      const placedBlock = new Block(finalX, activeBlock.worldY, finalWidth, activeBlock.colorIndex);
+      blocks.push(placedBlock);
+      
+      score += earnedPoints; // +2 for Perfect, +1 for regular placed block
+
+      // Persist new personal highscore if beaten
+      if (score > savedHighscore) {
+        savedHighscore = score;
+        try {
+          localStorage.setItem('tggamehub_neonstacking_highscore', savedHighscore.toString());
+        } catch(e) {}
+      }
+
+      // Spawn next sliding block with the new platform width!
+      spawnNextBlock();
     }
 
     function triggerGameOver() {
@@ -991,7 +1342,8 @@
       
       // Let the final active block fall off fully as debris
       if (activeBlock) {
-        const collapseDebris = new Debris(activeBlock.x, activeBlock.y, activeBlock.width, activeBlock.color, activeBlock.dx * 0.4);
+        const screenActiveY = activeBlock.worldY + towerScroll;
+        const collapseDebris = new Debris(activeBlock.x, screenActiveY, activeBlock.width, activeBlock.color, (activeBlock.dx || 1) * 0.5);
         collapseDebris.vy = -1; // Give it slight bounce
         debrisList.push(collapseDebris);
         activeBlock = null;
@@ -999,8 +1351,7 @@
 
       soundManager.stopMusic();
       soundManager.playGameOver();
-
-      finalScoreEl.innerText = score.toLocaleString();
+      if (finalScoreEl) finalScoreEl.innerText = score.toLocaleString();
 
       // Strictly 1x free revive per round:
       if (!hasRevived) {
@@ -1036,26 +1387,45 @@
     }
 
     function update() {
+      // Dynamic camera & background scroll:
+      // 1. Tower physical scroll: keeps top block near upper third once height > 8 blocks
+      const nextBlockWorldY = activeBlock ? activeBlock.worldY : (BASE_Y - blocks.length * BLOCK_HEIGHT);
+      const targetTowerScroll = nextBlockWorldY < (TOP_ANCHOR_Y - BLOCK_HEIGHT)
+        ? (TOP_ANCHOR_Y - BLOCK_HEIGHT) - nextBlockWorldY
+        : 0;
+      towerScroll += (targetTowerScroll - towerScroll) * 0.08;
+
+      // 2. Score-coupled World Background scroll:
+      // Perfectly synchronized with the 6 Stages (Ebene 1-6):
+      // - Score <= 8: Static Cyber Ground & skyline
+      // - Score 21-40: Troposphere & Stratosphere Clouds
+      // - Score 41-50: Mesosphere atmospheric exit
+      // - Score 51+: 100% Pure Outer Space with Stars across the entire screen, ISS, Astronaut, Moon, Saturn, Jupiter, Spiral Galaxy
+      const scrollRatio = score <= 8 ? 0 : Math.min(1.0, (score - 8) / (100 - 8));
+      const targetBgScroll = scrollRatio * (WORLD_HEIGHT - VIEW_HEIGHT);
+      bgScrollY += (targetBgScroll - bgScrollY) * 0.08;
+
+      if (perfectBonusTimer > 0) {
+        perfectBonusTimer -= 0.025;
+      }
+
       if (gameState === 'revive_countdown') {
-        // Update falling debris physics and camera
-        camY += (targetCamY - camY) * 0.08;
         debrisList.forEach(d => d.update());
         debrisList = debrisList.filter(d => d.y < canvas.height + 100 && d.alpha > 0);
         return;
       }
 
-      // Move camera smoothly (lerp) towards targeting vertical level
-      camY += (targetCamY - camY) * 0.08;
-
       // Update sliding active block
       if (activeBlock) {
         activeBlock.x += activeBlock.dx;
         
-        // Bounce off canvas side walls
-        if (activeBlock.x <= 0 && activeBlock.dx < 0) {
-          activeBlock.dx = -activeBlock.dx;
-        } else if (activeBlock.x + activeBlock.width >= canvas.width && activeBlock.dx > 0) {
-          activeBlock.dx = -activeBlock.dx;
+        // Bounce off canvas boundaries with margin so it sweeps fully across the tower
+        const minX = -activeBlock.width - 20;
+        const maxX = canvas.width + 20;
+        if (activeBlock.x <= minX && activeBlock.dx < 0) {
+          activeBlock.dx = Math.abs(activeBlock.dx);
+        } else if (activeBlock.x >= maxX && activeBlock.dx > 0) {
+          activeBlock.dx = -Math.abs(activeBlock.dx);
         }
       }
 
@@ -1063,48 +1433,846 @@
       debrisList.forEach(d => d.update());
       debrisList = debrisList.filter(d => d.y < canvas.height + 100 && d.alpha > 0);
 
+      // Update perfect hit neon explosions
+      sparkParticles.forEach(p => p.update());
+      sparkParticles = sparkParticles.filter(p => p.alpha > 0);
+
+      shockwaves.forEach(s => s.update());
+      shockwaves = shockwaves.filter(s => s.alpha > 0);
+
       // Fade out perfect screen flash glow
       if (flashIntensity > 0) {
         flashIntensity -= 0.02;
       }
     }
 
+    // ── Pure Neon Outline 4200px Vertical World Background ─────────────
+    // Seamless vertical journey from Cyber Ground (Score 0-20) -> Troposphere/Stratosphere Clouds (Score 21-40) -> Mesosphere (Score 41-50) -> Deep Outer Space (Score 51+)
+    // Perfectly matched with the dark #05070f Neon Outline design language of our other games!
+    const WORLD_HEIGHT = 4200;
+    const VIEW_HEIGHT = 550;
+    let bgCanvas = null;
+
+    function initWorldBackground() {
+      bgCanvas = document.createElement('canvas');
+      bgCanvas.width = 360;
+      bgCanvas.height = WORLD_HEIGHT;
+      const bctx = bgCanvas.getContext('2d');
+
+      // 1. Deep Obsidian Cyber Void Base (#05070f matching all hub games)
+      bctx.fillStyle = '#05070f';
+      bctx.fillRect(0, 0, 360, WORLD_HEIGHT);
+
+      // 2. Subtle Cyber Scanner Grid Lines (matching Doodle Jump and Neon Bird)
+      bctx.strokeStyle = 'rgba(0, 242, 254, 0.025)';
+      bctx.lineWidth = 1;
+      bctx.beginPath();
+      for (let x = 0; x < 360; x += 24) {
+        bctx.moveTo(x, 0);
+        bctx.lineTo(x, WORLD_HEIGHT);
+      }
+      for (let y = 0; y < WORLD_HEIGHT; y += 24) {
+        bctx.moveTo(0, y);
+        bctx.lineTo(360, y);
+      }
+      bctx.stroke();
+
+      // ── ZONE 4: WELTRAUM & TIEFENKOSMOS (Y: 0 – 2450) ───────────────────────
+      // Pure outer space & starscape exploration (Score 51+ / Ebene 5 & 6) — ZERO CLOUDS!
+      
+      // 1. Helper: 4-Point & 8-Point Diffraction Sparkle Stars
+      const drawSparkleStar = (sx, sy, size, col, hasCross = false, isHero = false) => {
+        bctx.save();
+        bctx.fillStyle = col;
+        bctx.shadowBlur = (isHero ? 14 : 6);
+        bctx.shadowColor = col;
+        bctx.beginPath();
+        bctx.arc(sx, sy, size, 0, Math.PI * 2);
+        bctx.fill();
+
+        if (hasCross) {
+          const arm = size * (isHero ? 4.8 : 3.2);
+          bctx.strokeStyle = col;
+          bctx.lineWidth = isHero ? 1.2 : 0.8;
+          bctx.beginPath();
+          bctx.moveTo(sx - arm, sy); bctx.lineTo(sx + arm, sy);
+          bctx.moveTo(sx, sy - arm); bctx.lineTo(sx, sy + arm);
+          bctx.stroke();
+
+          if (isHero) {
+            const diag = arm * 0.55;
+            bctx.strokeStyle = 'rgba(255, 255, 255, 0.65)';
+            bctx.lineWidth = 0.6;
+            bctx.beginPath();
+            bctx.moveTo(sx - diag, sy - diag); bctx.lineTo(sx + diag, sy + diag);
+            bctx.moveTo(sx - diag, sy + diag); bctx.lineTo(sx + diag, sy - diag);
+            bctx.stroke();
+          }
+        }
+        bctx.restore();
+      };
+
+      // 2. High-Density Deterministic Neon Starfield (550+ Stars across space down to Y = 2550)
+      for (let i = 0; i < 550; i++) {
+        const sx = (i * 79 + 23) % 356 + 2;
+        const sy = (i * 131 + 47) % 2550;
+        const colType = i % 11;
+        const col = colType === 0 ? '#fbbf24' : (colType === 1 || colType === 2 ? '#00f2fe' : (colType === 3 ? '#c084fc' : '#ffffff'));
+        const isHero = (i % 24 === 0);
+        const hasCross = (i % 7 === 0);
+        const size = isHero ? 2.4 : (hasCross ? 1.6 : (i % 3 === 0 ? 1.1 : 0.75));
+
+        drawSparkleStar(sx, sy, size, col, hasCross, isHero);
+      }
+
+      // 3. Dense Pleiades-Style Star Clusters
+      const starClusters = [
+        { cx: 80, cy: 1720, count: 24, spread: 35, col: '#00f2fe' },
+        { cx: 280, cy: 1120, count: 28, spread: 40, col: '#fbbf24' },
+        { cx: 75, cy: 620, count: 26, spread: 35, col: '#c084fc' },
+        { cx: 275, cy: 260, count: 32, spread: 45, col: '#00f2fe' }
+      ];
+      starClusters.forEach(c => {
+        for (let j = 0; j < c.count; j++) {
+          const clX = c.cx + ((j * 31 + 7) % c.spread) - (c.spread / 2);
+          const clY = c.cy + ((j * 43 + 11) % c.spread) - (c.spread / 2);
+          bctx.save();
+          bctx.fillStyle = c.col;
+          bctx.shadowBlur = 4;
+          bctx.shadowColor = c.col;
+          bctx.beginPath();
+          bctx.arc(clX, clY, 0.9, 0, Math.PI * 2);
+          bctx.fill();
+          bctx.restore();
+        }
+      });
+
+      // 4. Real Astronomical Constellations with Node Stars and Faint Connecting Lines
+      const drawRealConstellation = (pts, name, labelX, labelY) => {
+        bctx.save();
+        // Faint connecting lines
+        bctx.strokeStyle = 'rgba(0, 242, 254, 0.22)';
+        bctx.lineWidth = 1;
+        bctx.setLineDash([3, 4]);
+        bctx.beginPath();
+        bctx.moveTo(pts[0][0], pts[0][1]);
+        for (let k = 1; k < pts.length; k++) {
+          bctx.lineTo(pts[k][0], pts[k][1]);
+        }
+        bctx.stroke();
+        bctx.setLineDash([]);
+
+        // Glowing star nodes
+        pts.forEach(p => {
+          drawSparkleStar(p[0], p[1], 1.8, '#ffffff', true, false);
+        });
+
+        // Delicate constellation name label
+        if (name && labelX && labelY) {
+          bctx.font = '10px "Courier New", monospace';
+          bctx.fillStyle = 'rgba(0, 242, 254, 0.45)';
+          bctx.shadowBlur = 4;
+          bctx.shadowColor = '#00f2fe';
+          bctx.fillText(`✦ ${name}`, labelX, labelY);
+        }
+        bctx.restore();
+      };
+
+      // Ursa Major (Big Dipper) at Y = 2120
+      drawRealConstellation([
+        [45, 2180], [75, 2165], [105, 2160], [130, 2175],
+        [155, 2170], [150, 2135], [125, 2140], [105, 2160]
+      ], 'URSA MAJOR', 45, 2130);
+
+      // Orion (Hunter & 3-Star Belt) at Y = 1460
+      drawRealConstellation([
+        [185, 1420], [215, 1455], [200, 1485], [170, 1450], [185, 1420]
+      ], 'ORION', 215, 1420);
+      drawRealConstellation([
+        [175, 1515], [200, 1485], [225, 1520]
+      ]);
+
+      // Cassiopeia (W-Shape) at Y = 780
+      drawRealConstellation([
+        [40, 770], [65, 795], [85, 775], [110, 805], [135, 785]
+      ], 'CASSIOPEIA', 40, 755);
+
+      // Cygnus (The Northern Cross) at Y = 360
+      drawRealConstellation([
+        [220, 320], [220, 360], [220, 400], [220, 360], [190, 350], [250, 370]
+      ], 'CYGNUS', 230, 330);
+
+      // ── CELESTIAL DISCOVERY LANDMARKS ───────────────────────────────────────
+
+      // A. Modular International Cyber Space Station (ISS) at (X: 255, Y: 2040)
+      bctx.save();
+      const stX = 255, stY = 2040;
+      // Central Truss
+      bctx.strokeStyle = '#94a3b8';
+      bctx.lineWidth = 2;
+      bctx.beginPath();
+      bctx.moveTo(stX - 42, stY);
+      bctx.lineTo(stX + 42, stY);
+      bctx.stroke();
+
+      // Habitat Modules
+      bctx.fillStyle = '#050716';
+      bctx.strokeStyle = '#00f2fe';
+      bctx.shadowBlur = 8;
+      bctx.shadowColor = '#00f2fe';
+      bctx.lineWidth = 1.4;
+      bctx.strokeRect(stX - 14, stY - 6, 28, 12);
+      bctx.fillRect(stX - 14, stY - 6, 28, 12);
+
+      // Cupola Circular Observation Node
+      bctx.beginPath();
+      bctx.arc(stX, stY, 3.5, 0, Math.PI * 2);
+      bctx.fillStyle = '#38bdf8';
+      bctx.fill();
+
+      // 4 Segmented Solar Arrays with Golden Wireframe Grid
+      const drawSolarWing = (wx, wy) => {
+        bctx.save();
+        bctx.fillStyle = '#020b14';
+        bctx.strokeStyle = '#fbbf24';
+        bctx.shadowBlur = 6;
+        bctx.shadowColor = '#fbbf24';
+        bctx.lineWidth = 1.2;
+        bctx.strokeRect(wx, wy, 20, 16);
+        bctx.fillRect(wx, wy, 20, 16);
+
+        // Grid cells
+        bctx.strokeStyle = 'rgba(251, 191, 36, 0.45)';
+        bctx.lineWidth = 0.8;
+        bctx.beginPath();
+        bctx.moveTo(wx + 10, wy); bctx.lineTo(wx + 10, wy + 16);
+        bctx.moveTo(wx, wy + 8); bctx.lineTo(wx + 20, wy + 8);
+        bctx.stroke();
+        bctx.restore();
+      };
+      drawSolarWing(stX - 42, stY - 20);
+      drawSolarWing(stX - 42, stY + 4);
+      drawSolarWing(stX + 22, stY - 20);
+      drawSolarWing(stX + 22, stY + 4);
+
+      // Communication Parabolic Dish
+      bctx.strokeStyle = '#00f2fe';
+      bctx.lineWidth = 1.2;
+      bctx.beginPath();
+      bctx.arc(stX - 6, stY - 14, 6, 0.8 * Math.PI, 1.8 * Math.PI);
+      bctx.stroke();
+      bctx.beginPath();
+      bctx.moveTo(stX - 6, stY - 6); bctx.lineTo(stX - 6, stY - 14);
+      bctx.stroke();
+
+      // Flashing Red Beacon
+      bctx.fillStyle = '#ef4444';
+      bctx.shadowBlur = 10;
+      bctx.shadowColor = '#ef4444';
+      bctx.beginPath();
+      bctx.arc(stX, stY - 10, 2, 0, Math.PI * 2);
+      bctx.fill();
+      bctx.restore();
+
+      // B. Floating Cyber Astronaut (Spaceman in Zero-G) at (X: 80, Y: 1880)
+      bctx.save();
+      const ax = 80, ay = 1880;
+      // Helmet
+      bctx.fillStyle = '#070c1e';
+      bctx.strokeStyle = '#00f2fe';
+      bctx.shadowBlur = 8;
+      bctx.shadowColor = '#00f2fe';
+      bctx.lineWidth = 1.5;
+      bctx.beginPath();
+      bctx.arc(ax, ay - 12, 7, 0, Math.PI * 2);
+      bctx.fill();
+      bctx.stroke();
+
+      // Visor Glow
+      bctx.fillStyle = '#fbbf24';
+      bctx.shadowColor = '#fbbf24';
+      bctx.beginPath();
+      bctx.ellipse(ax + 2, ay - 12, 3.5, 2.5, 0.2, 0, Math.PI * 2);
+      bctx.fill();
+
+      // Spacesuit Body & Backpack
+      bctx.fillStyle = '#070c1e';
+      bctx.strokeStyle = '#00f2fe';
+      bctx.shadowColor = '#00f2fe';
+      bctx.strokeRect(ax - 5, ay - 5, 10, 14);
+      bctx.fillRect(ax - 5, ay - 5, 10, 14);
+      // Backpack
+      bctx.strokeStyle = '#a855f7';
+      bctx.strokeRect(ax - 9, ay - 4, 4, 12);
+
+      // Floating Arms & Legs
+      bctx.strokeStyle = '#00f2fe';
+      bctx.lineWidth = 1.4;
+      bctx.beginPath();
+      // Arms
+      bctx.moveTo(ax - 5, ay - 2); bctx.lineTo(ax - 12, ay - 8);
+      bctx.moveTo(ax + 5, ay - 2); bctx.lineTo(ax + 13, ay - 6);
+      // Legs (Zero-g relaxed bend)
+      bctx.moveTo(ax - 3, ay + 9); bctx.lineTo(ax - 6, ay + 18); bctx.lineTo(ax - 10, ay + 17);
+      bctx.moveTo(ax + 3, ay + 9); bctx.lineTo(ax + 7, ay + 19); bctx.lineTo(ax + 11, ay + 18);
+      bctx.stroke();
+
+      // Curving Life Tether
+      bctx.strokeStyle = 'rgba(0, 242, 254, 0.4)';
+      bctx.lineWidth = 1;
+      bctx.beginPath();
+      bctx.moveTo(ax - 7, ay + 2);
+      bctx.bezierCurveTo(ax - 25, ay + 15, ax - 15, ay + 45, ax - 35, ay + 65);
+      bctx.stroke();
+      bctx.restore();
+
+      // C. Detailed Glowing Crescent Moon with Craters & Lunar Lander at (X: 260, Y: 1600)
+      bctx.save();
+      const mx = 260, my = 1600, mr = 32;
+      // Dark Lunar Body
+      bctx.fillStyle = '#040716';
+      bctx.beginPath();
+      bctx.arc(mx, my, mr, 0, Math.PI * 2);
+      bctx.fill();
+
+      // Glowing Neon Crescent Rim
+      bctx.shadowBlur = 14;
+      bctx.shadowColor = '#00f2fe';
+      bctx.strokeStyle = '#00f2fe';
+      bctx.lineWidth = 2.2;
+      bctx.beginPath();
+      bctx.arc(mx, my, mr, 0.55 * Math.PI, 1.85 * Math.PI, false);
+      bctx.bezierCurveTo(mx - 10, my - 16, mx - 10, my + 24, mx + Math.cos(0.55 * Math.PI) * mr, my + Math.sin(0.55 * Math.PI) * mr);
+      bctx.stroke();
+
+      // Impact Craters on surface
+      const drawCrater = (cx, cy, r) => {
+        bctx.shadowBlur = 4;
+        bctx.shadowColor = '#38bdf8';
+        bctx.strokeStyle = 'rgba(56, 189, 248, 0.55)';
+        bctx.lineWidth = 1.2;
+        bctx.beginPath();
+        bctx.ellipse(cx, cy, r, r * 0.7, 0.3, 0, Math.PI * 2);
+        bctx.stroke();
+      };
+      drawCrater(mx - 14, my - 10, 6);
+      drawCrater(mx - 6, my + 10, 8);
+      drawCrater(mx - 18, my + 6, 4.5);
+
+      // Apollo-Style Lunar Lander parked nearby at (X: 195, Y: 1585)
+      const lx = 195, ly = 1585;
+      bctx.shadowBlur = 6;
+      bctx.shadowColor = '#fbbf24';
+      bctx.strokeStyle = '#fbbf24';
+      bctx.lineWidth = 1.3;
+      // Ascent Stage
+      bctx.strokeRect(lx - 6, ly - 8, 12, 8);
+      // Descent Stage
+      bctx.strokeStyle = '#00f2fe';
+      bctx.strokeRect(lx - 9, ly, 18, 6);
+      // 4 Landing Legs
+      bctx.beginPath();
+      bctx.moveTo(lx - 8, ly + 6); bctx.lineTo(lx - 15, ly + 14);
+      bctx.moveTo(lx + 8, ly + 6); bctx.lineTo(lx + 15, ly + 14);
+      bctx.stroke();
+      bctx.restore();
+
+      // D. Ascending Cyber Rocket Shuttle at (X: 75, Y: 1300)
+      bctx.save();
+      const rx = 75, ry = 1300;
+      // Aerodynamic Fuselage
+      bctx.fillStyle = '#060b1e';
+      bctx.strokeStyle = '#00f2fe';
+      bctx.shadowBlur = 10;
+      bctx.shadowColor = '#00f2fe';
+      bctx.lineWidth = 1.6;
+      bctx.beginPath();
+      bctx.moveTo(rx, ry - 24);
+      bctx.bezierCurveTo(rx + 8, ry - 12, rx + 9, ry + 12, rx + 8, ry + 18);
+      bctx.lineTo(rx - 8, ry + 18);
+      bctx.bezierCurveTo(rx - 9, ry + 12, rx - 8, ry - 12, rx, ry - 24);
+      bctx.closePath();
+      bctx.fill();
+      bctx.stroke();
+
+      // Delta Wings
+      bctx.strokeStyle = '#ff007f';
+      bctx.shadowColor = '#ff007f';
+      bctx.beginPath();
+      bctx.moveTo(rx - 8, ry + 6); bctx.lineTo(rx - 20, ry + 22); bctx.lineTo(rx - 8, ry + 18);
+      bctx.moveTo(rx + 8, ry + 6); bctx.lineTo(rx + 20, ry + 22); bctx.lineTo(rx + 8, ry + 18);
+      bctx.stroke();
+
+      // Cockpit Window
+      bctx.fillStyle = '#38bdf8';
+      bctx.beginPath();
+      bctx.arc(rx, ry - 10, 3, 0, Math.PI * 2);
+      bctx.fill();
+
+      // Burning Thruster Rocket Exhaust Plume
+      bctx.strokeStyle = '#ff007f';
+      bctx.shadowBlur = 12;
+      bctx.shadowColor = '#ff007f';
+      bctx.lineWidth = 2;
+      bctx.beginPath();
+      bctx.moveTo(rx - 5, ry + 18);
+      bctx.lineTo(rx, ry + 36);
+      bctx.lineTo(rx + 5, ry + 18);
+      bctx.stroke();
+      // Inner yellow core
+      bctx.strokeStyle = '#fbbf24';
+      bctx.lineWidth = 1.2;
+      bctx.beginPath();
+      bctx.moveTo(rx - 2.5, ry + 18);
+      bctx.lineTo(rx, ry + 28);
+      bctx.lineTo(rx + 2.5, ry + 18);
+      bctx.stroke();
+      bctx.restore();
+
+      // E. Majestic Ringed Planet Saturn with Multi-Rings & Moons at (X: 245, Y: 940)
+      bctx.save();
+      const sx = 245, sy = 940, sr = 34;
+      // Dark Planet Body
+      bctx.fillStyle = '#07091c';
+      bctx.beginPath();
+      bctx.arc(sx, sy, sr, 0, Math.PI * 2);
+      bctx.fill();
+
+      // Atmosphere Latitude Bands
+      bctx.strokeStyle = 'rgba(192, 132, 252, 0.45)';
+      bctx.lineWidth = 1.2;
+      bctx.beginPath();
+      bctx.ellipse(sx, sy - 8, sr * 0.92, 8, 0, 0, Math.PI * 2);
+      bctx.ellipse(sx, sy + 8, sr * 0.92, 8, 0, 0, Math.PI * 2);
+      bctx.stroke();
+
+      // Glowing Neon Planet Rim
+      bctx.shadowBlur = 12;
+      bctx.shadowColor = '#c084fc';
+      bctx.strokeStyle = '#c084fc';
+      bctx.lineWidth = 1.8;
+      bctx.beginPath();
+      bctx.arc(sx, sy, sr, 0, Math.PI * 2);
+      bctx.stroke();
+
+      // 3 Multi-Layered Glowing Concentric Orbit Rings
+      const drawSaturnRing = (rxR, ryR, tilt, col, width) => {
+        bctx.shadowBlur = 10;
+        bctx.shadowColor = col;
+        bctx.strokeStyle = col;
+        bctx.lineWidth = width;
+        bctx.beginPath();
+        bctx.ellipse(sx, sy, rxR, ryR, tilt, 0, Math.PI * 2);
+        bctx.stroke();
+      };
+      drawSaturnRing(68, 18, -0.35, '#00f2fe', 2.0); // Inner bright cyan ring
+      drawSaturnRing(78, 22, -0.35, '#ff007f', 1.4); // Middle magenta ring
+      drawSaturnRing(88, 26, -0.35, 'rgba(251, 191, 36, 0.7)', 1.0); // Outer gold ring
+
+      // Orbiting Moons (Titan & Enceladus)
+      bctx.fillStyle = '#ffffff';
+      bctx.shadowColor = '#ffffff';
+      bctx.beginPath();
+      bctx.arc(sx - 72, sy + 22, 2.5, 0, Math.PI * 2);
+      bctx.arc(sx + 82, sy - 26, 1.8, 0, Math.PI * 2);
+      bctx.fill();
+      bctx.restore();
+
+      // F. Blazing Fast Neon Comet at (X: 70, Y: 680)
+      bctx.save();
+      const cx = 70, cy = 680;
+      // Sweeping Curved Dust & Ion Tail
+      const cometGrad = bctx.createLinearGradient(cx, cy, cx + 90, cy - 70);
+      cometGrad.addColorStop(0, '#00f2fe');
+      cometGrad.addColorStop(0.5, 'rgba(255, 0, 127, 0.6)');
+      cometGrad.addColorStop(1, 'rgba(168, 85, 247, 0)');
+      bctx.strokeStyle = cometGrad;
+      bctx.lineWidth = 2.4;
+      bctx.beginPath();
+      bctx.moveTo(cx, cy);
+      bctx.bezierCurveTo(cx + 40, cy - 25, cx + 70, cy - 50, cx + 100, cy - 75);
+      bctx.stroke();
+
+      // Secondary straight ion beam
+      bctx.strokeStyle = 'rgba(0, 242, 254, 0.5)';
+      bctx.lineWidth = 1.2;
+      bctx.beginPath();
+      bctx.moveTo(cx, cy);
+      bctx.lineTo(cx + 85, cy - 65);
+      bctx.stroke();
+
+      // Bright Comet Head Nucleus
+      bctx.fillStyle = '#ffffff';
+      bctx.shadowBlur = 14;
+      bctx.shadowColor = '#00f2fe';
+      bctx.beginPath();
+      bctx.arc(cx, cy, 4, 0, Math.PI * 2);
+      bctx.fill();
+      bctx.restore();
+
+      // G. Giant Striped Jupiter with Great Red Spot & Moons at (X: 255, Y: 460)
+      bctx.save();
+      const jx = 255, jy = 460, jr = 38;
+      bctx.fillStyle = '#060818';
+      bctx.beginPath();
+      bctx.arc(jx, jy, jr, 0, Math.PI * 2);
+      bctx.fill();
+
+      // Jupiter Atmospheric Cloud Stripes
+      bctx.strokeStyle = 'rgba(251, 191, 36, 0.55)';
+      bctx.lineWidth = 1.6;
+      bctx.beginPath();
+      bctx.ellipse(jx, jy - 14, jr * 0.92, 6, 0, 0, Math.PI * 2);
+      bctx.ellipse(jx, jy + 12, jr * 0.94, 6, 0, 0, Math.PI * 2);
+      bctx.stroke();
+
+      bctx.strokeStyle = 'rgba(239, 68, 68, 0.5)';
+      bctx.beginPath();
+      bctx.ellipse(jx, jy - 3, jr * 0.98, 7, 0, 0, Math.PI * 2);
+      bctx.stroke();
+
+      // Great Red Spot Storm Vortex
+      bctx.fillStyle = '#ef4444';
+      bctx.shadowBlur = 8;
+      bctx.shadowColor = '#ef4444';
+      bctx.beginPath();
+      bctx.ellipse(jx + 12, jy + 12, 7, 4.5, -0.1, 0, Math.PI * 2);
+      bctx.fill();
+
+      // Planet Outer Glow Rim
+      bctx.shadowBlur = 12;
+      bctx.shadowColor = '#fbbf24';
+      bctx.strokeStyle = '#fbbf24';
+      bctx.lineWidth = 2.0;
+      bctx.beginPath();
+      bctx.arc(jx, jy, jr, 0, Math.PI * 2);
+      bctx.stroke();
+
+      // Galilean Moons (Io, Europa, Ganymede)
+      bctx.fillStyle = '#38bdf8';
+      bctx.shadowColor = '#38bdf8';
+      bctx.beginPath();
+      bctx.arc(jx - 55, jy - 12, 2.2, 0, Math.PI * 2);
+      bctx.arc(jx + 58, jy + 8, 2.8, 0, Math.PI * 2);
+      bctx.arc(jx + 74, jy + 18, 1.8, 0, Math.PI * 2);
+      bctx.fill();
+      bctx.restore();
+
+      // H. Binary Star System with Swirling Plasma Bridge at (X: 80, Y: 290)
+      bctx.save();
+      const b1x = 65, b1y = 290;
+      const b2x = 95, b2y = 285;
+      // Plasma Bridge
+      bctx.strokeStyle = 'rgba(251, 191, 36, 0.4)';
+      bctx.lineWidth = 2.4;
+      bctx.beginPath();
+      bctx.moveTo(b1x, b1y);
+      bctx.bezierCurveTo(75, 275, 85, 300, b2x, b2y);
+      bctx.stroke();
+
+      // Star 1 (Gold Supergiant)
+      drawSparkleStar(b1x, b1y, 4.2, '#fbbf24', true, true);
+      // Star 2 (Cyan Dwarf Companion)
+      drawSparkleStar(b2x, b2y, 2.6, '#00f2fe', true, true);
+      bctx.restore();
+
+      // I. Grand Spiral Galaxy (Deep Cosmos Core) at (X: 180, Y: 130)
+      bctx.save();
+      const galX = 180, galY = 130;
+      // Dual Sweeping Logarithmic Spiral Arms with 90+ Star Dust Particles
+      for (let s = 0; s < 90; s++) {
+        const theta1 = (s / 90) * Math.PI * 3.4;
+        const rad1 = 6 + Math.pow(s / 90, 1.3) * 75;
+        const p1x = galX + Math.cos(theta1) * rad1 * 1.5;
+        const p1y = galY + Math.sin(theta1) * rad1 * 0.55;
+
+        const theta2 = theta1 + Math.PI;
+        const p2x = galX + Math.cos(theta2) * rad1 * 1.5;
+        const p2y = galY + Math.sin(theta2) * rad1 * 0.55;
+
+        bctx.fillStyle = s % 2 === 0 ? '#00f2fe' : '#c084fc';
+        bctx.shadowBlur = 5;
+        bctx.shadowColor = bctx.fillStyle;
+        bctx.beginPath();
+        bctx.arc(p1x, p1y, 0.8 + (s % 3 === 0 ? 0.6 : 0), 0, Math.PI * 2);
+        bctx.arc(p2x, p2y, 0.8 + (s % 3 === 0 ? 0.6 : 0), 0, Math.PI * 2);
+        bctx.fill();
+      }
+
+      // Galactic Nucleus / Supermassive Black Hole Accretion Disk Glow
+      bctx.shadowBlur = 20;
+      bctx.shadowColor = '#a855f7';
+      bctx.strokeStyle = '#c084fc';
+      bctx.lineWidth = 2.2;
+      bctx.beginPath();
+      bctx.ellipse(galX, galY, 18, 7, 0.35, 0, Math.PI * 2);
+      bctx.stroke();
+
+      bctx.fillStyle = '#ffffff';
+      bctx.shadowColor = '#ffffff';
+      bctx.beginPath();
+      bctx.arc(galX, galY, 3.5, 0, Math.PI * 2);
+      bctx.fill();
+      bctx.restore();
+
+      // ── ZONE 2: TROPOSPHÄRE & STRATOSPHÄRE (Y: 2500 – 3450) ────────────────
+      // Clouds zone (Score 21 – 40 / Ebene 2 & 3) — Top cloud ends strictly at Y = 2540!
+      
+      const drawRealisticNeonCloud = (cx, cy, scale, strokeCol) => {
+        bctx.save();
+        bctx.translate(cx, cy);
+        bctx.scale(scale, scale);
+
+        bctx.shadowBlur = 10;
+        bctx.shadowColor = strokeCol;
+        bctx.strokeStyle = strokeCol;
+        bctx.lineWidth = 1.6;
+        bctx.fillStyle = 'rgba(6, 9, 22, 0.85)';
+
+        // Organic Cumulus Cloud Compound Silhouette Path
+        bctx.beginPath();
+        bctx.moveTo(-65, 12);
+        bctx.bezierCurveTo(-30, 18, 30, 18, 65, 12);
+        bctx.arc(55, 0, 15, 0.3 * Math.PI, 1.6 * Math.PI, true);
+        bctx.arc(35, -14, 20, 0.1 * Math.PI, 1.3 * Math.PI, true);
+        bctx.arc(0, -22, 26, 0.0 * Math.PI, 1.1 * Math.PI, true);
+        bctx.arc(-34, -12, 19, 1.8 * Math.PI, 1.0 * Math.PI, true);
+        bctx.arc(-54, 0, 14, 1.6 * Math.PI, 0.7 * Math.PI, true);
+        bctx.closePath();
+        bctx.fill();
+        bctx.stroke();
+
+        // Inner volumetric highlight arcs
+        bctx.shadowBlur = 0;
+        bctx.strokeStyle = strokeCol.replace(/[\d\.]+\)$/, '0.35)');
+        bctx.lineWidth = 1.2;
+
+        bctx.beginPath();
+        bctx.arc(0, -18, 20, 0.15 * Math.PI, 0.85 * Math.PI);
+        bctx.stroke();
+
+        bctx.beginPath();
+        bctx.arc(33, -10, 15, 0.2 * Math.PI, 0.8 * Math.PI);
+        bctx.stroke();
+
+        bctx.beginPath();
+        bctx.arc(-32, -8, 14, 0.2 * Math.PI, 0.8 * Math.PI);
+        bctx.stroke();
+
+        bctx.restore();
+      };
+
+      // Clouds (Carefully placed so highest cloud is Y = 2650, exiting screen by Score 50)
+      drawRealisticNeonCloud(90, 2650, 1.05, 'rgba(0, 242, 254, 0.45)');
+      drawRealisticNeonCloud(260, 2810, 0.95, 'rgba(255, 0, 127, 0.40)');
+      drawRealisticNeonCloud(100, 2970, 1.15, 'rgba(168, 85, 247, 0.42)');
+      drawRealisticNeonCloud(250, 3130, 1.05, 'rgba(0, 242, 254, 0.45)');
+      drawRealisticNeonCloud(85, 3290, 1.1, 'rgba(255, 0, 127, 0.40)');
+      drawRealisticNeonCloud(265, 3450, 0.9, 'rgba(0, 242, 254, 0.38)');
+
+      // ── ZONE 1: CYBER GROUND & NEON CITY SKYLINE (Y: 3500 – 4200) ──────────
+      // Ground level (Score 0 – 20 / Ebene 1)
+      
+      // A. Sleek Neon Outline Cyber Skyscraper Skyline (Y = 3600 to 4100)
+      const skylineBuildings = [
+        { x: 6, w: 38, h: 230, col: '#00f2fe', winCol: '#00f2fe' },
+        { x: 48, w: 34, h: 180, col: '#ff007f', winCol: '#ff007f' },
+        { x: 86, w: 46, h: 300, col: '#a855f7', winCol: '#a855f7', antenna: true },
+        { x: 136, w: 38, h: 210, col: '#00f2fe', winCol: '#00f2fe' },
+        { x: 178, w: 44, h: 270, col: '#ff007f', winCol: '#ff007f', antenna: true },
+        { x: 226, w: 36, h: 170, col: '#00f2fe', winCol: '#00f2fe' },
+        { x: 266, w: 42, h: 290, col: '#a855f7', winCol: '#a855f7', antenna: true },
+        { x: 312, w: 42, h: 200, col: '#00f2fe', winCol: '#00f2fe' }
+      ];
+
+      skylineBuildings.forEach(b => {
+        const by = 4120 - b.h;
+        bctx.save();
+        bctx.fillStyle = '#03050e';
+        bctx.fillRect(b.x, by, b.w, b.h);
+
+        bctx.shadowBlur = 8;
+        bctx.shadowColor = b.col;
+        bctx.strokeStyle = b.col;
+        bctx.lineWidth = 1.4;
+        bctx.strokeRect(b.x, by, b.w, b.h);
+
+        if (b.antenna) {
+          const antX = b.x + b.w / 2;
+          bctx.beginPath();
+          bctx.moveTo(antX, by);
+          bctx.lineTo(antX, by - 22);
+          bctx.stroke();
+
+          bctx.fillStyle = '#ef4444';
+          bctx.shadowColor = '#ef4444';
+          bctx.beginPath();
+          bctx.arc(antX, by - 22, 2.2, 0, Math.PI * 2);
+          bctx.fill();
+        }
+
+        bctx.shadowBlur = 4;
+        bctx.shadowColor = b.winCol;
+        bctx.fillStyle = b.winCol;
+        const winW = 3, winH = 4;
+        for (let wx = b.x + 5; wx <= b.x + b.w - 7; wx += 8) {
+          for (let wy = by + 12; wy <= 4090; wy += 14) {
+            if ((wx * 11 + wy * 13) % 4 !== 0) {
+              bctx.fillRect(wx, wy, winW, winH);
+            }
+          }
+        }
+        bctx.restore();
+      });
+
+      // B. Cozy Ground-Level Neon Outline Houses (Y = 4070 to 4150)
+      const drawNeonHouse = (hx, hy, hw, hh, strokeCol, winCol) => {
+        bctx.save();
+        bctx.fillStyle = '#040612';
+        bctx.fillRect(hx, hy, hw, hh);
+
+        bctx.shadowBlur = 8;
+        bctx.shadowColor = strokeCol;
+        bctx.strokeStyle = strokeCol;
+        bctx.lineWidth = 1.6;
+        bctx.strokeRect(hx, hy, hw, hh);
+
+        bctx.beginPath();
+        bctx.moveTo(hx - 3, hy);
+        bctx.lineTo(hx + hw / 2, hy - 14);
+        bctx.lineTo(hx + hw + 3, hy);
+        bctx.closePath();
+        bctx.fill();
+        bctx.stroke();
+
+        bctx.fillStyle = winCol;
+        bctx.shadowBlur = 6;
+        bctx.shadowColor = winCol;
+        bctx.fillRect(hx + 5, hy + 6, 7, 7);
+        bctx.fillRect(hx + hw - 12, hy + 6, 7, 7);
+
+        bctx.strokeStyle = strokeCol;
+        bctx.lineWidth = 1.2;
+        bctx.strokeRect(hx + hw / 2 - 4, hy + 12, 8, hh - 12);
+        bctx.restore();
+      };
+
+      drawNeonHouse(16, 4098, 32, 28, '#00f2fe', '#fbbf24');
+      drawNeonHouse(125, 4094, 36, 32, '#ff007f', '#00f2fe');
+      drawNeonHouse(240, 4100, 34, 26, '#a855f7', '#fbbf24');
+
+      // C. Minimalist Neon Outline Pine Trees
+      const drawNeonTree = (tx, ty, tHeight, tColor) => {
+        bctx.save();
+        bctx.strokeStyle = '#64748b';
+        bctx.lineWidth = 1.5;
+        bctx.beginPath();
+        bctx.moveTo(tx, ty);
+        bctx.lineTo(tx, ty + 10);
+        bctx.stroke();
+
+        bctx.shadowBlur = 8;
+        bctx.shadowColor = tColor;
+        bctx.strokeStyle = tColor;
+        bctx.lineWidth = 1.6;
+        bctx.fillStyle = '#020b08';
+
+        bctx.beginPath();
+        bctx.moveTo(tx, ty - tHeight);
+        bctx.lineTo(tx + 10, ty);
+        bctx.lineTo(tx - 10, ty);
+        bctx.closePath();
+        bctx.fill();
+        bctx.stroke();
+
+        bctx.beginPath();
+        bctx.moveTo(tx, ty - tHeight * 1.4);
+        bctx.lineTo(tx + 7, ty - tHeight * 0.4);
+        bctx.lineTo(tx - 7, ty - tHeight * 0.4);
+        bctx.closePath();
+        bctx.fill();
+        bctx.stroke();
+        bctx.restore();
+      };
+
+      drawNeonTree(58, 4135, 18, '#10b981');
+      drawNeonTree(80, 4140, 15, '#00f2fe');
+      drawNeonTree(175, 4135, 20, '#10b981');
+      drawNeonTree(220, 4140, 16, '#34d399');
+      drawNeonTree(290, 4135, 19, '#10b981');
+      drawNeonTree(335, 4140, 15, '#00f2fe');
+
+      // D. Rolling Neon Ground / Grass Contour (Y = 4135 to 4200)
+      bctx.save();
+      bctx.fillStyle = '#020409';
+      bctx.beginPath();
+      bctx.moveTo(0, 4155);
+      bctx.bezierCurveTo(80, 4170, 160, 4145, 240, 4160);
+      bctx.bezierCurveTo(290, 4170, 330, 4150, 360, 4155);
+      bctx.lineTo(360, 4200);
+      bctx.lineTo(0, 4200);
+      bctx.closePath();
+      bctx.fill();
+
+      bctx.shadowBlur = 10;
+      bctx.shadowColor = '#10b981';
+      bctx.strokeStyle = '#34d399';
+      bctx.lineWidth = 2.2;
+      bctx.beginPath();
+      bctx.moveTo(0, 4155);
+      bctx.bezierCurveTo(80, 4170, 160, 4145, 240, 4160);
+      bctx.bezierCurveTo(290, 4170, 330, 4150, 360, 4155);
+      bctx.stroke();
+
+      bctx.shadowBlur = 0;
+      bctx.strokeStyle = 'rgba(52, 211, 153, 0.18)';
+      bctx.lineWidth = 1;
+      for (let gx = 15; gx < 360; gx += 24) {
+        bctx.beginPath();
+        bctx.moveTo(gx, 4160);
+        bctx.lineTo(gx - 10, 4200);
+        bctx.stroke();
+      }
+      bctx.restore();
+    }
+
+    // Initialize world background once at startup
+    initWorldBackground();
+
     function draw() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      // Draw digital cyber background grid lines
-      ctx.strokeStyle = 'rgba(0, 242, 254, 0.02)';
-      ctx.lineWidth = 1;
-      const gridOffset = camY % 20;
-      for (let i = 0; i < canvas.width; i += 20) {
-        ctx.beginPath();
-        ctx.moveTo(i, 0);
-        ctx.lineTo(i, canvas.height);
-        ctx.stroke();
-      }
-      for (let j = gridOffset; j < canvas.height; j += 20) {
-        ctx.beginPath();
-        ctx.moveTo(0, j);
-        ctx.lineTo(canvas.width, j);
-        ctx.stroke();
+      // Render pre-rendered vertical world background with smooth score-based ascent
+      if (bgCanvas) {
+        // Base ground level rests at bottom of 3600px world
+        let sourceY = (WORLD_HEIGHT - VIEW_HEIGHT) - bgScrollY;
+        if (sourceY < 0) {
+          // Wrap / pin deep space background when climbing past 3600px
+          sourceY = 0;
+        }
+        ctx.drawImage(bgCanvas, 0, Math.round(sourceY), 360, VIEW_HEIGHT, 0, 0, 360, VIEW_HEIGHT);
+      } else {
+        ctx.fillStyle = '#05070f';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
       }
 
-      ctx.save();
-      // Apply smooth camera scroll translation matrix
-      ctx.translate(0, camY);
-
-      // Draw permanent tower blocks stack
-      blocks.forEach(b => b.draw());
+      // Draw permanent tower blocks stack with smooth upward growth & camera scroll
+      for (let i = 0; i < blocks.length; i++) {
+        blocks[i].draw(towerScroll);
+      }
 
       // Draw falling debris chunks
       debrisList.forEach(d => d.draw());
 
-      // Draw active sliding block
-      if (activeBlock) {
-        drawNeonBlock(ctx, activeBlock.x, activeBlock.y, activeBlock.width, BLOCK_HEIGHT, activeBlock.color, 6);
-      }
+      // Draw expanding shockwaves and neon spark explosion bursts
+      shockwaves.forEach(s => s.draw());
+      sparkParticles.forEach(p => p.draw());
 
-      ctx.restore();
+      // Draw active sliding block at its screen height
+      if (activeBlock) {
+        const screenActiveY = activeBlock.worldY + towerScroll;
+        drawNeonBlock(ctx, activeBlock.x, screenActiveY, activeBlock.width, BLOCK_HEIGHT, activeBlock.color, 6);
+      }
 
       // Screen glow flash overlay on perfect hit
       if (flashIntensity > 0) {
@@ -1138,14 +2306,54 @@
         ctx.restore();
       }
 
-      // Draw score counter
+      // Draw score counter & Highscore HUD (matching Neon Bird, Crossy Road & Doodle Jump)
+      const displayHighscore = Math.max(savedHighscore, score);
+      const isNewRecord = score > savedHighscore && savedHighscore > 0;
+
       ctx.save();
+      ctx.textAlign = 'center';
+
+      // 1. Highscore Display (Positioned ABOVE current score, in Gold)
+      ctx.shadowBlur = 8;
+      ctx.shadowColor = 'rgba(251, 191, 36, 0.4)';
+      ctx.fillStyle = '#fbbf24'; // Gold
+      ctx.font = isNewRecord ? '800 11px "Outfit", monospace' : '700 10px "Outfit", monospace';
+      ctx.letterSpacing = '0.5px';
+      const hsPrefix = isNewRecord ? (t.newRecordPrefix || '🔥 Rekord: ') : (t.highscorePrefix || '🏆 Highscore: ');
+      ctx.fillText(`${hsPrefix}${displayHighscore.toLocaleString()}`, canvas.width / 2, 20);
+
+      // 2. Live Score Counter
+      const scoreStr = score.toLocaleString();
       ctx.fillStyle = '#ff007f';
       ctx.font = '900 28px "Outfit", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-      ctx.textAlign = 'center';
       ctx.shadowBlur = 12;
       ctx.shadowColor = 'rgba(255, 0, 127, 0.5)';
-      ctx.fillText(score.toLocaleString(), canvas.width / 2, 48);
+      ctx.fillText(scoreStr, canvas.width / 2, 48);
+
+      // 2b. Floating "+2" next to Score on Perfect Stack (Subtle & Non-Overlapping)
+      if (perfectBonusTimer > 0) {
+        const textWidth = (ctx.measureText && ctx.measureText(scoreStr)) ? ctx.measureText(scoreStr).width : (scoreStr.length * 16);
+        const bonusX = (canvas.width / 2) + (textWidth / 2) + 6;
+        const bonusY = 48 - ((1.0 - perfectBonusTimer) * 12);
+        const bonusAlpha = Math.min(1.0, perfectBonusTimer * 1.6);
+        
+        ctx.save();
+        ctx.textAlign = 'left';
+        ctx.font = '900 16px "Outfit", sans-serif';
+        ctx.fillStyle = `rgba(0, 242, 254, ${bonusAlpha})`;
+        ctx.shadowBlur = 8;
+        ctx.shadowColor = `rgba(0, 242, 254, ${bonusAlpha})`;
+        ctx.fillText('+2', bonusX, bonusY);
+        ctx.restore();
+      }
+
+      // 3. Progressive Stage Badge (Matching Neon Bird & Doodle Jump)
+      const stageInfo = getStageInfo(score);
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = stageInfo.badgeColor;
+      ctx.font = '700 9px "Outfit", monospace';
+      ctx.letterSpacing = '1px';
+      ctx.fillText(stageInfo.levelName, canvas.width / 2, 66);
       ctx.restore();
     }
 
@@ -1180,27 +2388,78 @@
     }
 
     // Input handlers
+    function getCanvasCoords(e) {
+      if (!e) return null;
+      const rect = canvas.getBoundingClientRect();
+      if (!rect.width || !rect.height) return null;
+      const scaleX = canvas.width / rect.width;
+      const scaleY = canvas.height / rect.height;
+
+      let clientX = null;
+      let clientY = null;
+
+      if (e.touches && e.touches.length > 0) {
+        clientX = e.touches[0].clientX;
+        clientY = e.touches[0].clientY;
+      } else if (e.changedTouches && e.changedTouches.length > 0) {
+        clientX = e.changedTouches[0].clientX;
+        clientY = e.changedTouches[0].clientY;
+      } else if (typeof e.clientX === 'number' && typeof e.clientY === 'number') {
+        clientX = e.clientX;
+        clientY = e.clientY;
+      }
+
+      if (clientX !== null && clientY !== null) {
+        return {
+          x: Math.max(0, Math.min(canvas.width, (clientX - rect.left) * scaleX)),
+          y: Math.max(0, Math.min(canvas.height, (clientY - rect.top) * scaleY))
+        };
+      }
+      return null;
+    }
+
+    let lastTapTimestamp = 0;
     function handleTriggerInput(e) {
-      if (e) e.preventDefault();
-      handleTapInput();
+      if (gameState !== 'playing') return;
+      let touchCoords = null;
+      if (e) {
+        if (e.cancelable) e.preventDefault();
+        e.stopPropagation();
+        touchCoords = getCanvasCoords(e);
+      }
+      const now = Date.now();
+      if (now - lastTapTimestamp < 100) return; // Prevent double-trigger from touch+mouse event pair
+      lastTapTimestamp = now;
+      handleTapInput(touchCoords);
     }
 
     // Keyboard binding
     window.addEventListener('keydown', (e) => {
-      if (e.code === 'Space' || e.code === 'ArrowUp') {
-        handleTriggerInput(e);
+      if (['Space', 'ArrowUp', 'ArrowDown', 'Enter', 'KeyW', 'KeyS'].includes(e.code)) {
+        if (gameState === 'playing') {
+          handleTriggerInput(e);
+        }
       }
       if (e.code === 'KeyM') {
         soundManager.toggleMusic();
       }
-      if (e.code === 'KeyS') {
+      if (e.code === 'KeyN') {
         soundManager.toggleSfx();
       }
     });
 
-    // Touch and mouse click bindings
+    // Touch and mouse click bindings on canvas and container
+    const gameContainer = document.getElementById('gameContainer');
     canvas.addEventListener('mousedown', handleTriggerInput);
     canvas.addEventListener('touchstart', handleTriggerInput, { passive: false });
+    if (gameContainer) {
+      gameContainer.addEventListener('mousedown', (e) => {
+        if (gameState === 'playing') handleTriggerInput(e);
+      });
+      gameContainer.addEventListener('touchstart', (e) => {
+        if (gameState === 'playing') handleTriggerInput(e);
+      }, { passive: false });
+    }
 
     // Prevent native context menu & text selection popups on long press
     window.addEventListener('contextmenu', e => e.preventDefault());
@@ -1280,15 +2539,32 @@
         gameOverScreen.style.display = 'none';
         reviveBtn.style.display = 'none';
 
-        // 1. Restore tower foundation safely
-        if (blocks.length > 0) {
-          const topBlock = blocks[blocks.length - 1];
-          topBlock.width = Math.max(topBlock.width, 140);
-          topBlock.x = (canvas.width - topBlock.width) / 2;
+        // 1. Roll back physical tower stack (5 levels if score <= 30, 10 levels if score > 30)
+        // Score itself is PRESERVED so the player continues building up continuously
+        const stepPenalty = score > 30 ? 10 : 5;
+        const targetBlockCount = Math.max(1, blocks.length - stepPenalty);
+        if (blocks.length > targetBlockCount) {
+          blocks = blocks.slice(0, targetBlockCount);
+        } else if (blocks.length === 0) {
+          const baseBlockX = (canvas.width - INITIAL_WIDTH) / 2;
+          blocks.push(new Block(baseBlockX, BASE_Y, INITIAL_WIDTH, 0));
         }
+
+        comboStreak = 0;
+
+        // 2. Give top restored block a solid foundation width for a fair second chance
+        const topBlock = blocks[blocks.length - 1];
+        topBlock.width = Math.max(topBlock.width, 140);
+        topBlock.x = (canvas.width - topBlock.width) / 2;
+
+        // 3. Clear falling debris and active block
+        debrisList = [];
+        activeBlock = null;
+
+        // 4. Spawn next sliding block on top
         spawnNextBlock();
 
-        // 2. 3-second safe countdown
+        // 7. 3-second safe countdown overlay
         reviveShieldTimer = 240;
         reviveCountdown = 3;
         gameState = 'revive_countdown';
@@ -1315,9 +2591,9 @@
       }
     });
 
-    // Draw static game cover on first load
-    ctx.fillStyle = '#05070f';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    // Initialize initial game state & draw preview cover
+    initGame();
+    draw();
   </script>
 </body>
 </html>

@@ -2114,15 +2114,13 @@
       ctx.textAlign = 'center';
 
       // 1. Highscore Display (Positioned ABOVE current score, in Gold)
-      if (displayHighscore > 0) {
-        ctx.shadowBlur = 8;
-        ctx.shadowColor = 'rgba(251, 191, 36, 0.4)';
-        ctx.fillStyle = '#fbbf24'; // Gold
-        ctx.font = isNewRecord ? '800 11px "Outfit", monospace' : '700 10px "Outfit", monospace';
-        ctx.letterSpacing = '0.5px';
-        const hsPrefix = isNewRecord ? '🔥 Highscore: ' : '🏆 Highscore: ';
-        ctx.fillText(`${hsPrefix}${displayHighscore.toLocaleString()}`, canvas.width / 2, 20);
-      }
+      ctx.shadowBlur = 8;
+      ctx.shadowColor = 'rgba(251, 191, 36, 0.4)';
+      ctx.fillStyle = '#fbbf24'; // Gold
+      ctx.font = isNewRecord ? '800 11px "Outfit", monospace' : '700 10px "Outfit", monospace';
+      ctx.letterSpacing = '0.5px';
+      const hsPrefix = isNewRecord ? (t.newRecordPrefix || '🔥 Rekord: ') : (t.highscorePrefix || '🏆 Highscore: ');
+      ctx.fillText(`${hsPrefix}${displayHighscore.toLocaleString()}`, canvas.width / 2, 20);
 
       // 2. Live Platform Score
       ctx.fillStyle = '#00f2fe';

@@ -64,6 +64,8 @@ interface PersonalSeasonStat {
 interface LeaderboardProps {
   initData: string;
   backendUrl: string;
+  tutorialPillar?: LeaderboardPillar;
+  onTutorialSwitchPillar?: (pillar: LeaderboardPillar) => void;
 }
 
 const DEFAULT_ACTIVE_GAMES: HubGame[] = [
@@ -94,18 +96,18 @@ const DEFAULT_ACTIVE_GAMES: HubGame[] = [
     targetScore: 40,
     coinSymbol: 'CROSSY',
   },
-];
-
-const UPCOMING_GAMES = [
   {
     id: 'neonstacking',
-    title: 'Neon Stacking',
+    title: 'NEON STACK',
     genre: 'Arcade / Stacking',
     icon: '🧱',
+    scoreUnit: 'pts',
+    targetScore: 15,
     coinSymbol: 'STACK',
-    desc: 'Stapele Neon-Blöcke auf die perfekte Höhe mit Präzision!',
   },
 ];
+
+const UPCOMING_GAMES: { id: string; title: string; genre: string; icon: string; coinSymbol: string; desc: string }[] = [];
 
 function formatCashScore(value: number): string {
   const num = Number(value || 0);
@@ -123,10 +125,12 @@ function formatDate(dateStr: string | null | undefined): string {
     if (isNaN(d.getTime())) return '';
     const now = new Date();
     const isToday = d.toDateString() === now.toDateString();
+    const timeStr = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     if (isToday) {
-      return `Heute ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+      return `Heute ${timeStr}`;
     }
-    return d.toLocaleDateString([], { day: '2-digit', month: '2-digit' });
+    const datePart = d.toLocaleDateString([], { day: '2-digit', month: '2-digit' });
+    return `${datePart}, ${timeStr}`;
   } catch (e) {
     return '';
   }
@@ -156,11 +160,17 @@ const RANK_CONFIGS: Record<number, { gradient: string; border: string; badge: st
   },
 };
 
-export function Leaderboard({ initData, backendUrl }: LeaderboardProps) {
+export function Leaderboard({ initData, backendUrl, tutorialPillar, onTutorialSwitchPillar }: LeaderboardProps) {
   const { t } = useLanguage();
 
   // Pillar: 'games' (Highscores) or 'season' (Season Economic Ranking)
   const [pillar, setPillar] = useState<LeaderboardPillar>('games');
+
+  useEffect(() => {
+    if (tutorialPillar) {
+      setPillar(tutorialPillar);
+    }
+  }, [tutorialPillar]);
 
   // Pillar 1: Games & Timeframes
   const [games, setGames] = useState<HubGame[]>(DEFAULT_ACTIVE_GAMES);
@@ -271,8 +281,10 @@ export function Leaderboard({ initData, backendUrl }: LeaderboardProps) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', paddingBottom: '24px' }}>
 
-      {/* ── Two-Pillar Header Switcher ─────────────────────────────────────── */}
-      <div style={{
+      {/* ── Two-Pillar Toggle Switch (Games vs Season) ───────────────────── */}
+      <div
+        data-tutorial="leaderboard-pillars"
+        style={{
         background: 'rgba(0,0,0,0.4)',
         border: '1px solid rgba(255,255,255,0.08)',
         borderRadius: '20px',
@@ -282,7 +294,11 @@ export function Leaderboard({ initData, backendUrl }: LeaderboardProps) {
       }}>
         {/* Pillar 1: Minigames Highscores */}
         <button
-          onClick={() => setPillar('games')}
+          data-tutorial="leaderboard-pillar-games"
+          onClick={() => {
+            setPillar('games');
+            if (onTutorialSwitchPillar) onTutorialSwitchPillar('games');
+          }}
           style={{
             flex: 1,
             display: 'flex',
@@ -309,7 +325,11 @@ export function Leaderboard({ initData, backendUrl }: LeaderboardProps) {
 
         {/* Pillar 2: Season Economic Ranking */}
         <button
-          onClick={() => setPillar('season')}
+          data-tutorial="leaderboard-pillar-season"
+          onClick={() => {
+            setPillar('season');
+            if (onTutorialSwitchPillar) onTutorialSwitchPillar('season');
+          }}
           style={{
             flex: 1,
             display: 'flex',
@@ -404,7 +424,9 @@ export function Leaderboard({ initData, backendUrl }: LeaderboardProps) {
           {/* Timeframe Tabs (Only when an active game is selected) */}
           {selectedGameId !== 'coming_soon' && (
             <>
-              <div style={{
+              <div
+                data-tutorial="leaderboard-timeframes"
+                style={{
                 display: 'flex',
                 gap: '5px',
                 background: 'rgba(0,0,0,0.3)',

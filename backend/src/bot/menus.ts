@@ -198,6 +198,7 @@ export async function buildMarketMenu(userId: string): Promise<MenuRenderResult>
     let coinToken = '[COIN_DOODLE]';
     if (c.symbol === 'FLAPPY') coinToken = '[COIN_FLAPPY]';
     if (c.symbol === 'CROSSY') coinToken = '[COIN_CROSSY]';
+    if (c.symbol === 'STACK') coinToken = '[COIN_STACK]';
 
     const holdingDisplay = holdingAmount > 0
       ? `  • Dein Bestand: <code>${holdingAmount.toLocaleString('de-DE')} ${c.symbol}</code>\n` +

@@ -6,6 +6,8 @@ interface MarketProps {
   initData: string;
   backendUrl: string;
   onBalanceUpdate?: () => void;
+  tutorialSubStep?: string | null;
+  onTutorialProgress?: (nextSubStep: string) => void;
 }
 
 interface MarketCoin {
@@ -140,7 +142,7 @@ const formatBurnedTokens = (amount: number): string => {
   return '0';
 };
 
-export function Market({ initData, backendUrl, onBalanceUpdate }: MarketProps) {
+export function Market({ initData, backendUrl, onBalanceUpdate, tutorialSubStep, onTutorialProgress }: MarketProps) {
   const { t, language } = useLanguage();
   const [data, setData] = useState<MarketOverviewData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -159,6 +161,19 @@ export function Market({ initData, backendUrl, onBalanceUpdate }: MarketProps) {
   const [tradeAmount, setTradeAmount] = useState<string>('');
   const [trading, setTrading] = useState(false);
   const [tradeSuccessMsg, setTradeSuccessMsg] = useState<string | null>(null);
+
+  // Sync tab with tutorial substep if active
+  useEffect(() => {
+    if (tutorialSubStep === 'trading_doodle') {
+      setActiveTab('trade');
+      setSelectedSymbol('DOODLE');
+      setTradeType('BUY');
+    } else if (tutorialSubStep === 'portfolio') {
+      setActiveTab('portfolio');
+    } else if (tutorialSubStep === 'market_news') {
+      setActiveTab('market');
+    }
+  }, [tutorialSubStep]);
 
   const CANONICAL_COIN_ORDER = ['DOODLE', 'FLAPPY', 'CROSSY', 'STACK'];
   const sortedCoins = [...(data?.coins || [])].sort((a, b) => {
@@ -365,6 +380,10 @@ export function Market({ initData, backendUrl, onBalanceUpdate }: MarketProps) {
       await fetchMarket();
       if (selectedCoin?.symbol) await fetchChart(selectedCoin.symbol);
       if (onBalanceUpdate) onBalanceUpdate();
+
+      if (tutorialSubStep === 'trading_doodle' && onTutorialProgress) {
+        onTutorialProgress('portfolio');
+      }
     } catch (err: any) {
       setError(err.message || 'Fehler beim Ausführen des Orders');
     } finally {
@@ -739,12 +758,15 @@ export function Market({ initData, backendUrl, onBalanceUpdate }: MarketProps) {
       </div>
 
       {/* ── Sub Navigation Tabs ─────────────────────────────────────────── */}
-      <div style={{
+      <div
+        data-tutorial="market-subtabs"
+        style={{
         display: 'flex', gap: '6px',
         background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)',
         borderRadius: '16px', padding: '5px',
       }}>
         <button
+          data-tutorial="market-tab-market"
           onClick={() => setActiveTab('market')}
           style={{
             flex: 1, padding: '10px 4px', borderRadius: '12px', border: 'none',
@@ -757,7 +779,13 @@ export function Market({ initData, backendUrl, onBalanceUpdate }: MarketProps) {
           <BarChart2 size={14} /> {t.nav.market}
         </button>
         <button
-          onClick={() => setActiveTab('trade')}
+          data-tutorial="market-tab-trade"
+          onClick={() => {
+            setActiveTab('trade');
+            if (tutorialSubStep === 'market_news' && onTutorialProgress) {
+              onTutorialProgress('trading_doodle');
+            }
+          }}
           style={{
             flex: 1, padding: '10px 4px', borderRadius: '12px', border: 'none',
             background: activeTab === 'trade' ? 'rgba(74,222,128,0.15)' : 'transparent',
@@ -769,7 +797,13 @@ export function Market({ initData, backendUrl, onBalanceUpdate }: MarketProps) {
           <TrendingUp size={14} /> {t.market.trading}
         </button>
         <button
-          onClick={() => setActiveTab('portfolio')}
+          data-tutorial="market-tab-portfolio"
+          onClick={() => {
+            setActiveTab('portfolio');
+            if (tutorialSubStep === 'trading_doodle' && onTutorialProgress) {
+              onTutorialProgress('portfolio');
+            }
+          }}
           style={{
             flex: 1, padding: '10px 4px', borderRadius: '12px', border: 'none',
             background: activeTab === 'portfolio' ? 'rgba(0,242,254,0.15)' : 'transparent',
@@ -1284,6 +1318,7 @@ export function Market({ initData, backendUrl, onBalanceUpdate }: MarketProps) {
                       }}
                     />
                     <button
+                      data-tutorial="market-trade-max-btn"
                       type="button"
                       onClick={() => {
                         if (tradeType === 'BUY') {
@@ -1405,6 +1440,7 @@ export function Market({ initData, backendUrl, onBalanceUpdate }: MarketProps) {
 
                 {/* Action Submit Button */}
                 <button
+                  data-tutorial="market-trade-submit-btn"
                   onClick={handleExecuteTrade}
                   disabled={trading || !tradeAmount || parseFloat(tradeAmount) <= 0}
                   style={{

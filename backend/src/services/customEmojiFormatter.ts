@@ -45,6 +45,7 @@ export const EMOJI = {
   DOODLE: () => ce('coin_doodle', '🟢'),
   FLAPPY: () => ce('coin_flappy', '🟡'),
   CROSSY: () => ce('coin_crossy', '🔵'),
+  STACK: () => ce('coin_stack', '🧱'),
   CASH: () => ce('coin_gamecash', '💵'),
   ENERGY: () => ce('energy_bolt', '⚡'),
   BATTERY: () => ce('energy_full', '🔋'),
@@ -79,6 +80,7 @@ export function formatCoinCadeHtml(text: string): string {
   formatted = formatted.replace(/\[COIN_DOODLE\]/g, EMOJI.DOODLE());
   formatted = formatted.replace(/\[COIN_FLAPPY\]/g, EMOJI.FLAPPY());
   formatted = formatted.replace(/\[COIN_CROSSY\]/g, EMOJI.CROSSY());
+  formatted = formatted.replace(/\[COIN_STACK\]/g, EMOJI.STACK());
   formatted = formatted.replace(/\[COIN_CASH\]/g, EMOJI.CASH());
   formatted = formatted.replace(/\[ENERGY\]/g, EMOJI.ENERGY());
   formatted = formatted.replace(/\[BATTERY\]/g, EMOJI.BATTERY());

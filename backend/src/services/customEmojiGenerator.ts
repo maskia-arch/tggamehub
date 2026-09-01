@@ -25,6 +25,7 @@ export const CUSTOM_EMOJI_CATALOG: EmojiDefinition[] = [
   { key: 'coin_doodle', filename: 'coin_doodle.png', emojiChar: '🟢', category: 'coin', title: '$DOODLE Jump Coin' },
   { key: 'coin_flappy', filename: 'coin_flappy.png', emojiChar: '🟡', category: 'coin', title: '$FLAPPY Bird Coin' },
   { key: 'coin_crossy', filename: 'coin_crossy.png', emojiChar: '🔵', category: 'coin', title: '$CROSSY Neon Coin' },
+  { key: 'coin_stack', filename: 'coin_stack.png', emojiChar: '🧱', category: 'coin', title: '$STACK Stacking Coin' },
   { key: 'coin_gamecash', filename: 'coin_gamecash.png', emojiChar: '💵', category: 'coin', title: 'Game Cash Dollar Token' },
 
   // ── 3. Energy & Boosters ───────────────────────────────────────────────────
@@ -230,6 +231,11 @@ function generateThemedIconPng(filePath: string, key: string) {
       renderGlowingCoin(png, [0, 242, 254], [2, 132, 199], 'cross');
       break;
 
+    case 'coin_stack':
+      // Vibrant Magenta / Purple Neon Stacking Coin with brick layers
+      renderGlowingCoin(png, [255, 0, 127], [168, 85, 247], 'stack');
+      break;
+
     case 'coin_gamecash':
       // Golden Dollar Cash Token
       renderGlowingCoin(png, [245, 158, 11], [180, 83, 9], 'dollar');
@@ -324,7 +330,7 @@ function fillCanvas(png: PNG, colorFn: (x: number, y: number) => [number, number
   }
 }
 
-function renderGlowingCoin(png: PNG, outerColor: number[], innerColor: number[], emblem: 'spring' | 'wing' | 'cross' | 'dollar') {
+function renderGlowingCoin(png: PNG, outerColor: number[], innerColor: number[], emblem: 'spring' | 'wing' | 'cross' | 'stack' | 'dollar') {
   fillCanvas(png, (x, y) => {
     const dx = x - 50;
     const dy = y - 50;
@@ -343,6 +349,12 @@ function renderGlowingCoin(png: PNG, outerColor: number[], innerColor: number[],
       if (dy >= 12 && dy <= 16 && Math.abs(dx) <= 12) return [255, 255, 255, 255]; // Bottom bar
     } else if (emblem === 'cross') {
       if ((Math.abs(dx) <= 5 && Math.abs(dy) <= 20) || (Math.abs(dy) <= 5 && Math.abs(dx) <= 20)) {
+        return [255, 255, 255, 255];
+      }
+    } else if (emblem === 'stack') {
+      if ((Math.abs(dx) <= 16 && dy >= -18 && dy <= -10) || 
+          (Math.abs(dx) <= 16 && dy >= -6 && dy <= 2) || 
+          (Math.abs(dx) <= 16 && dy >= 6 && dy <= 14)) {
         return [255, 255, 255, 255];
       }
     } else if (emblem === 'wing') {

@@ -296,20 +296,58 @@ export async function getGameLeaderboard(
     : [];
   const userMap = new Map(users.map((u) => [u.id, u]));
 
-  // Fetch timestamp of highest score for top entries
+  // Fetch timestamp of when the exact highscore was first achieved for each top entry
   const startDate = getTimeframeStartDate(timeframe);
-  const dateQuery = db('scores')
-    .where('game_id', gameId)
-    .whereIn('user_id', userIds)
-    .groupBy('user_id')
-    .select('user_id')
-    .max('created_at as achieved_at');
+  const dateMap = new Map<string, string>();
 
-  if (startDate) {
-    dateQuery.where('created_at', '>=', startDate);
+  if (rawEntries.length > 0) {
+    let scoreMatchesQuery = db('scores')
+      .where('game_id', gameId)
+      .where((builder) => {
+        for (const entry of rawEntries) {
+          builder.orWhere(function () {
+            this.where('user_id', entry.userId).andWhere('score', entry.score);
+          });
+        }
+      })
+      .select('user_id', 'score', 'created_at')
+      .orderBy('created_at', 'asc');
+
+    if (startDate) {
+      scoreMatchesQuery = scoreMatchesQuery.where('created_at', '>=', startDate);
+    }
+
+    const matchingScoreRows = await scoreMatchesQuery;
+    for (const r of matchingScoreRows) {
+      // First occurrence is the earliest time the highscore was achieved
+      if (!dateMap.has(r.user_id)) {
+        dateMap.set(r.user_id, r.created_at);
+      }
+    }
+
+    // Safety fallback for any entry not matched exactly
+    for (const entry of rawEntries) {
+      if (!dateMap.has(entry.userId)) {
+        let fallbackQuery = db('scores')
+          .where({
+            game_id: gameId,
+            user_id: entry.userId,
+          })
+          .orderBy('score', 'desc')
+          .orderBy('created_at', 'asc')
+          .first();
+
+        if (startDate) {
+          fallbackQuery = fallbackQuery.where('created_at', '>=', startDate);
+        }
+
+        const fallbackRow = await fallbackQuery;
+        if (fallbackRow?.created_at) {
+          dateMap.set(entry.userId, fallbackRow.created_at);
+        }
+      }
+    }
   }
-  const dateRows = userIds.length > 0 ? await dateQuery : [];
-  const dateMap = new Map(dateRows.map((d: any) => [d.user_id, d.achieved_at]));
 
   const entries: GameHighscoreEntry[] = rawEntries.map((entry, index) => {
     const userDetail = userMap.get(entry.userId);
@@ -348,7 +386,6 @@ export async function getGameLeaderboard(
         .where('game_id', gameId)
         .where('user_id', requestingUserId)
         .max('score as highscore')
-        .max('created_at as achieved_at')
         .first();
 
       if (startDate) {
@@ -374,10 +411,26 @@ export async function getGameLeaderboard(
         const betterUsers = await countBetterQuery.select('user_id');
         const exactRank = (betterUsers?.length || 0) + 1;
 
+        // Query the earliest timestamp when this exact highscore was achieved
+        let userDateQuery = db('scores')
+          .where({
+            game_id: gameId,
+            user_id: requestingUserId,
+            score: userHighscore,
+          })
+          .orderBy('created_at', 'asc')
+          .first();
+
+        if (startDate) {
+          userDateQuery = userDateQuery.where('created_at', '>=', startDate);
+        }
+
+        const userDateRow = await userDateQuery;
+
         userEntry = {
           rank: exactRank,
           highscore: userHighscore,
-          achievedAt: userRow?.achieved_at ? new Date(userRow.achieved_at).toISOString() : null,
+          achievedAt: userDateRow?.created_at ? new Date(userDateRow.created_at).toISOString() : null,
           isRanked: true,
         };
       } else {

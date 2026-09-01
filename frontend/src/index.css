@@ -144,6 +144,28 @@ h2 {
   }
 }
 
+@keyframes slideUpTutorial {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 20px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1);
+  }
+}
+
+@keyframes pulseGlow {
+  0%, 100% {
+    box-shadow: 0 0 25px rgba(0, 242, 254, 0.6), inset 0 0 15px rgba(0, 242, 254, 0.2);
+    border-color: rgba(0, 242, 254, 0.9);
+  }
+  50% {
+    box-shadow: 0 0 35px rgba(0, 242, 254, 0.9), inset 0 0 25px rgba(0, 242, 254, 0.4);
+    border-color: #4facfe;
+  }
+}
+
 /* Common UI layouts */
 .app-container {
   max-width: 480px;

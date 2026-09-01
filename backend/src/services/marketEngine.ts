@@ -153,6 +153,7 @@ export const GAME_COIN_MAP: Record<string, { symbol: string; name: string }> = {
   doodlejump: { symbol: 'DOODLE', name: 'Neon Jump Coin' },
   neonbird: { symbol: 'FLAPPY', name: 'Neon Bird Coin' },
   crossyneonroad: { symbol: 'CROSSY', name: 'Crossy Neon Road Coin' },
+  neonstacking: { symbol: 'STACK', name: 'NEON STACK Coin' },
 };
 
 // Internal momentum & activity state
@@ -193,16 +194,17 @@ function getCoinMomentum(symbol: string): CoinMomentumState {
   return momentumTracker[sym];
 }
 
-export function markCoinActivity(coinSymbol: string, addedScore: number = 0) {
+export function markCoinActivity(coinSymbol: string, performanceRatio: number = 1.0, addedScore: number = 0) {
   const momentum = getCoinMomentum(coinSymbol);
   const now = Date.now();
   momentum.lastActivityTime = now;
 
-  if (addedScore > 0) {
-    momentum.accumulatedPoints += addedScore;
+  if (performanceRatio > 0 || addedScore > 0) {
+    momentum.accumulatedPoints += addedScore > 0 ? addedScore : Math.round(performanceRatio * 100);
     momentum.accumulatedRounds += 1;
-    // Each score charges the positive event probability battery (higher scores give more charge)
-    const scoreCharge = Math.min(25, Math.max(2, Math.round(addedScore / 15)));
+    // Each score charges the positive event probability battery based on performance ratio relative to benchmark!
+    // Ratio 1.0 (meeting benchmark) gives +15 charge. Ratio >= 1.5 gives +25 charge (max). Casual/early attempt gives +4 to +6 charge.
+    const scoreCharge = Math.min(25, Math.max(4, Math.round(Math.max(0.2, performanceRatio) * 15)));
     momentum.positiveEventCharge = Math.min(100, momentum.positiveEventCharge + scoreCharge);
   }
 }
@@ -339,21 +341,36 @@ export async function ensureAllGameCoinsInitialized() {
 // ============================================================================
 
 /**
- * Computes rolling mean (μ) and standard deviation (σ) over the last 500 runs for a given minigame.
+ * Computes rolling mean (μ) and standard deviation (σ) over recent runs for a given minigame.
+ * Dynamically resolves targetScore from active game settings.
  */
 export async function getRollingScoreStatistics(gameId: string): Promise<GameScoreStatistics> {
   const cleanGameId = (gameId || '').toLowerCase().trim();
   const coinMapping = await getCoinInfoForGame(cleanGameId);
 
-  // Cold-start baseline fallback
+  // Dynamic baseline resolution from active game registry
+  let targetScoreFromConfig = 0;
+  try {
+    const allGames = await getDynamicGamesList();
+    const gameConfig = allGames.find((g) => g.id.toLowerCase() === cleanGameId);
+    if (gameConfig && Number(gameConfig.targetScore) > 0) {
+      targetScoreFromConfig = Number(gameConfig.targetScore);
+    }
+  } catch {}
+
+  // Standard fallback baselines
   const fallbackBaselines: Record<string, { mean: number; stdDev: number }> = {
-    doodlejump: { mean: 120, stdDev: 50 },
-    neonbird: { mean: 20, stdDev: 10 },
+    doodlejump: { mean: 100, stdDev: 40 },
+    neonbird: { mean: 25, stdDev: 12 },
     crossyneonroad: { mean: 40, stdDev: 20 },
     neonstacking: { mean: 15, stdDev: 8 },
   };
 
-  const baseline = fallbackBaselines[cleanGameId] || { mean: 100, stdDev: 50 };
+  const configuredTarget = targetScoreFromConfig > 0 ? targetScoreFromConfig : (fallbackBaselines[cleanGameId]?.mean || 50);
+  const baseline = {
+    mean: configuredTarget,
+    stdDev: Math.max(5, Math.round(configuredTarget * 0.4)),
+  };
 
   try {
     const hasScoresTable = await db.schema.hasTable('scores');
@@ -365,10 +382,10 @@ export async function getRollingScoreStatistics(gameId: string): Promise<GameSco
         mean: baseline.mean,
         stdDev: baseline.stdDev,
         sampleSize: 0,
-        targetScore: baseline.mean,
-        benchmarkTarget: baseline.mean,
+        targetScore: configuredTarget,
+        benchmarkTarget: configuredTarget,
         totalRoundsPlayed: 0,
-        minScoreThreshold: Math.max(1, Math.round(baseline.mean * 0.5)),
+        minScoreThreshold: Math.max(1, Math.round(configuredTarget * 0.5)),
         basePayoutCash: 0.05,
       };
     }
@@ -388,10 +405,10 @@ export async function getRollingScoreStatistics(gameId: string): Promise<GameSco
         mean: baseline.mean,
         stdDev: baseline.stdDev,
         sampleSize: 0,
-        targetScore: baseline.mean,
-        benchmarkTarget: baseline.mean,
+        targetScore: configuredTarget,
+        benchmarkTarget: configuredTarget,
         totalRoundsPlayed: 0,
-        minScoreThreshold: Math.max(1, Math.round(baseline.mean * 0.5)),
+        minScoreThreshold: Math.max(1, Math.round(configuredTarget * 0.5)),
         basePayoutCash: 0.05,
       };
     }
@@ -405,7 +422,7 @@ export async function getRollingScoreStatistics(gameId: string): Promise<GameSco
         : Math.pow(baseline.stdDev, 2);
     const stdDev = Math.max(1.0, Math.sqrt(variance));
 
-    const benchmarkTarget = Math.max(1, Math.round(mean));
+    const benchmarkTarget = Math.max(1, targetScoreFromConfig > 0 ? targetScoreFromConfig : Math.round(mean));
     const minScoreThreshold = Math.max(1, Math.round(benchmarkTarget * 0.5));
 
     return {
@@ -430,10 +447,10 @@ export async function getRollingScoreStatistics(gameId: string): Promise<GameSco
       mean: baseline.mean,
       stdDev: baseline.stdDev,
       sampleSize: 0,
-      targetScore: baseline.mean,
-      benchmarkTarget: baseline.mean,
+      targetScore: configuredTarget,
+      benchmarkTarget: configuredTarget,
       totalRoundsPlayed: 0,
-      minScoreThreshold: Math.max(1, Math.round(baseline.mean * 0.5)),
+      minScoreThreshold: Math.max(1, Math.round(configuredTarget * 0.5)),
       basePayoutCash: 0.05,
     };
   }
@@ -471,9 +488,19 @@ export async function calculateDynamicHourlyBoost(
       };
     }
 
-    const gameKey = Object.keys(GAME_COIN_MAP).find(
-      (k) => GAME_COIN_MAP[k].symbol.toUpperCase() === coinSymbol.toUpperCase()
-    ) || coinSymbol.toLowerCase();
+    let gameKey = coinSymbol.toLowerCase();
+    try {
+      const allGames = await getDynamicGamesList();
+      const matchedGame = allGames.find((g) => g.coinSymbol.toUpperCase() === coinSymbol.toUpperCase());
+      if (matchedGame) {
+        gameKey = matchedGame.id;
+      } else {
+        const canonicalKey = Object.keys(GAME_COIN_MAP).find(
+          (k) => GAME_COIN_MAP[k].symbol.toUpperCase() === coinSymbol.toUpperCase()
+        );
+        if (canonicalKey) gameKey = canonicalKey;
+      }
+    } catch {}
 
     // 1. Hourly scores in the last 60 minutes
     const hourlyScores = await db('scores')
@@ -570,8 +597,8 @@ export async function calculateDynamicHourlyBoost(
 }
 
 /**
- * Processes game score completion with EXACT 1:1 score burning (1 Point = 1 Token Burned)
- * and Z-score scaled AMM price impact.
+ * Processes game score completion with UNIVERSAL BENCHMARK-NORMALIZED score burning
+ * (100% Benchmark Score = 500 Tokens Burned across ALL games) and fair AMM price impact.
  */
 export async function processGameScoreAmmImpact(
   gameId: string,
@@ -603,7 +630,7 @@ export async function processGameScoreAmmImpact(
   const zScore = Math.round(((score - mean) / stdDev) * 100) / 100;
   const performanceRatio = Math.round((score / Math.max(1, targetScore)) * 100) / 100;
 
-  // InGame$ Cash Payout
+  // InGame$ Cash Payout (fairly normalized across all games)
   let earnedCash = 0.0;
   if (score > 0) {
     const rawCash = stats.basePayoutCash * Math.min(3.0, Math.pow(Math.max(0.1, performanceRatio), 0.85));
@@ -626,7 +653,8 @@ export async function processGameScoreAmmImpact(
   }
 
   const coinSymbol = coinMapping.symbol;
-  markCoinActivity(coinSymbol, score);
+  // Mark coin activity with normalized performance ratio for fair battery charging
+  markCoinActivity(coinSymbol, performanceRatio, score);
 
   try {
     let coin = await db('market_coins').where({ symbol: coinSymbol }).first();
@@ -671,32 +699,44 @@ export async function processGameScoreAmmImpact(
       const globalMax = Number(allTimeHigh?.max_score || 0);
       const userMax = Number(userBest?.user_max || 0);
 
-      if (globalMax > 0 && score >= globalMax && zScore >= 2.0) {
+      if (globalMax > 0 && score >= globalMax && (zScore >= 1.8 || performanceRatio >= 2.0)) {
         isRecordBreak = true;
         impulseBonusPercent = 0.08; // +8% All-Time High Spike
-      } else if (userMax > 0 && score > userMax && zScore >= 1.5) {
+      } else if (userMax > 0 && score > userMax && (zScore >= 1.2 || performanceRatio >= 1.4)) {
         isRecordBreak = true;
         impulseBonusPercent = 0.04; // +4% Personal Highscore Spike
       }
     }
 
-    // ── EXACT 1:1 SCORE TOKEN BURN ──────────────────────────────────────────
-    // Every point scored permanently burns exactly 1 coin from the circulating pool!
-    const burnedTokens = tokensBurnedParam !== undefined ? Math.max(1, tokensBurnedParam) : Math.max(1, Math.round(score));
+    // ── UNIVERSAL BENCHMARK-NORMALIZED SCORE TOKEN BURN ─────────────────────
+    // Calibrated so that reaching 100% of benchmark target score burns exactly 500 tokens in EVERY game!
+    // A 2x benchmark score burns 1,000 tokens, giving all minigames identical, balanced burning power.
+    const BASELINE_BURN_UNITS = 500;
+    const burnedTokens = tokensBurnedParam !== undefined
+      ? Math.max(1, tokensBurnedParam)
+      : Math.max(1, Math.round(Math.max(0.05, performanceRatio) * BASELINE_BURN_UNITS));
 
     const newSupply = Math.max(1000.0, circulatingSupply - burnedTokens);
     const newTotalBurned = Math.round((Number(coin.total_burned || 0) + burnedTokens) * 100) / 100;
-    const newVolume24h = Math.round((Number(coin.volume_24h || 0) + score) * 100) / 100;
+    
+    // 24h volume: recorded in standardized token burn equivalent
+    const newVolume24h = Math.round((Number(coin.volume_24h || 0) + burnedTokens) * 100) / 100;
 
-    // Normalized Score-to-Market Price Impact
-    const isPositiveImpact = zScore >= 0;
+    // Normalized Score-to-Market Price Impact:
+    // Any active play generates positive token burn pressure.
+    // - Strong rounds (performanceRatio >= 0.85 or zScore >= 0) provide healthy logarithmic upward momentum.
+    // - Casual/learning rounds (performanceRatio < 0.85) provide gentle baseline support (+0.005% burn deflation)
+    //   without unfairly crashing the coin on high-difficulty games.
+    const isPositiveImpact = performanceRatio >= 0.8 || zScore >= 0;
     let deltaScore = 0.0;
 
-    if (isPositiveImpact) {
-      deltaScore = MARKET_CONFIG.SCORE_IMPACT_FACTOR * Math.log(1 + 2 * Math.max(0.1, zScore)) * boostMultiplier;
+    if (performanceRatio >= 0.85 || zScore >= 0) {
+      const ratioExcess = Math.max(0, performanceRatio - 1.0);
+      const strength = Math.max(0.1, ratioExcess * 1.5 + (zScore > 0 ? Math.min(1.5, zScore * 0.3) : 0));
+      deltaScore = MARKET_CONFIG.SCORE_IMPACT_FACTOR * Math.log(1 + 2 * strength) * boostMultiplier;
     } else {
-      const penalty = 0.0002 * Math.min(1.5, Math.pow(Math.abs(zScore), 1.1));
-      deltaScore = -penalty;
+      // Gentle floor support from token deflation (no destructive negative penalty)
+      deltaScore = 0.00005 * Math.min(1.0, Math.max(0.05, performanceRatio));
     }
 
     const totalPriceShift = deltaScore + impulseBonusPercent;
@@ -723,7 +763,7 @@ export async function processGameScoreAmmImpact(
     await db('market_price_history').insert({
       coin_symbol: coinSymbol,
       price: newPrice,
-      volume: score,
+      volume: burnedTokens,
       timestamp: new Date(),
     });
 
@@ -732,11 +772,11 @@ export async function processGameScoreAmmImpact(
         coin_symbol: coinSymbol,
         event_type: 'HIGHSCORE_RECORD_BREAK',
         title: '🚀 NEUER HIGHSCORE-REKORD!',
-        description: `Ein Spieler erzielte ${score.toLocaleString()} Punkte! Exakt ${burnedTokens.toLocaleString()} $${coinSymbol} dauerhaft verbrannt! Kurs +${(impulseBonusPercent * 100).toFixed(1)}%!`,
+        description: `Ein Spieler erzielte ${score.toLocaleString()} Punkte (${Math.round(performanceRatio * 100)}% Benchmark)! Exakt ${burnedTokens.toLocaleString()} $${coinSymbol} dauerhaft verbrannt! Kurs +${(impulseBonusPercent * 100).toFixed(1)}%!`,
         price_impact_percent: Math.round(impulseBonusPercent * 10000) / 100,
         created_at: new Date(),
       });
-    } else if (isPositiveImpact && (burnedTokens >= 200 || Math.abs(priceChangePercent) >= 0.01)) {
+    } else if (isPositiveImpact && (burnedTokens >= 400 || performanceRatio >= 1.0 || Math.abs(priceChangePercent) >= 0.01)) {
       await db('market_events').insert({
         coin_symbol: coinSymbol,
         event_type: 'GAMEPLAY_TOKEN_BURN',

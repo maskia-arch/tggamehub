@@ -12,6 +12,7 @@ import { useLanguage } from './i18n/LanguageContext';
 import { LanguageToggle } from './components/LanguageToggle';
 import { TelegramRedirectLanding } from './components/TelegramRedirectLanding';
 import { FrozenAccountModal } from './components/FrozenAccountModal';
+import { TutorialOverlay } from './components/TutorialOverlay';
 
 // Read API URL from environment, fallback to backend on local dev or current origin in prod
 const BACKEND_URL =
@@ -62,6 +63,9 @@ interface ProfileData {
     total_badges_count?: number;
     badges?: any[];
     all_achievements?: any[];
+    tutorial_status?: 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED' | 'SKIPPED';
+    tutorial_step?: number;
+    tutorial_reward_claimed?: boolean;
   };
   energy: {
     current: number;
@@ -79,6 +83,15 @@ export default function App() {
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
   const [showEnergyPopup, setShowEnergyPopup] = useState(false);
+
+  // ── Tutorial State & Flow Management ──
+  const [tutorialStep, setTutorialStep] = useState<number>(1);
+  const [isTutorialActive, setIsTutorialActive] = useState<boolean>(false);
+  const [showTutorialOffer, setShowTutorialOffer] = useState<boolean>(false);
+  const [showTutorialCompletion, setShowTutorialCompletion] = useState<boolean>(false);
+  const [tutorialSubStep, setTutorialSubStep] = useState<string | null>(null);
+  const [tutorialPillar, setTutorialPillar] = useState<'games' | 'season'>('games');
+  const [autoOpenAvatarModal, setAutoOpenAvatarModal] = useState<boolean>(false);
 
   // If accessed directly via browser outside Telegram -> Show referral landing card
   if (!isInsideTelegram) {
@@ -119,6 +132,177 @@ export default function App() {
       fetchProfile();
     }
   }, [initData, fetchProfile]);
+
+  // ── Sync Tutorial Initial State From Loaded Profile ──
+  useEffect(() => {
+    if (!profile || isGuest) return;
+    const status = profile.user.tutorial_status || 'NOT_STARTED';
+    const isPostponed = sessionStorage.getItem('coincade_tutorial_postponed_session') === 'true';
+
+    if (status === 'NOT_STARTED' && !isPostponed && !isTutorialActive && !showTutorialCompletion) {
+      setShowTutorialOffer(true);
+    } else if (status === 'IN_PROGRESS' && !isTutorialActive && !showTutorialCompletion) {
+      setIsTutorialActive(true);
+      const step = profile.user.tutorial_step || 1;
+      setTutorialStep(step);
+      if (step === 1 || step === 2) setActiveTab('games');
+      else if (step === 3) { setActiveTab('market'); setTutorialSubStep('market_news'); }
+      else if (step === 4) { setActiveTab('leaderboard'); setTutorialPillar('games'); }
+      else if (step === 5) { setActiveTab('leaderboard'); setTutorialPillar('season'); }
+      else if (step === 6) setActiveTab('shop');
+      else if (step === 7) { setActiveTab('profile'); setAutoOpenAvatarModal(true); }
+    }
+  }, [profile?.user?.tutorial_status, profile?.user?.tutorial_step, isGuest]);
+
+  const handleStartTutorial = async () => {
+    setShowTutorialOffer(false);
+    setIsTutorialActive(true);
+    setTutorialStep(1);
+    setActiveTab('games');
+    try {
+      await fetch(`${BACKEND_URL}/api/user/tutorial/status`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${initData}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'IN_PROGRESS', step: 1 }),
+      });
+    } catch (e) {
+      console.warn('Failed to save tutorial status:', e);
+    }
+  };
+
+  const handlePostponeTutorial = () => {
+    setShowTutorialOffer(false);
+    setIsTutorialActive(false);
+    sessionStorage.setItem('coincade_tutorial_postponed_session', 'true');
+  };
+
+  const handleDeclinePermanentTutorial = async () => {
+    setShowTutorialOffer(false);
+    setIsTutorialActive(false);
+    if (profile) {
+      setProfile({
+        ...profile,
+        user: { ...profile.user, tutorial_status: 'SKIPPED' },
+      });
+    }
+    try {
+      await fetch(`${BACKEND_URL}/api/user/tutorial/status`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${initData}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'SKIPPED' }),
+      });
+    } catch (e) {
+      console.warn('Failed to save tutorial skip:', e);
+    }
+  };
+
+  const handleAbortTutorial = async () => {
+    setIsTutorialActive(false);
+    setShowTutorialOffer(false);
+    if (profile) {
+      setProfile({
+        ...profile,
+        user: { ...profile.user, tutorial_status: 'SKIPPED' },
+      });
+    }
+    try {
+      await fetch(`${BACKEND_URL}/api/user/tutorial/status`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${initData}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'SKIPPED' }),
+      });
+    } catch (e) {
+      console.warn('Failed to save tutorial abort:', e);
+    }
+  };
+
+  const syncTutorialStep = async (step: number) => {
+    try {
+      await fetch(`${BACKEND_URL}/api/user/tutorial/status`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${initData}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ step }),
+      });
+    } catch (e) {
+      console.warn('Failed to sync tutorial step:', e);
+    }
+  };
+
+  const handleNextStep = async () => {
+    if (tutorialStep === 1) {
+      setTutorialStep(2);
+      setActiveTab('games');
+      await syncTutorialStep(2);
+    } else if (tutorialStep === 2) {
+      setTutorialStep(3);
+      setTutorialSubStep('market_news');
+      setActiveTab('market');
+      await syncTutorialStep(3);
+    } else if (tutorialStep === 3) {
+      if (tutorialSubStep === 'market_news') {
+        setTutorialSubStep('trading_doodle');
+      } else if (tutorialSubStep === 'portfolio' || !tutorialSubStep) {
+        setTutorialStep(4);
+        setTutorialSubStep(null);
+        setActiveTab('leaderboard');
+        setTutorialPillar('games');
+        await syncTutorialStep(4);
+      }
+    } else if (tutorialStep === 4) {
+      setTutorialStep(5);
+      setActiveTab('leaderboard');
+      setTutorialPillar('season');
+      await syncTutorialStep(5);
+    } else if (tutorialStep === 5) {
+      setTutorialStep(6);
+      setActiveTab('shop');
+      await syncTutorialStep(6);
+    } else if (tutorialStep === 6) {
+      setTutorialStep(7);
+      setActiveTab('profile');
+      setAutoOpenAvatarModal(true);
+      await syncTutorialStep(7);
+    }
+  };
+
+  const handleClaimTutorialReward = async () => {
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/user/tutorial/complete`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${initData}` },
+      });
+      if (res.ok) {
+        setShowTutorialCompletion(false);
+        setIsTutorialActive(false);
+        await fetchProfile();
+      }
+    } catch (e) {
+      console.error('Failed to claim tutorial reward:', e);
+    }
+  };
+
+  const getTargetSelector = () => {
+    if (!isTutorialActive) return null;
+    switch (tutorialStep) {
+      case 2:
+        return '[data-tutorial="game-play-btn-doodlejump"]';
+      case 3:
+        if (tutorialSubStep === 'market_news') return '[data-tutorial="market-subtabs"]';
+        if (tutorialSubStep === 'trading_doodle') return '[data-tutorial="market-trade-max-btn"]';
+        if (tutorialSubStep === 'portfolio') return '[data-tutorial="market-tab-portfolio"]';
+        return null;
+      case 4:
+        return '[data-tutorial="leaderboard-timeframes"]';
+      case 5:
+        return '[data-tutorial="leaderboard-pillar-season"]';
+      case 6:
+        return '[data-tutorial="shop-header-card"]';
+      case 7:
+        return '[data-tutorial="profile-avatar-btn"]';
+      default:
+        return null;
+    }
+  };
 
   // 1. Auto-Resume & Connection Recovery:
   // Re-fetch profile & energy immediately when returning to the Mini App, focusing window, or reconnecting online
@@ -346,6 +530,14 @@ export default function App() {
                 dailyAdCount={profile.user.daily_ad_count}
                 dailyAdLimit={profile.user.daily_ad_limit}
                 onOpenShop={() => setActiveTab('shop')}
+                isTutorialStep2={isTutorialActive && tutorialStep === 2}
+                onTutorialGameCompleted={() => {
+                  setTutorialStep(3);
+                  setTutorialSubStep('market_news');
+                  setActiveTab('market');
+                  syncTutorialStep(3);
+                  fetchProfile();
+                }}
               />
             )}
             {activeTab === 'market' && (
@@ -353,10 +545,19 @@ export default function App() {
                 initData={initData}
                 backendUrl={BACKEND_URL}
                 onBalanceUpdate={fetchProfile}
+                tutorialSubStep={isTutorialActive && tutorialStep === 3 ? tutorialSubStep : null}
+                onTutorialProgress={(nextSub) => {
+                  setTutorialSubStep(nextSub);
+                }}
               />
             )}
             {activeTab === 'leaderboard' && (
-              <Leaderboard initData={initData} backendUrl={BACKEND_URL} />
+              <Leaderboard
+                initData={initData}
+                backendUrl={BACKEND_URL}
+                tutorialPillar={isTutorialActive ? tutorialPillar : undefined}
+                onTutorialSwitchPillar={(p) => setTutorialPillar(p)}
+              />
             )}
             {activeTab === 'shop' && profile && (
               <Shop
@@ -372,6 +573,12 @@ export default function App() {
                 onRefresh={fetchProfile}
                 initData={initData}
                 backendUrl={BACKEND_URL}
+                autoOpenAvatarModal={isTutorialActive && tutorialStep === 7 && autoOpenAvatarModal}
+                onTutorialAvatarSelected={() => {
+                  setAutoOpenAvatarModal(false);
+                  setIsTutorialActive(false);
+                  setShowTutorialCompletion(true);
+                }}
               />
             )}
           </>
@@ -381,6 +588,7 @@ export default function App() {
       {/* Bottom Sticky Tab Navigation */}
       <nav className="nav-bar glass">
         <button
+          data-tutorial="nav-item-games"
           onClick={() => setActiveTab('games')}
           className={`nav-item ${activeTab === 'games' ? 'active' : ''}`}
         >
@@ -388,6 +596,7 @@ export default function App() {
           <span>{t.nav.games}</span>
         </button>
         <button
+          data-tutorial="nav-item-market"
           onClick={() => setActiveTab('market')}
           className={`nav-item ${activeTab === 'market' ? 'active' : ''}`}
         >
@@ -395,6 +604,7 @@ export default function App() {
           <span>{t.nav.market}</span>
         </button>
         <button
+          data-tutorial="nav-item-leaderboard"
           onClick={() => setActiveTab('leaderboard')}
           className={`nav-item ${activeTab === 'leaderboard' ? 'active' : ''}`}
         >
@@ -402,6 +612,7 @@ export default function App() {
           <span>{t.nav.leaderboard}</span>
         </button>
         <button
+          data-tutorial="nav-item-shop"
           onClick={() => setActiveTab('shop')}
           className={`nav-item ${activeTab === 'shop' ? 'active' : ''}`}
         >
@@ -409,6 +620,7 @@ export default function App() {
           <span>{t.nav.shop}</span>
         </button>
         <button
+          data-tutorial="nav-item-profile"
           onClick={() => setActiveTab('profile')}
           className={`nav-item ${activeTab === 'profile' ? 'active' : ''}`}
         >
@@ -446,6 +658,22 @@ export default function App() {
           reason={profile.user.frozen_reason || profile.user.ban_reason}
         />
       )}
+
+      {/* ── Guided Onboarding Tutorial System ── */}
+      <TutorialOverlay
+        currentStep={tutorialStep}
+        isActive={isTutorialActive}
+        showOffer={showTutorialOffer}
+        showCompletion={showTutorialCompletion}
+        onStart={handleStartTutorial}
+        onPostpone={handlePostponeTutorial}
+        onDeclinePermanent={handleDeclinePermanentTutorial}
+        onNextStep={handleNextStep}
+        onAbortTutorial={handleAbortTutorial}
+        onClaimReward={handleClaimTutorialReward}
+        targetElementSelector={getTargetSelector()}
+        subStep={tutorialSubStep}
+      />
     </div>
   );
 }

@@ -1014,6 +1014,12 @@
         if (!p.passed && p.x + p.width / 2 < bird.x) {
           p.passed = true;
           score++;
+          if (score > savedHighscore) {
+            savedHighscore = score;
+            try {
+              localStorage.setItem('tggamehub_neonbird_highscore', savedHighscore.toString());
+            } catch(e) {}
+          }
           soundManager.playPoint();
         }
       });
@@ -1107,29 +1113,27 @@
       ctx.textAlign = 'center';
 
       // 1. Highscore Display (Positioned ABOVE current score, in Gold)
-      if (displayHighscore > 0) {
-        ctx.shadowBlur = 8;
-        ctx.shadowColor = 'rgba(251, 191, 36, 0.4)';
-        ctx.fillStyle = '#fbbf24'; // Gold
-        ctx.font = isNewRecord ? '800 11px "Outfit", monospace' : '700 10px "Outfit", monospace';
-        ctx.letterSpacing = '0.5px';
-        const hsPrefix = isNewRecord ? '🔥 Highscore: ' : '🏆 Highscore: ';
-        ctx.fillText(`${hsPrefix}${displayHighscore.toLocaleString()}`, canvas.width / 2, 22);
-      }
+      ctx.shadowBlur = 8;
+      ctx.shadowColor = 'rgba(251, 191, 36, 0.4)';
+      ctx.fillStyle = '#fbbf24'; // Gold
+      ctx.font = isNewRecord ? '800 11px "Outfit", monospace' : '700 10px "Outfit", monospace';
+      ctx.letterSpacing = '0.5px';
+      const hsPrefix = isNewRecord ? (t.newRecordPrefix || '🔥 Rekord: ') : (t.highscorePrefix || '🏆 Highscore: ');
+      ctx.fillText(`${hsPrefix}${displayHighscore.toLocaleString()}`, canvas.width / 2, 20);
 
       // 2. Live Score Counter
       ctx.fillStyle = '#ff007f';
       ctx.font = '900 28px "Outfit", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
       ctx.shadowBlur = 10;
       ctx.shadowColor = 'rgba(255, 0, 127, 0.5)';
-      ctx.fillText(score.toLocaleString(), canvas.width / 2, 50);
+      ctx.fillText(score.toLocaleString(), canvas.width / 2, 48);
 
-      // 3. Progressive Stage Badge (Only Stage Name, ABSTAND completely removed)
+      // 3. Progressive Stage Badge
       ctx.shadowBlur = 0;
       ctx.fillStyle = diff.badgeColor;
       ctx.font = '700 9px "Outfit", monospace';
       ctx.letterSpacing = '1px';
-      ctx.fillText(diff.levelName, canvas.width / 2, 65);
+      ctx.fillText(diff.levelName, canvas.width / 2, 64);
       ctx.restore();
     }
 

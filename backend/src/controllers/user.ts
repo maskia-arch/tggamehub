@@ -39,6 +39,9 @@ export async function getProfile(req: AuthenticatedRequest, res: Response) {
           wallet_sol: null,
           wallet_eth: null,
           is_guest: true,
+          tutorial_status: 'SKIPPED',
+          tutorial_step: 1,
+          tutorial_reward_claimed: false,
         },
         energy: {
           current: 5,
@@ -217,6 +220,9 @@ export async function getProfile(req: AuthenticatedRequest, res: Response) {
         total_badges_count: achievements.length,
         badges: unlockedBadges,
         all_achievements: achievements,
+        tutorial_status: user.tutorial_status || 'NOT_STARTED',
+        tutorial_step: Number(user.tutorial_step || 1),
+        tutorial_reward_claimed: Boolean(user.tutorial_reward_claimed),
       },
       energy: {
         current: energyInfo.currentEnergy,
@@ -602,7 +608,8 @@ export async function getPublicProfile(req: AuthenticatedRequest, res: Response)
 
     return res.json({
       success: true,
-      profile: profileData
+      profile: profileData,
+      ...profileData,
     });
   } catch (error: any) {
     console.error('Error fetching public profile:', error);
@@ -644,4 +651,152 @@ export async function updateAvatar(req: AuthenticatedRequest, res: Response) {
     return res.status(500).json({ error: 'Fehler beim Speichern des Profilbilds' });
   }
 }
+
+/**
+ * Updates the user's tutorial status and step progress
+ */
+export async function updateTutorialStatus(req: AuthenticatedRequest, res: Response) {
+  const userId = req.telegramUser?.id;
+  if (!userId) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  // If guest, return ok without failing
+  if (req.telegramUser?.isGuest || userId.startsWith('guest_')) {
+    return res.json({ success: true, is_guest: true });
+  }
+
+  const { status, step } = req.body;
+  const validStatuses = ['NOT_STARTED', 'IN_PROGRESS', 'COMPLETED', 'SKIPPED'];
+
+  if (status && !validStatuses.includes(status)) {
+    return res.status(400).json({ error: 'Invalid tutorial status' });
+  }
+
+  try {
+    const updateData: any = {};
+    if (status) updateData.tutorial_status = status;
+    if (typeof step === 'number') updateData.tutorial_step = Math.max(1, Math.min(7, step));
+
+    if (Object.keys(updateData).length > 0) {
+      await db('users').where({ id: userId }).update(updateData);
+    }
+
+    return res.json({ success: true, ...updateData });
+  } catch (error: any) {
+    console.error('Error updating tutorial status:', error);
+    return res.status(500).json({ error: 'Fehler beim Aktualisieren des Tutorial-Status' });
+  }
+}
+
+/**
+ * Claims the final tutorial reward (+5 Free Energy and 0.10$ worth of every crypto token)
+ */
+export async function claimTutorialReward(req: AuthenticatedRequest, res: Response) {
+  const userId = req.telegramUser?.id;
+  if (!userId) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  // Prevent guest claiming
+  if (req.telegramUser?.isGuest || userId.startsWith('guest_')) {
+    return res.status(400).json({ error: 'Gast-Spieler können keine Belohnungen beanspruchen.' });
+  }
+
+  try {
+    const user = await db('users').where({ id: userId }).first();
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    if (user.tutorial_reward_claimed) {
+      return res.status(400).json({ error: 'Tutorial-Belohnung wurde bereits abgeholt.' });
+    }
+
+    const { addEnergy } = require('../services/energy');
+    const { addInboxMessage } = require('../services/inboxService');
+
+    // Get all registered active coins
+    const coins = await db('coins').select('*');
+    const awardedPortfolio: { symbol: string; tokens: number; cashValue: number }[] = [];
+
+    await db.transaction(async (trx) => {
+      // 1. Award +5 energy (can exceed max cap)
+      await addEnergy(userId, 5, true, trx);
+
+      // 2. Award 0.10$ worth of tokens for each coin in the market
+      for (const coin of coins) {
+        const coinPrice = Math.max(0.00000001, Number(coin.current_price || coin.base_price || 0.00000001));
+        const tokensToCredit = 0.10 / coinPrice;
+
+        const existing = await trx('user_portfolios')
+          .where({ user_id: userId, coin_symbol: coin.symbol })
+          .first();
+
+        if (existing) {
+          const oldAmount = Number(existing.amount || 0);
+          const oldInvested = Number(existing.total_invested || 0);
+          const newAmount = oldAmount + tokensToCredit;
+          const newInvested = oldInvested + 0.10;
+          const newAvg = newAmount > 0 ? newInvested / newAmount : coinPrice;
+
+          await trx('user_portfolios')
+            .where({ user_id: userId, coin_symbol: coin.symbol })
+            .update({
+              amount: newAmount,
+              avg_buy_price: newAvg,
+              total_invested: newInvested,
+              updated_at: new Date(),
+            });
+        } else {
+          await trx('user_portfolios').insert({
+            user_id: userId,
+            coin_symbol: coin.symbol,
+            amount: tokensToCredit,
+            avg_buy_price: coinPrice,
+            total_invested: 0.10,
+            created_at: new Date(),
+            updated_at: new Date(),
+          });
+        }
+
+        awardedPortfolio.push({
+          symbol: coin.symbol,
+          tokens: tokensToCredit,
+          cashValue: 0.10,
+        });
+      }
+
+      // 3. Mark tutorial completed and claimed
+      await trx('users').where({ id: userId }).update({
+        tutorial_status: 'COMPLETED',
+        tutorial_step: 7,
+        tutorial_reward_claimed: true,
+      });
+
+      // 4. Send inbox notification
+      try {
+        await addInboxMessage(
+          userId,
+          '🎉 Onboarding-Bonus freigeschaltet!',
+          `Glückwunsch zum Abschluss des Tutorials! Du hast +5 Bonus-Energie und ein Start-Krypto-Portfolio im Gegenwert von je 0,10 InGame$ für jeden Coin (${coins.map((c: any) => '$' + c.symbol).join(', ')}) erhalten.`,
+          'reward'
+        );
+      } catch (inboxErr) {
+        console.warn('Could not add tutorial inbox message:', inboxErr);
+      }
+    });
+
+    return res.json({
+      success: true,
+      message: 'Tutorial-Belohnung erfolgreich gutgeschrieben!',
+      awardedEnergy: 5,
+      awardedPortfolio,
+    });
+  } catch (error: any) {
+    console.error('Error claiming tutorial reward:', error);
+    return res.status(500).json({ error: error.message || 'Fehler beim Gutschreiben der Tutorial-Belohnung' });
+  }
+}
+
 

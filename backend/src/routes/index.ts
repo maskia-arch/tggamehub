@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { authMiddleware } from '../middleware/auth';
 import { adminAuth } from '../middleware/adminAuth';
-import { getProfile, getPublicProfile, addEnergyAd, updateDisplayName, updateWalletAddresses, scheduleAccountDeletion, cancelAccountDeletion, claimDailyFreeRefill, updateAvatar } from '../controllers/user';
+import { getProfile, getPublicProfile, addEnergyAd, updateDisplayName, updateWalletAddresses, scheduleAccountDeletion, cancelAccountDeletion, claimDailyFreeRefill, updateAvatar, updateTutorialStatus, claimTutorialReward } from '../controllers/user';
 import { startGame, submitScore, getGameBenchmark, getAllGameBenchmarks, getGamesCatalog, updateGameStatusHandler, createDevSandboxToken, reorderGamesHandler } from '../controllers/game';
 import { getLeaderboard, getGamesList, getGameLeaderboardHandler, getSeasonLeaderboardHandler } from '../controllers/leaderboard';
 import {
@@ -83,6 +83,8 @@ router.patch('/user/avatar', authMiddleware, updateAvatar);
 router.patch('/user/wallets', authMiddleware, updateWalletAddresses);
 router.post('/user/delete', authMiddleware, scheduleAccountDeletion);
 router.post('/user/cancel-delete', authMiddleware, cancelAccountDeletion);
+router.post('/user/tutorial/status', authMiddleware, updateTutorialStatus);
+router.post('/user/tutorial/complete', authMiddleware, claimTutorialReward);
 
 // Public / User Season info endpoint for banner & info modal
 router.get('/season/info', async (_req: Request, res: Response) => {

@@ -152,7 +152,8 @@ export const PublicProfileModal: React.FC<PublicProfileModalProps> = ({
           if (data.error) {
             setError(data.error);
           } else {
-            setProfile(data);
+            const profileObj = (data && data.profile) ? data.profile : data;
+            setProfile(profileObj);
           }
           setLoading(false);
         }
@@ -448,7 +449,7 @@ export const PublicProfileModal: React.FC<PublicProfileModalProps> = ({
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {profile.gameStats.map((stat) => (
+                {(profile.gameStats || []).map((stat) => (
                   <div
                     key={stat.gameId}
                     style={{
@@ -490,20 +491,20 @@ export const PublicProfileModal: React.FC<PublicProfileModalProps> = ({
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
                 <span style={{ fontSize: '11px', fontWeight: 900, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                  🏆 {language === 'en' ? 'Badges & Achievements' : 'Badges & Erfolge'} ({profile.unlockedBadgesCount})
+                  🏆 {language === 'en' ? 'Badges & Achievements' : 'Badges & Erfolge'} ({profile.unlockedBadgesCount || 0})
                 </span>
                 <span style={{ fontSize: '11px', color: '#00f2fe', fontWeight: 700 }}>
                   {language === 'en' ? 'Showcase' : 'Vitrine'}
                 </span>
               </div>
 
-              {profile.badges.length === 0 ? (
+              {(!profile.badges || profile.badges.length === 0) ? (
                 <div style={{ padding: '20px 0', textAlign: 'center', color: 'rgba(255,255,255,0.3)', fontSize: '12px' }}>
                   {language === 'en' ? 'No badges unlocked yet.' : 'Noch keine Badges freigeschaltet.'}
                 </div>
               ) : (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px' }}>
-                  {profile.badges.map((badge) => {
+                  {(profile.badges || []).map((badge) => {
                     const rarityStyle = RARITY_STYLES[badge.badge_rarity] || RARITY_STYLES.BRONZE;
                     const badgeTitle = language === 'en' ? (badge.title_en || badge.title) : (badge.title_de || badge.title);
                     return (

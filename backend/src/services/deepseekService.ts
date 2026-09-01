@@ -535,10 +535,13 @@ export async function validateSelectedModel(modelId: string, apiKey?: string): P
  * High-quality, bilingual procedural fallback script when API key is missing or network times out
  */
 export function generateFallbackScript(theme: string, coins: any[]): Generated12HourScript {
-  const symbols = (coins && coins.length > 0) ? coins.map(c => c.symbol) : ['DOODLE', 'FLAPPY', 'CROSSY'];
+  const rawSymbols = (coins && coins.length > 0) ? coins.map(c => c.symbol) : ['DOODLE', 'FLAPPY', 'CROSSY', 'STACK'];
+  // Fairly shuffle active coins so every 12h cycle assigns leading/secondary roles dynamically
+  const symbols = [...rawSymbols].sort(() => Math.random() - 0.5);
   const primaryCoin = symbols[0] || 'DOODLE';
-  const secondaryCoin = symbols[1] || 'FLAPPY';
-  const tertiaryCoin = symbols[2] || 'CROSSY';
+  const secondaryCoin = symbols[1] || symbols[0] || 'FLAPPY';
+  const tertiaryCoin = symbols[2] || symbols[0] || 'CROSSY';
+  const quaternaryCoin = symbols[3] || symbols[0] || 'STACK';
 
   return {
     story_arc_de: `${theme} — Episode: Cyber Genesis & Market Expansion`,
@@ -622,6 +625,17 @@ export function generateFallbackScript(theme: string, coins: any[]): Generated12
         price_impact_percent: 3.6,
         impact_duration_minutes: 180,
         scheduled_minutes_from_now: 520
+      },
+      {
+        title_de: `🧱 Kosmische Höhenflüge: $${quaternaryCoin} verzeichnet Rekord-Burn`,
+        title_en: `🧱 Cosmic Heights: $${quaternaryCoin} Records Milestone Token Burn`,
+        summary_de: `Die neuen Highscore-Runs treiben den automatischen AMM-Burn an. Trader stocken ihre Positionen auf.`,
+        summary_en: `New highscore runs fuel the automatic AMM burn. Traders are expanding their positions.`,
+        coin_symbol: quaternaryCoin,
+        sentiment: 'bullish',
+        price_impact_percent: 4.2,
+        impact_duration_minutes: 120,
+        scheduled_minutes_from_now: 580
       },
       {
         title_de: `🛡️ Quantum-Schutzwall aktiviert: Stabile AMM-Börsenkurse`,
@@ -734,13 +748,13 @@ CRITICAL IMMERSION & NO-AI RULE:
 NEVER mention 'AI', 'KI', 'DeepSeek', 'algorithm', 'bot', or 'generated' in any headlines, summaries, news, or chat posts. The entire world must feel completely authentic, real, and alive, as if reported and hosted by living cyberpunk financial analysts, exchange brokers, and community anchors of the CoinCade Metropolis!
 
 MISSION:
-Every 12 hours, you receive a rich ecosystem snapshot ($DOODLE, $FLAPPY, $CROSSY token prices, player highscores, trading volumes, and narrative continuity).
+Every 12 hours, you receive a rich ecosystem snapshot ($DOODLE, $FLAPPY, $CROSSY, $STACK token prices, player highscores, trading volumes, and narrative continuity).
 You will generate a cohesive, thrilling 12-hour episodic storyline arc with THREE key deliverables:
 
 1. BILINGUAL IN-GAME MARKET NEWS ("market_news", generate 8 to 10 items):
    - title_de & title_en: Punchy breaking news headlines.
    - summary_de & summary_en: 2-3 sentences detailing market events, token burns, whale trades, or community rallies.
-   - coin_symbol: 'DOODLE', 'FLAPPY', or 'CROSSY'.
+   - coin_symbol: 'DOODLE', 'FLAPPY', 'CROSSY', or 'STACK'.
    - sentiment: 'bullish' | 'bearish' | 'neutral'.
    - price_impact_percent: Realistic impact between -5.5% and +6.0%.
    - impact_duration_minutes: 60 to 240 minutes.
@@ -753,10 +767,11 @@ You will generate a cohesive, thrilling 12-hour episodic storyline arc with THRE
      * If discussing $DOODLE -> reward $DOODLE (e.g. 200 to 500 $DOODLE).
      * If discussing $FLAPPY -> reward $FLAPPY (e.g. 200 to 500 $FLAPPY).
      * If discussing $CROSSY -> reward $CROSSY (e.g. 200 to 500 $CROSSY).
+     * If discussing $STACK -> reward $STACK (e.g. 200 to 500 $STACK).
      * If discussing Energy / Turbo -> reward ENERGY (e.g. 2 to 5 Energy).
    - community_goal_de & community_goal_en: Brief description of the drop (e.g. "⚡ Blitz-Drop: 300 $DOODLE für die ersten 20 Leser").
    - reward_type: 'ENERGY' or 'COIN' or 'NONE'.
-   - reward_coin_symbol: 'DOODLE', 'FLAPPY', or 'CROSSY' (or null if ENERGY).
+   - reward_coin_symbol: 'DOODLE', 'FLAPPY', 'CROSSY', or 'STACK' (or null if ENERGY).
    - reward_amount: Safe integer (e.g. 200-500 coins or 2-5 energy).
    - reward_max_claims: Limited quota (15 to 35 fastest readers).
    - reward_valid_hours: 4 to 8 hours.
@@ -764,7 +779,7 @@ You will generate a cohesive, thrilling 12-hour episodic storyline arc with THRE
 
 3. LIVE CRYPTO EVENTS ("crypto_events", generate 3 to 5 items):
    - event_type: 'CYBER_RALLY' | 'PUMP' | 'CRASH' | 'WHALE_ALERT' | 'QUANTUM_GLITCH' | 'ENERGY_SURGE'.
-   - coin_symbol: 'DOODLE', 'FLAPPY', or 'CROSSY'.
+   - coin_symbol: 'DOODLE', 'FLAPPY', 'CROSSY', or 'STACK'.
    - title_de & title_en, description_de & description_en.
    - price_impact_percent: -5.0 to +6.0.
    - multiplier: 1.25 to 2.0.
