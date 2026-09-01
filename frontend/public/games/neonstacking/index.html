@@ -1011,42 +1011,24 @@
       if (width <= 0) return;
       ctx.save();
       
-      // 1. Soft outer halo glow
+      // 1. High-efficiency Neon Glow (Single-pass outer glow + solid neon core)
       ctx.shadowColor = color;
-      ctx.shadowBlur = 24;
+      ctx.shadowBlur = 12;
       ctx.fillStyle = color;
-      ctx.globalAlpha = 0.35 * baseAlpha;
+      ctx.globalAlpha = 0.88 * baseAlpha;
       ctx.beginPath();
       ctx.roundRect(x, y, width, height, radius);
       ctx.fill();
 
-      // 2. Focused medium neon glow
-      ctx.shadowBlur = 10;
-      ctx.globalAlpha = 0.55 * baseAlpha;
-      ctx.beginPath();
-      ctx.roundRect(x, y, width, height, radius);
-      ctx.fill();
-
-      // 3. Crisp solid body (Clear shadow to ensure sharp pixel edge!)
+      // 2. Crisp bright gloss highlight & border (No extra shadow blur pass)
       ctx.shadowBlur = 0;
-      ctx.globalAlpha = 1.0 * baseAlpha;
-      ctx.fillStyle = color;
-      ctx.beginPath();
-      ctx.roundRect(x, y, width, height, radius);
-      ctx.fill();
-
-      // 4. Gloss light reflection border stroke
-      ctx.strokeStyle = `rgba(255, 255, 255, ${0.45 * baseAlpha})`;
-      ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      ctx.roundRect(x, y, width, height, radius);
+      ctx.strokeStyle = `rgba(255, 255, 255, ${0.75 * baseAlpha})`;
+      ctx.lineWidth = 1.2;
       ctx.stroke();
 
-      // 5. Inner glowing neon tube
+      // 3. Inner neon core tube
       ctx.fillStyle = `rgba(255, 255, 255, ${0.28 * baseAlpha})`;
-      ctx.beginPath();
-      ctx.roundRect(x + 3, y + 3, Math.max(1, width - 6), Math.max(1, height - 6), Math.max(1, radius - 3));
-      ctx.fill();
+      ctx.fillRect(x + 3, y + 3, Math.max(1, width - 6), Math.max(1, height - 6));
 
       ctx.restore();
     }
@@ -1063,13 +1045,6 @@
         this.width = width;
         this.colorIndex = colorIndex || 0;
         this.color = getBlockColor(this.colorIndex);
-      }
-
-      draw(scrollOffset) {
-        const screenY = this.worldY + scrollOffset;
-        if (screenY >= -BLOCK_HEIGHT && screenY <= canvas.height + BLOCK_HEIGHT) {
-          drawNeonBlock(ctx, this.x, screenY, this.width, BLOCK_HEIGHT, this.color, 6);
-        }
       }
     }
 
@@ -1430,16 +1405,36 @@
         }
       }
 
-      // Update falling debris physics
-      debrisList.forEach(d => d.update(dt));
-      debrisList = debrisList.filter(d => d.y < canvas.height + 100 && d.alpha > 0);
+      // In-place zero-allocation cleanup for debris, particles & shockwaves (prevents GC frame drops)
+      let writeIdx = 0;
+      for (let i = 0; i < debrisList.length; i++) {
+        const d = debrisList[i];
+        d.update(dt);
+        if (d.y < canvas.height + 100 && d.alpha > 0) {
+          debrisList[writeIdx++] = d;
+        }
+      }
+      debrisList.length = writeIdx;
 
-      // Update perfect hit neon explosions
-      sparkParticles.forEach(p => p.update(dt));
-      sparkParticles = sparkParticles.filter(p => p.alpha > 0);
+      writeIdx = 0;
+      for (let i = 0; i < sparkParticles.length; i++) {
+        const p = sparkParticles[i];
+        p.update(dt);
+        if (p.alpha > 0) {
+          sparkParticles[writeIdx++] = p;
+        }
+      }
+      sparkParticles.length = writeIdx;
 
-      shockwaves.forEach(s => s.update(dt));
-      shockwaves = shockwaves.filter(s => s.alpha > 0);
+      writeIdx = 0;
+      for (let i = 0; i < shockwaves.length; i++) {
+        const s = shockwaves[i];
+        s.update(dt);
+        if (s.alpha > 0) {
+          shockwaves[writeIdx++] = s;
+        }
+      }
+      shockwaves.length = writeIdx;
 
       // Fade out perfect screen flash glow
       if (flashIntensity > 0) {
@@ -2258,8 +2253,13 @@
       }
 
       // Draw permanent tower blocks stack with smooth upward growth & camera scroll
+      // Viewport culling inline: only draw visible blocks (no per-block method call overhead)
       for (let i = 0; i < blocks.length; i++) {
-        blocks[i].draw(towerScroll);
+        const blk = blocks[i];
+        const screenY = blk.worldY + towerScroll;
+        if (screenY >= -BLOCK_HEIGHT && screenY <= canvas.height + BLOCK_HEIGHT) {
+          drawNeonBlock(ctx, blk.x, screenY, blk.width, BLOCK_HEIGHT, blk.color, 6);
+        }
       }
 
       // Draw falling debris chunks
@@ -2313,44 +2313,37 @@
 
       ctx.save();
       ctx.textAlign = 'center';
+      ctx.shadowBlur = 0; // No per-frame shadowBlur on HUD — kills mobile GPU performance
 
       // 1. Highscore Display (Positioned ABOVE current score, in Gold)
-      ctx.shadowBlur = 8;
-      ctx.shadowColor = 'rgba(251, 191, 36, 0.4)';
       ctx.fillStyle = '#fbbf24'; // Gold
       ctx.font = isNewRecord ? '800 11px "Outfit", monospace' : '700 10px "Outfit", monospace';
       ctx.letterSpacing = '0.5px';
       const hsPrefix = isNewRecord ? (t.newRecordPrefix || '🔥 Rekord: ') : (t.highscorePrefix || '🏆 Highscore: ');
       ctx.fillText(`${hsPrefix}${displayHighscore.toLocaleString()}`, canvas.width / 2, 20);
 
-      // 2. Live Score Counter
+      // 2. Live Score Counter (bold but no blur — blur causes GPU stall every frame on mobile)
       const scoreStr = score.toLocaleString();
       ctx.fillStyle = '#ff007f';
       ctx.font = '900 28px "Outfit", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-      ctx.shadowBlur = 12;
-      ctx.shadowColor = 'rgba(255, 0, 127, 0.5)';
       ctx.fillText(scoreStr, canvas.width / 2, 48);
 
       // 2b. Floating "+2" next to Score on Perfect Stack (Subtle & Non-Overlapping)
       if (perfectBonusTimer > 0) {
-        const textWidth = (ctx.measureText && ctx.measureText(scoreStr)) ? ctx.measureText(scoreStr).width : (scoreStr.length * 16);
+        const textWidth = ctx.measureText ? ctx.measureText(scoreStr).width : (scoreStr.length * 16);
         const bonusX = (canvas.width / 2) + (textWidth / 2) + 6;
         const bonusY = 48 - ((1.0 - perfectBonusTimer) * 12);
         const bonusAlpha = Math.min(1.0, perfectBonusTimer * 1.6);
-        
         ctx.save();
         ctx.textAlign = 'left';
         ctx.font = '900 16px "Outfit", sans-serif';
         ctx.fillStyle = `rgba(0, 242, 254, ${bonusAlpha})`;
-        ctx.shadowBlur = 8;
-        ctx.shadowColor = `rgba(0, 242, 254, ${bonusAlpha})`;
         ctx.fillText('+2', bonusX, bonusY);
         ctx.restore();
       }
 
       // 3. Progressive Stage Badge (Matching Neon Bird & Doodle Jump)
       const stageInfo = getStageInfo(score);
-      ctx.shadowBlur = 0;
       ctx.fillStyle = stageInfo.badgeColor;
       ctx.font = '700 9px "Outfit", monospace';
       ctx.letterSpacing = '1px';
@@ -2491,7 +2484,6 @@
       soundManager.startMusic();
       initGame();
       lastFrameTime = 0;
-      frameAccumulator = 0;
       animationId = requestAnimationFrame(gameLoop);
     });
 
