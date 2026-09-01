@@ -271,13 +271,26 @@ export default function App() {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${initData}` },
       });
-      if (res.ok) {
+      if (res.ok || res.status === 400) {
         setShowTutorialCompletion(false);
         setIsTutorialActive(false);
+        if (profile) {
+          setProfile({
+            ...profile,
+            user: {
+              ...profile.user,
+              tutorial_status: 'COMPLETED',
+              tutorial_reward_claimed: true,
+            }
+          });
+        }
         await fetchProfile();
       }
     } catch (e) {
       console.error('Failed to claim tutorial reward:', e);
+      setShowTutorialCompletion(false);
+      setIsTutorialActive(false);
+      await fetchProfile();
     }
   };
 

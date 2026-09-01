@@ -1088,12 +1088,12 @@
         this.alpha = 1.0;
       }
 
-      update() {
-        this.vy += this.gravity;
-        this.x += this.vx;
-        this.y += this.vy;
-        this.rotation += this.rotationSpeed;
-        this.alpha -= 0.035; // Clean, fast fade out
+      update(dt = 1) {
+        this.vy += this.gravity * dt;
+        this.x += this.vx * dt;
+        this.y += this.vy * dt;
+        this.rotation += this.rotationSpeed * dt;
+        this.alpha -= 0.035 * dt; // Clean, fast fade out
       }
 
       draw() {
@@ -1123,11 +1123,11 @@
         this.decay = 0.022 + Math.random() * 0.025;
       }
 
-      update() {
-        this.vy += this.gravity;
-        this.x += this.vx;
-        this.y += this.vy;
-        this.alpha -= this.decay;
+      update(dt = 1) {
+        this.vy += this.gravity * dt;
+        this.x += this.vx * dt;
+        this.y += this.vy * dt;
+        this.alpha -= this.decay * dt;
       }
 
       draw() {
@@ -1155,9 +1155,9 @@
         this.alpha = 1.0;
       }
 
-      update() {
-        this.radius += (this.maxRadius - this.radius) * 0.16 + 1.2;
-        this.alpha -= 0.045;
+      update(dt = 1) {
+        this.radius += ((this.maxRadius - this.radius) * 0.16 + 1.2) * dt;
+        this.alpha -= 0.045 * dt;
       }
 
       draw() {
@@ -1386,14 +1386,15 @@
       };
     }
 
-    function update() {
+    function update(dt = 1) {
       // Dynamic camera & background scroll:
       // 1. Tower physical scroll: keeps top block near upper third once height > 8 blocks
       const nextBlockWorldY = activeBlock ? activeBlock.worldY : (BASE_Y - blocks.length * BLOCK_HEIGHT);
       const targetTowerScroll = nextBlockWorldY < (TOP_ANCHOR_Y - BLOCK_HEIGHT)
         ? (TOP_ANCHOR_Y - BLOCK_HEIGHT) - nextBlockWorldY
         : 0;
-      towerScroll += (targetTowerScroll - towerScroll) * 0.08;
+      const smoothFactor = 1 - Math.pow(0.92, dt);
+      towerScroll += (targetTowerScroll - towerScroll) * smoothFactor;
 
       // 2. Score-coupled World Background scroll:
       // Perfectly synchronized with the 6 Stages (Ebene 1-6):
@@ -1403,21 +1404,21 @@
       // - Score 51+: 100% Pure Outer Space with Stars across the entire screen, ISS, Astronaut, Moon, Saturn, Jupiter, Spiral Galaxy
       const scrollRatio = score <= 8 ? 0 : Math.min(1.0, (score - 8) / (100 - 8));
       const targetBgScroll = scrollRatio * (WORLD_HEIGHT - VIEW_HEIGHT);
-      bgScrollY += (targetBgScroll - bgScrollY) * 0.08;
+      bgScrollY += (targetBgScroll - bgScrollY) * smoothFactor;
 
       if (perfectBonusTimer > 0) {
-        perfectBonusTimer -= 0.025;
+        perfectBonusTimer -= 0.025 * dt;
       }
 
       if (gameState === 'revive_countdown') {
-        debrisList.forEach(d => d.update());
+        debrisList.forEach(d => d.update(dt));
         debrisList = debrisList.filter(d => d.y < canvas.height + 100 && d.alpha > 0);
         return;
       }
 
       // Update sliding active block
       if (activeBlock) {
-        activeBlock.x += activeBlock.dx;
+        activeBlock.x += activeBlock.dx * dt;
         
         // Bounce off canvas boundaries with margin so it sweeps fully across the tower
         const minX = -activeBlock.width - 20;
@@ -1430,19 +1431,19 @@
       }
 
       // Update falling debris physics
-      debrisList.forEach(d => d.update());
+      debrisList.forEach(d => d.update(dt));
       debrisList = debrisList.filter(d => d.y < canvas.height + 100 && d.alpha > 0);
 
       // Update perfect hit neon explosions
-      sparkParticles.forEach(p => p.update());
+      sparkParticles.forEach(p => p.update(dt));
       sparkParticles = sparkParticles.filter(p => p.alpha > 0);
 
-      shockwaves.forEach(s => s.update());
+      shockwaves.forEach(s => s.update(dt));
       shockwaves = shockwaves.filter(s => s.alpha > 0);
 
       // Fade out perfect screen flash glow
       if (flashIntensity > 0) {
-        flashIntensity -= 0.02;
+        flashIntensity -= 0.02 * dt;
       }
     }
 
@@ -2359,8 +2360,6 @@
 
     let animationId = null;
     let lastFrameTime = 0;
-    let frameAccumulator = 0;
-    const TIME_STEP = 1000 / 60; // Exact 60 FPS standard (16.667 ms)
 
     function gameLoop(timestamp) {
       if (gameState !== 'playing' && gameState !== 'revive_countdown') return;
@@ -2373,16 +2372,14 @@
       let elapsed = now - lastFrameTime;
       lastFrameTime = now;
 
-      // Cap max delta to prevent spiral of death on lag / tab switch
-      if (elapsed > 100) elapsed = 100;
-      frameAccumulator += elapsed;
+      // Clamp elapsed time to prevent physics explosions on background tab switch / lag spike
+      if (elapsed > 66) elapsed = 66;
+      if (elapsed < 1) elapsed = 8.333; // High-precision support for 120Hz/144Hz+ displays
 
-      // Execute updates at strict 60Hz rate
-      while (frameAccumulator >= TIME_STEP) {
-        update();
-        frameAccumulator -= TIME_STEP;
-      }
+      // Normalized delta time (1.0 = 60 FPS reference, 0.5 = 120 FPS high framerate)
+      const dt = elapsed / 16.6667;
 
+      update(dt);
       draw();
       animationId = requestAnimationFrame(gameLoop);
     }

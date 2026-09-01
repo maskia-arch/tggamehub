@@ -716,8 +716,19 @@ export async function claimTutorialReward(req: AuthenticatedRequest, res: Respon
     const { addEnergy } = require('../services/energy');
     const { addInboxMessage } = require('../services/inboxService');
 
-    // Get all registered active coins
-    const coins = await db('coins').select('*');
+    // Get all registered active coins from market_coins
+    let coins: any[] = [];
+    if (await db.schema.hasTable('market_coins')) {
+      coins = await db('market_coins').select('*');
+    }
+    if (!coins || coins.length === 0) {
+      coins = [
+        { symbol: 'DOODLE', current_price: 0.00000001 },
+        { symbol: 'FLAPPY', current_price: 0.00000001 },
+        { symbol: 'CROSSY', current_price: 0.00000001 },
+        { symbol: 'STACK', current_price: 0.00000001 },
+      ];
+    }
     const awardedPortfolio: { symbol: string; tokens: number; cashValue: number }[] = [];
 
     await db.transaction(async (trx) => {

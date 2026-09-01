@@ -1956,15 +1956,17 @@
           this.hopTimer = Math.max(0, this.hopTimer - dt);
         }
         
-        // Frame-rate independent smooth lerp positions
-        this.x += (this.targetX - this.x) * Math.min(1, 0.28 * dt);
-        this.y += (this.targetY - this.y) * Math.min(1, 0.28 * dt);
+        // Frame-rate independent exponential smoothing (ultra-fluid 120Hz/60Hz)
+        const moveSmoothing = 1 - Math.pow(0.72, dt);
+        this.x += (this.targetX - this.x) * moveSmoothing;
+        this.y += (this.targetY - this.y) * moveSmoothing;
 
         // Smooth rotation angle interpolation (shortest angular distance)
         let diff = this.targetAngle - this.angle;
         while (diff < -Math.PI) diff += Math.PI * 2;
         while (diff > Math.PI) diff -= Math.PI * 2;
-        this.angle += diff * Math.min(1, 0.38 * dt);
+        const rotSmoothing = 1 - Math.pow(0.62, dt);
+        this.angle += diff * rotSmoothing;
 
         // Timers
         if (this.shieldTime > 0) this.shieldTime = Math.max(0, this.shieldTime - dt);
@@ -2363,7 +2365,8 @@
       const cameraTargetY = (player.row * ROW_HEIGHT) - 340;
       // Scroll camera smoothly, never scrolling back downwards
       if (cameraTargetY > cameraY) {
-        cameraY += (cameraTargetY - cameraY) * Math.min(1, 0.12 * dt);
+        const camSmoothing = 1 - Math.pow(0.88, dt);
+        cameraY += (cameraTargetY - cameraY) * camSmoothing;
       }
 
       // Check if player falls off bottom of the screen (slow speed death)
@@ -2399,16 +2402,16 @@
               particles.push(new SparkParticle(player.x, player.y, '#ffff00'));
             }
           } else if (type === 'heart') {
-            lives = Math.min(3, lives + 1); // Max 3 lives
-            soundManager.playCoin();
-            // Pink heart sparks
-            for (let i = 0; i < 12; i++) {
-              particles.push(new SparkParticle(player.x, player.y, '#ff0088'));
+            lives = Math.min(maxLives, lives + 1);
+            soundManager.playPowerup();
+            // Heart spark explosion
+            for (let i = 0; i < 16; i++) {
+              particles.push(new SparkParticle(player.x, player.y, '#ff0055'));
             }
           } else if (type === 'shield') {
-            player.shieldTime = 300; // 5 seconds at 60fps
+            player.shieldTime = 420; // 7 seconds cyber shield
             soundManager.playShield();
-            // Cyan shield sparks
+            // Cyan spark explosion
             for (let i = 0; i < 18; i++) {
               particles.push(new SparkParticle(player.x, player.y, '#00ffff'));
             }
@@ -2638,9 +2641,9 @@
       let elapsed = now - lastFrameTime;
       lastFrameTime = now;
 
-      // Clamp elapsed time between 2ms and 66ms (prevents large jumps on tab switch/lag spikes)
+      // Clamp elapsed time to prevent physics jumps on background tab switch / lag spike
       if (elapsed > 66) elapsed = 66;
-      if (elapsed < 2) elapsed = 16.667;
+      if (elapsed < 1) elapsed = 8.333; // High-precision support for 120Hz/144Hz+ displays
 
       // Smooth normalized delta-time: 1.0 at 60 FPS, 0.5 at 120 FPS
       const dt = elapsed / 16.6667;
