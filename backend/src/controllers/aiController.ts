@@ -71,7 +71,7 @@ export async function liveEditTelegramChannelPost(postId: number): Promise<void>
       buttons.push([Markup.button.url('🔒 Ausverkauft (Alle Boni vergeben)', claimUrl)]);
     }
 
-    buttons.push([Markup.button.url('🎮 CoinCade Arcade öffnen', botUrl)]);
+    buttons.push([Markup.button.url('🎮 CoinCade öffnen', botUrl)]);
 
     const { formatCoinCadeHtml } = require('../services/customEmojiFormatter');
     const formattedHtml = formatCoinCadeHtml(updatedMsgText);

@@ -89,9 +89,9 @@ export function initTelegramBot(): Telegraf | null {
 
         const buttons = [];
         if (config.frontendUrl) {
-          buttons.push([Markup.button.webApp('🎮 CoinCade Arcade öffnen', config.frontendUrl)]);
+          buttons.push([Markup.button.webApp('🎮 CoinCade öffnen', config.frontendUrl)]);
         }
-        buttons.push([Markup.button.callback('📋 Hauptmenü anzeigen', 'nav_main_menu')]);
+        buttons.push([Markup.button.callback('📋 Hauptmenü anzeigen', 'menu_main')]);
 
         await renderBotScreen(ctx, claimText, Markup.inlineKeyboard(buttons));
         return;
@@ -161,7 +161,7 @@ export function initTelegramBot(): Telegraf | null {
   // ══════════════════════════════════════════════════════════════════════════
   // 3. Main Menu Navigation Actions
   // ══════════════════════════════════════════════════════════════════════════
-  bot.action('menu_main', async (ctx) => {
+  bot.action(['menu_main', 'nav_main_menu'], async (ctx) => {
     try {
       await ctx.answerCbQuery();
       const userId = ctx.from.id.toString();

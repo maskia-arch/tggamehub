@@ -434,7 +434,7 @@ export async function dispatchDueAiActions(): Promise<void> {
             // Also add button to open Telegram Bot / Arcade
             const botUsername = (bot.botInfo?.username) || config.telegramBotUsername || 'CoinCadeGameBot';
             const botUrl = `https://t.me/${botUsername}`;
-            buttons.push([Markup.button.url('🎮 CoinCade Arcade öffnen', botUrl)]);
+            buttons.push([Markup.button.url('🎮 CoinCade öffnen', botUrl)]);
 
             const formattedHtml = formatCoinCadeHtml(messageText);
 
@@ -654,7 +654,7 @@ export async function startChannelModerationWelcomeMessage(): Promise<{
     const formattedHtml = formatCoinCadeHtml(msg);
     const buttons = [
       [Markup.button.url('🎁 +500 $DOODLE Genesis-Bonus sichern (Noch 25/25)', claimUrl)],
-      [Markup.button.url('🎮 CoinCade Arcade öffnen', botUrl)]
+      [Markup.button.url('🎮 CoinCade öffnen', botUrl)]
     ];
 
     const sent = await bot.telegram.sendMessage(channelId, formattedHtml, {
