@@ -153,7 +153,7 @@ export const GAME_COIN_MAP: Record<string, { symbol: string; name: string }> = {
   doodlejump: { symbol: 'DOODLE', name: 'Neon Jump Coin' },
   neonbird: { symbol: 'FLAPPY', name: 'Neon Bird Coin' },
   crossyneonroad: { symbol: 'CROSSY', name: 'Crossy Neon Road Coin' },
-  neonstacking: { symbol: 'STACK', name: 'NEON STACK Coin' },
+  neonstacking: { symbol: 'STACK', name: 'Neon Stack Coin' },
 };
 
 // Internal momentum & activity state
@@ -341,35 +341,42 @@ export async function ensureAllGameCoinsInitialized() {
 // ============================================================================
 
 /**
- * Computes rolling mean (μ) and standard deviation (σ) over recent runs for a given minigame.
- * Dynamically resolves targetScore from active game settings.
+ * Dynamically calculates live rolling score statistics (mean, stdDev, sampleSize, dynamic average)
+ * from actual SQL player scores history in real-time.
  */
 export async function getRollingScoreStatistics(gameId: string): Promise<GameScoreStatistics> {
   const cleanGameId = (gameId || '').toLowerCase().trim();
   const coinMapping = await getCoinInfoForGame(cleanGameId);
 
-  // Dynamic baseline resolution from active game registry
-  let targetScoreFromConfig = 0;
-  try {
-    const allGames = await getDynamicGamesList();
-    const gameConfig = allGames.find((g) => g.id.toLowerCase() === cleanGameId);
-    if (gameConfig && Number(gameConfig.targetScore) > 0) {
-      targetScoreFromConfig = Number(gameConfig.targetScore);
-    }
-  } catch {}
+  // Map of canonical aliases for querying the scores table
+  const gameAliases: Record<string, string[]> = {
+    doodlejump: ['doodlejump', 'doodle'],
+    neonbird: ['neonbird', 'flappy', 'neon_bird'],
+    crossyneonroad: ['crossyneonroad', 'crossy', 'crossy_neon_road'],
+    neonstacking: ['neonstacking', 'neonstack', 'stacking', 'neon_stacking'],
+  };
+  const aliases = gameAliases[cleanGameId] || [cleanGameId];
 
-  // Standard fallback baselines
-  const fallbackBaselines: Record<string, { mean: number; stdDev: number }> = {
+  // Initial sensible baseline defaults for when no rounds have been played yet
+  const defaultInitialBaselines: Record<string, { mean: number; stdDev: number }> = {
     doodlejump: { mean: 100, stdDev: 40 },
     neonbird: { mean: 25, stdDev: 12 },
     crossyneonroad: { mean: 40, stdDev: 20 },
     neonstacking: { mean: 15, stdDev: 8 },
   };
 
-  const configuredTarget = targetScoreFromConfig > 0 ? targetScoreFromConfig : (fallbackBaselines[cleanGameId]?.mean || 50);
-  const baseline = {
-    mean: configuredTarget,
-    stdDev: Math.max(5, Math.round(configuredTarget * 0.4)),
+  let initialDefaultTarget = defaultInitialBaselines[cleanGameId]?.mean || 25;
+  try {
+    const allGames = await getDynamicGamesList();
+    const gameConfig = allGames.find((g) => g.id.toLowerCase() === cleanGameId);
+    if (gameConfig && Number(gameConfig.targetScore) > 0) {
+      initialDefaultTarget = Number(gameConfig.targetScore);
+    }
+  } catch {}
+
+  const fallbackBaseline = {
+    mean: initialDefaultTarget,
+    stdDev: defaultInitialBaselines[cleanGameId]?.stdDev || Math.max(5, Math.round(initialDefaultTarget * 0.4)),
   };
 
   try {
@@ -379,22 +386,29 @@ export async function getRollingScoreStatistics(gameId: string): Promise<GameSco
         gameId: cleanGameId,
         symbol: coinMapping.symbol,
         name: coinMapping.name,
-        mean: baseline.mean,
-        stdDev: baseline.stdDev,
+        mean: fallbackBaseline.mean,
+        stdDev: fallbackBaseline.stdDev,
         sampleSize: 0,
-        targetScore: configuredTarget,
-        benchmarkTarget: configuredTarget,
+        targetScore: fallbackBaseline.mean,
+        benchmarkTarget: fallbackBaseline.mean,
         totalRoundsPlayed: 0,
-        minScoreThreshold: Math.max(1, Math.round(configuredTarget * 0.5)),
+        minScoreThreshold: Math.max(1, Math.round(fallbackBaseline.mean * 0.5)),
         basePayoutCash: 0.05,
       };
     }
 
+    // Query recent player scores across all aliases for this game
     const recentScores = await db('scores')
-      .where({ game_id: cleanGameId })
+      .whereIn('game_id', aliases)
       .select('score')
       .orderBy('id', 'desc')
       .limit(MARKET_CONFIG.ROLLING_SCORE_SAMPLE_SIZE);
+
+    const totalRoundsCount = await db('scores')
+      .whereIn('game_id', aliases)
+      .count<{ count: string | number }>('id as count')
+      .first();
+    const totalRounds = totalRoundsCount ? Number(totalRoundsCount.count) : recentScores.length;
 
     const sampleSize = recentScores.length;
     if (sampleSize === 0) {
@@ -402,28 +416,50 @@ export async function getRollingScoreStatistics(gameId: string): Promise<GameSco
         gameId: cleanGameId,
         symbol: coinMapping.symbol,
         name: coinMapping.name,
-        mean: baseline.mean,
-        stdDev: baseline.stdDev,
+        mean: fallbackBaseline.mean,
+        stdDev: fallbackBaseline.stdDev,
         sampleSize: 0,
-        targetScore: configuredTarget,
-        benchmarkTarget: configuredTarget,
+        targetScore: fallbackBaseline.mean,
+        benchmarkTarget: fallbackBaseline.mean,
         totalRoundsPlayed: 0,
-        minScoreThreshold: Math.max(1, Math.round(configuredTarget * 0.5)),
+        minScoreThreshold: Math.max(1, Math.round(fallbackBaseline.mean * 0.5)),
         basePayoutCash: 0.05,
       };
     }
 
-    const scoresArray = recentScores.map((s: any) => Number(s.score || 0));
-    const mean = scoresArray.reduce((sum, val) => sum + val, 0) / sampleSize;
+    const scoresArray = recentScores
+      .map((s: any) => Number(s.score || 0))
+      .filter((s) => !isNaN(s) && s >= 0);
+    const validSample = scoresArray.length;
+
+    if (validSample === 0) {
+      return {
+        gameId: cleanGameId,
+        symbol: coinMapping.symbol,
+        name: coinMapping.name,
+        mean: fallbackBaseline.mean,
+        stdDev: fallbackBaseline.stdDev,
+        sampleSize: 0,
+        targetScore: fallbackBaseline.mean,
+        benchmarkTarget: fallbackBaseline.mean,
+        totalRoundsPlayed: totalRounds,
+        minScoreThreshold: Math.max(1, Math.round(fallbackBaseline.mean * 0.5)),
+        basePayoutCash: 0.05,
+      };
+    }
+
+    // Exact live mathematical mean calculated across real player scores
+    const mean = scoresArray.reduce((sum, val) => sum + val, 0) / validSample;
 
     const variance =
-      sampleSize > 1
-        ? scoresArray.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / (sampleSize - 1)
-        : Math.pow(baseline.stdDev, 2);
+      validSample > 1
+        ? scoresArray.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / (validSample - 1)
+        : Math.pow(fallbackBaseline.stdDev, 2);
     const stdDev = Math.max(1.0, Math.sqrt(variance));
 
-    const benchmarkTarget = Math.max(1, targetScoreFromConfig > 0 ? targetScoreFromConfig : Math.round(mean));
-    const minScoreThreshold = Math.max(1, Math.round(benchmarkTarget * 0.5));
+    // Dynamic player average (Schnitt aller Spieler) derived directly from live gameplay
+    const dynamicAverage = Math.max(1, Math.round(mean));
+    const minScoreThreshold = Math.max(1, Math.round(dynamicAverage * 0.5));
 
     return {
       gameId: cleanGameId,
@@ -431,10 +467,10 @@ export async function getRollingScoreStatistics(gameId: string): Promise<GameSco
       name: coinMapping.name,
       mean: Math.round(mean * 10) / 10,
       stdDev: Math.round(stdDev * 10) / 10,
-      sampleSize,
-      targetScore: benchmarkTarget,
-      benchmarkTarget,
-      totalRoundsPlayed: sampleSize,
+      sampleSize: validSample,
+      targetScore: dynamicAverage,
+      benchmarkTarget: dynamicAverage,
+      totalRoundsPlayed: totalRounds,
       minScoreThreshold,
       basePayoutCash: 0.05,
     };
@@ -444,13 +480,13 @@ export async function getRollingScoreStatistics(gameId: string): Promise<GameSco
       gameId: cleanGameId,
       symbol: coinMapping.symbol,
       name: coinMapping.name,
-      mean: baseline.mean,
-      stdDev: baseline.stdDev,
+      mean: fallbackBaseline.mean,
+      stdDev: fallbackBaseline.stdDev,
       sampleSize: 0,
-      targetScore: configuredTarget,
-      benchmarkTarget: configuredTarget,
+      targetScore: fallbackBaseline.mean,
+      benchmarkTarget: fallbackBaseline.mean,
       totalRoundsPlayed: 0,
-      minScoreThreshold: Math.max(1, Math.round(configuredTarget * 0.5)),
+      minScoreThreshold: Math.max(1, Math.round(fallbackBaseline.mean * 0.5)),
       basePayoutCash: 0.05,
     };
   }

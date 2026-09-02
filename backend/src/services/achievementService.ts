@@ -192,16 +192,16 @@ export const ACHIEVEMENTS_CATALOG: AchievementItem[] = [
     sort_order: 34,
   },
 
-  // ── 5. NEON STACK ($STACK) Achievements ──────────────────────────────────
+  // ── 5. Neon Stack ($STACK) Achievements ──────────────────────────────────
   {
     id: 'stack_builder',
     category: 'game_stack',
     title: '🧱 Fundament-Architekt',
     title_de: '🧱 Fundament-Architekt',
     title_en: '🧱 Foundation Architect',
-    description: 'Erreiche 15 Punkte in NEON STACK',
-    description_de: 'Erreiche 15 Punkte in NEON STACK',
-    description_en: 'Score 15 points in NEON STACK',
+    description: 'Erreiche 15 Punkte in Neon Stack',
+    description_de: 'Erreiche 15 Punkte in Neon Stack',
+    description_en: 'Score 15 points in Neon Stack',
     badge_icon: '🧱',
     badge_rarity: 'BRONZE',
     sort_order: 35,
@@ -212,9 +212,9 @@ export const ACHIEVEMENTS_CATALOG: AchievementItem[] = [
     title: '🧱 Stratosphären-Stapler',
     title_de: '🧱 Stratosphären-Stapler',
     title_en: '🧱 Stratosphere Stacker',
-    description: 'Erreiche 35 Punkte in NEON STACK',
-    description_de: 'Erreiche 35 Punkte in NEON STACK',
-    description_en: 'Score 35 points in NEON STACK',
+    description: 'Erreiche 35 Punkte in Neon Stack',
+    description_de: 'Erreiche 35 Punkte in Neon Stack',
+    description_en: 'Score 35 points in Neon Stack',
     badge_icon: '🧱',
     badge_rarity: 'SILVER',
     sort_order: 36,
@@ -225,9 +225,9 @@ export const ACHIEVEMENTS_CATALOG: AchievementItem[] = [
     title: '🧱 Orbit-Baumeister',
     title_de: '🧱 Orbit-Baumeister',
     title_en: '🧱 Orbit Constructor',
-    description: 'Erreiche 60 Punkte in NEON STACK',
-    description_de: 'Erreiche 60 Punkte in NEON STACK',
-    description_en: 'Score 60 points in NEON STACK',
+    description: 'Erreiche 60 Punkte in Neon Stack',
+    description_de: 'Erreiche 60 Punkte in Neon Stack',
+    description_en: 'Score 60 points in Neon Stack',
     badge_icon: '🧱',
     badge_rarity: 'GOLD',
     sort_order: 37,
@@ -238,9 +238,9 @@ export const ACHIEVEMENTS_CATALOG: AchievementItem[] = [
     title: '🧱 Kosmischer Stack-Titan',
     title_de: '🧱 Kosmischer Stack-Titan',
     title_en: '🧱 Cosmic Stack Titan',
-    description: 'Erreiche 100 Punkte in NEON STACK',
-    description_de: 'Erreiche 100 Punkte in NEON STACK',
-    description_en: 'Score 100 points in NEON STACK',
+    description: 'Erreiche 100 Punkte in Neon Stack',
+    description_de: 'Erreiche 100 Punkte in Neon Stack',
+    description_en: 'Score 100 points in Neon Stack',
     badge_icon: '🧱',
     badge_rarity: 'DIAMOND',
     sort_order: 38,
@@ -251,9 +251,9 @@ export const ACHIEVEMENTS_CATALOG: AchievementItem[] = [
     title: '🧱 Neon Stack Veteran',
     title_de: '🧱 Neon Stack Veteran',
     title_en: '🧱 Neon Stack Veteran',
-    description: 'Spiele 50 Runden NEON STACK',
-    description_de: 'Spiele 50 Runden NEON STACK',
-    description_en: 'Play 50 rounds of NEON STACK',
+    description: 'Spiele 50 Runden Neon Stack',
+    description_de: 'Spiele 50 Runden Neon Stack',
+    description_en: 'Play 50 rounds of Neon Stack',
     badge_icon: '🎮',
     badge_rarity: 'SILVER',
     sort_order: 39,
@@ -502,7 +502,7 @@ export async function checkAndAwardAchievements(userId: string): Promise<{ newly
     if (maxCrossy >= 300 && await unlockAchievement(userId, 'crossy_god')) newlyUnlocked.push('crossy_god');
     if (crossyRounds >= 50 && await unlockAchievement(userId, 'crossy_veteran')) newlyUnlocked.push('crossy_veteran');
 
-    // NEON STACK (neonstacking / neonstack / stacking)
+    // Neon Stack (neonstacking / neonstack / stacking)
     const stackScores = scores.filter(s => s.game_id === 'neonstacking' || s.game_id === 'neonstack' || s.game_id === 'stacking');
     const maxStack = stackScores.reduce((max, s) => Math.max(max, Number(s.score) || 0), 0);
     const stackRounds = stackScores.length;
@@ -584,7 +584,7 @@ export async function calculatePlayerRankRecords(targetUserId: string): Promise<
     { id: 'doodlejump', title: 'Neon Jump', icon: '👾', aliases: ['doodlejump', 'doodle'] },
     { id: 'neonbird', title: 'Neon Bird', icon: '🐦', aliases: ['neonbird', 'flappy'] },
     { id: 'crossyneonroad', title: 'Crossy Neon Road', icon: '🐔', aliases: ['crossyneonroad', 'crossyroad', 'crossy'] },
-    { id: 'neonstacking', title: 'NEON STACK', icon: '🧱', aliases: ['neonstacking', 'neonstack', 'stacking'] },
+    { id: 'neonstacking', title: 'Neon Stack', icon: '🧱', aliases: ['neonstacking', 'neonstack', 'stacking'] },
   ];
 
   let totalDaysRank1 = 0;
@@ -764,7 +764,7 @@ export async function getPublicProfileData(targetUserId: string): Promise<any> {
     { id: 'doodlejump', title: 'Neon Jump', icon: '👾', scoreUnit: 'Pkt.' },
     { id: 'neonbird', title: 'Neon Bird', icon: '🐦', scoreUnit: 'Pkt.' },
     { id: 'crossyneonroad', title: 'Crossy Neon Road', icon: '🐔', scoreUnit: 'Pkt.' },
-    { id: 'neonstacking', title: 'NEON STACK', icon: '🧱', scoreUnit: 'Pkt.' },
+    { id: 'neonstacking', title: 'Neon Stack', icon: '🧱', scoreUnit: 'Pkt.' },
   ];
 
   const gameStats: any[] = [];

@@ -323,13 +323,14 @@ export async function getGameBenchmark(req: AuthenticatedRequest, res: Response)
 export async function getAllGameBenchmarks(_req: AuthenticatedRequest, res: Response) {
   try {
     const { getDynamicGameBenchmark } = require('../services/marketEngine');
-    const gameIds = ['doodlejump', 'neonbird', 'crossyneonroad', 'neonstacking'];
+    const allGames = await getDynamicGamesList();
     const benchmarks: Record<string, { targetScore: number; totalRoundsPlayed: number }> = {};
     
-    for (const gid of gameIds) {
+    for (const game of allGames) {
+      const gid = game.id;
       const bm = await getDynamicGameBenchmark(gid);
       benchmarks[gid] = {
-        targetScore: bm.targetScore ?? bm.benchmarkTarget ?? bm.mean ?? 1000,
+        targetScore: bm.targetScore ?? bm.benchmarkTarget ?? bm.mean ?? 50,
         totalRoundsPlayed: bm.totalRoundsPlayed ?? bm.sampleSize ?? 0,
       };
     }

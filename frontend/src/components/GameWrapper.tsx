@@ -125,7 +125,7 @@ export function GameWrapper({
     },
     {
       id: 'neonstacking',
-      title: 'NEON STACK',
+      title: 'Neon Stack',
       description: 'Stapele die Neon-Bloecke so praezise wie moeglich! Schneide ueberstehende Kanten ab. Touch-optimiert.',
       path: '/games/neonstacking/index.html',
       genre: 'Arcade / Stacking',

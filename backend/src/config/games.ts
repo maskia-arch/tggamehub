@@ -66,7 +66,7 @@ export const BASE_HUB_GAMES: Omit<HubGameConfig, 'status' | 'maintenanceMessage'
   },
   {
     id: 'neonstacking',
-    title: 'NEON STACK',
+    title: 'Neon Stack',
     genre: 'Arcade / Stacking',
     icon: '🧱',
     path: '/games/neonstacking/index.html',

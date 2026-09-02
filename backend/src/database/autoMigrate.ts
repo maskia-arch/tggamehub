@@ -400,7 +400,7 @@ export async function runAutoMigrations(knex: Knex): Promise<void> {
         },
         {
           symbol: 'STACK',
-          name: 'NEON STACK Coin',
+          name: 'Neon Stack Coin',
           game_id: 'neonstacking',
           current_price: 0.00000001,
           base_price: 0.00000001,
@@ -460,7 +460,7 @@ export async function runAutoMigrations(knex: Knex): Promise<void> {
         },
         {
           symbol: 'STACK',
-          name: 'NEON STACK Coin',
+          name: 'Neon Stack Coin',
           game_id: 'neonstacking',
           current_price: 0.00000001,
           base_price: 0.00000001,
@@ -556,7 +556,7 @@ export async function runAutoMigrations(knex: Knex): Promise<void> {
             sort_order: 3,
             updated_at: new Date().toISOString(),
           });
-          console.log('[DATABASE AUTO-SYNC]: Activated NEON STACK in hub_game_settings.');
+          console.log('[DATABASE AUTO-SYNC]: Activated Neon Stack in hub_game_settings.');
         }
       }
     }

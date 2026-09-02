@@ -1,4 +1,4 @@
-﻿import type { Knex } from 'knex';
+import type { Knex } from 'knex';
 
 export async function up(knex: Knex): Promise<void> {
   const now = new Date().toISOString();
@@ -71,7 +71,7 @@ export async function up(knex: Knex): Promise<void> {
     if (!stackCoin) {
       await knex('market_coins').insert({
         symbol: 'STACK',
-        name: 'NEON STACK Coin',
+        name: 'Neon Stack Coin',
         game_id: 'neonstacking',
         current_price: 0.00000001,
         base_price: 0.00000001,
@@ -85,7 +85,7 @@ export async function up(knex: Knex): Promise<void> {
       });
     } else {
       await knex('market_coins').where({ symbol: 'STACK' }).update({
-        name: 'NEON STACK Coin',
+        name: 'Neon Stack Coin',
         game_id: 'neonstacking',
       });
     }

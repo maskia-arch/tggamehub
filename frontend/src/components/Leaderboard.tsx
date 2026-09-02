@@ -98,7 +98,7 @@ const DEFAULT_ACTIVE_GAMES: HubGame[] = [
   },
   {
     id: 'neonstacking',
-    title: 'NEON STACK',
+    title: 'Neon Stack',
     genre: 'Arcade / Stacking',
     icon: '🧱',
     scoreUnit: 'pts',

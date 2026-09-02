@@ -390,7 +390,7 @@ export const translations = {
           genre: 'Arcade / Casual',
         },
         neonstacking: {
-          title: 'NEON STACK',
+          title: 'Neon Stack',
           description: 'Stapele die leuchtenden Neon-Blöcke übereinander. Schneide Überstände ab und erreiche neue Höhen!',
           genre: 'Arcade / Stacking',
         },
@@ -860,7 +860,7 @@ export const translations = {
           genre: 'Arcade / Casual',
         },
         neonstacking: {
-          title: 'NEON STACK',
+          title: 'Neon Stack',
           description: 'Stack neon blocks with high precision! Trim overlapping edges. Touch-optimized.',
           genre: 'Arcade / Stacking',
         },
