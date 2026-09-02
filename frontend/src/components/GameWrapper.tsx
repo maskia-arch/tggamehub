@@ -130,7 +130,7 @@ export function GameWrapper({
       path: '/games/neonstacking/index.html',
       genre: 'Arcade / Stacking',
       icon: '🧱',
-      preview: '/images/neon_stacking_preview.png',
+      preview: '/images/neon_stack_preview_v2.png',
       targetScore: 15,
       coinSymbol: 'STACK',
       hidden: false,
@@ -393,7 +393,7 @@ export function GameWrapper({
                     position: 'relative', background: '#05070f',
                   }}>
                     <img
-                      src={game.preview}
+                      src={game.preview ? `${game.preview}?v=2` : ''}
                       alt={game.title}
                       style={{
                         width: '100%', height: '100%',

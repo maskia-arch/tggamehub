@@ -70,7 +70,7 @@ export const BASE_HUB_GAMES: Omit<HubGameConfig, 'status' | 'maintenanceMessage'
     genre: 'Arcade / Stacking',
     icon: '🧱',
     path: '/games/neonstacking/index.html',
-    preview: '/images/neon_stacking_preview.png',
+    preview: '/images/neon_stack_preview_v2.png',
     description: 'Stapele die Neon-Bloecke so praezise wie moeglich! Schneide ueberstehende Kanten ab. Touch-optimiert.',
     scoreUnit: 'pts',
     targetScore: 15,
