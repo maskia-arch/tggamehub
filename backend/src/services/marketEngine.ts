@@ -337,15 +337,35 @@ export async function ensureAllGameCoinsInitialized() {
 }
 
 // ============================================================================
-// 2. NORMALIZED SCORE-IMPACT & 1:1 EXACT SCORE BURN ENGINE
-// ============================================================================
+// In-memory Micro-Cache for rolling score statistics and hourly boosts (60s TTL)
+// Drastically saves server CPU and database I/O on high player concurrency
+interface CachedScoreStats {
+  data: GameScoreStatistics;
+  cachedAt: number;
+}
+const rollingScoreStatsCache = new Map<string, CachedScoreStats>();
+const SCORE_STATS_CACHE_TTL_MS = 60 * 1000;
+
+interface CachedHourlyBoost {
+  data: DynamicHourlyBoost;
+  cachedAt: number;
+}
+const hourlyBoostCache = new Map<string, CachedHourlyBoost>();
+const HOURLY_BOOST_CACHE_TTL_MS = 60 * 1000;
 
 /**
  * Dynamically calculates live rolling score statistics (mean, stdDev, sampleSize, dynamic average)
- * from actual SQL player scores history in real-time.
+ * from actual SQL player scores history in real-time with in-memory caching.
  */
 export async function getRollingScoreStatistics(gameId: string): Promise<GameScoreStatistics> {
   const cleanGameId = (gameId || '').toLowerCase().trim();
+
+  // 1. Fast path: Check 60s in-memory cache
+  const cached = rollingScoreStatsCache.get(cleanGameId);
+  if (cached && (Date.now() - cached.cachedAt) < SCORE_STATS_CACHE_TTL_MS) {
+    return cached.data;
+  }
+
   const coinMapping = await getCoinInfoForGame(cleanGameId);
 
   // Map of canonical aliases for querying the scores table
@@ -461,7 +481,7 @@ export async function getRollingScoreStatistics(gameId: string): Promise<GameSco
     const dynamicAverage = Math.max(1, Math.round(mean));
     const minScoreThreshold = Math.max(1, Math.round(dynamicAverage * 0.5));
 
-    return {
+    const result: GameScoreStatistics = {
       gameId: cleanGameId,
       symbol: coinMapping.symbol,
       name: coinMapping.name,
@@ -474,6 +494,8 @@ export async function getRollingScoreStatistics(gameId: string): Promise<GameSco
       minScoreThreshold,
       basePayoutCash: 0.05,
     };
+    rollingScoreStatsCache.set(cleanGameId, { data: result, cachedAt: Date.now() });
+    return result;
   } catch (err) {
     console.error(`[Market Engine]: Error computing rolling statistics for ${cleanGameId}:`, err);
     return {
@@ -502,6 +524,16 @@ export async function calculateDynamicHourlyBoost(
   targetScore: number,
   extraRounds: number = 0
 ): Promise<DynamicHourlyBoost> {
+  const cacheKey = `${coinSymbol.toUpperCase()}_${targetScore}`;
+  const cached = hourlyBoostCache.get(cacheKey);
+  if (cached && (Date.now() - cached.cachedAt) < HOURLY_BOOST_CACHE_TTL_MS) {
+    if (extraRounds === 0) return cached.data;
+    return {
+      ...cached.data,
+      hourlyRounds: cached.data.hourlyRounds + extraRounds,
+    };
+  }
+
   const now = Date.now();
   const oneHourAgo = new Date(now - 3600 * 1000);
   const fourHoursAgo = new Date(now - 4 * 3600 * 1000);
@@ -604,7 +636,7 @@ export async function calculateDynamicHourlyBoost(
 
     const progressPercent = Math.min(100, Math.round((effectiveScoreEquivalent / nextTierTarget) * 100));
 
-    return {
+    const result: DynamicHourlyBoost = {
       tier,
       label,
       multiplier,
@@ -616,6 +648,8 @@ export async function calculateDynamicHourlyBoost(
       nextTierLabel,
       progressPercent,
     };
+    hourlyBoostCache.set(cacheKey, { data: result, cachedAt: Date.now() });
+    return result;
   } catch (err) {
     return {
       tier: 'NONE',

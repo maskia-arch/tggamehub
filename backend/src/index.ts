@@ -83,7 +83,7 @@ const serveDevStudio = (_req: express.Request, res: express.Response) => {
 app.get('/dev/studio', serveDevStudio);
 app.get('/dev-studio', serveDevStudio);
 
-// Direct Games Static Serving (for live dev testing in sandbox iframe)
+// Direct Games Static Serving with client-side HTTP caching & ETag support
 const possibleGamesPaths = [
   path.join(__dirname, '../../frontend/public/games'),
   path.join(process.cwd(), 'frontend/public/games'),
@@ -92,10 +92,14 @@ const possibleGamesPaths = [
 ];
 const gamesStaticPath = possibleGamesPaths.find((p) => fs.existsSync(p));
 if (gamesStaticPath) {
-  app.use('/games', (_req, res, next) => {
-    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-    next();
-  }, express.static(gamesStaticPath));
+  app.use('/games', express.static(gamesStaticPath, {
+    etag: true,
+    lastModified: true,
+    maxAge: config.nodeEnv === 'production' ? '7d' : '1h',
+    setHeaders: (res) => {
+      res.setHeader('Cache-Control', 'public, max-age=86400, stale-while-revalidate=604800');
+    }
+  }));
 }
 
 // Register api router

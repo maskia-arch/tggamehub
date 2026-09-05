@@ -427,10 +427,67 @@ export async function unlockAchievement(userId: string, achievementId: string): 
 /**
  * Evaluates and awards all earned achievements for a given user
  */
-export async function checkAndAwardAchievements(userId: string): Promise<{ newlyUnlocked: string[] }> {
+export async function checkAndAwardAchievements(
+  userId: string,
+  playContext?: { gameId: string; score: number }
+): Promise<{ newlyUnlocked: string[] }> {
   const newlyUnlocked: string[] = [];
 
   try {
+    // ── FAST PATH: Targeted Game Score Submission ────────────────────────────
+    // If called directly from game score submission, execute only O(1) game-specific checks
+    // and strictly avoid expensive full table scans (e.g. GROUP BY user_id).
+    if (playContext && playContext.gameId) {
+      const existing = await db('user_achievements')
+        .where({ user_id: userId })
+        .select('achievement_id');
+      const unlockedSet = new Set(existing.map((e: any) => e.achievement_id));
+
+      const gid = playContext.gameId.toLowerCase();
+      const score = Number(playContext.score) || 0;
+
+      if (gid === 'doodlejump' || gid === 'doodle') {
+        if (score >= 100 && !unlockedSet.has('jump_novice') && await unlockAchievement(userId, 'jump_novice')) newlyUnlocked.push('jump_novice');
+        if (score >= 1000 && !unlockedSet.has('jump_pro') && await unlockAchievement(userId, 'jump_pro')) newlyUnlocked.push('jump_pro');
+        if (score >= 5000 && !unlockedSet.has('jump_master') && await unlockAchievement(userId, 'jump_master')) newlyUnlocked.push('jump_master');
+        if (score >= 15000 && !unlockedSet.has('jump_legend') && await unlockAchievement(userId, 'jump_legend')) newlyUnlocked.push('jump_legend');
+        if (!unlockedSet.has('jump_veteran')) {
+          const c = await db('scores').where({ user_id: userId }).whereIn('game_id', ['doodlejump', 'doodle']).count('id as cnt').first();
+          if (Number(c?.cnt || 0) >= 50 && await unlockAchievement(userId, 'jump_veteran')) newlyUnlocked.push('jump_veteran');
+        }
+      } else if (gid === 'neonbird' || gid === 'flappy') {
+        if (score >= 5 && !unlockedSet.has('bird_fledgling') && await unlockAchievement(userId, 'bird_fledgling')) newlyUnlocked.push('bird_fledgling');
+        if (score >= 20 && !unlockedSet.has('bird_aviator') && await unlockAchievement(userId, 'bird_aviator')) newlyUnlocked.push('bird_aviator');
+        if (score >= 50 && !unlockedSet.has('bird_ace') && await unlockAchievement(userId, 'bird_ace')) newlyUnlocked.push('bird_ace');
+        if (score >= 100 && !unlockedSet.has('bird_god') && await unlockAchievement(userId, 'bird_god')) newlyUnlocked.push('bird_god');
+        if (!unlockedSet.has('bird_veteran')) {
+          const c = await db('scores').where({ user_id: userId }).whereIn('game_id', ['neonbird', 'flappy']).count('id as cnt').first();
+          if (Number(c?.cnt || 0) >= 50 && await unlockAchievement(userId, 'bird_veteran')) newlyUnlocked.push('bird_veteran');
+        }
+      } else if (gid === 'crossyneonroad' || gid === 'crossy' || gid === 'crossyroad') {
+        if (score >= 25 && !unlockedSet.has('crossy_walker') && await unlockAchievement(userId, 'crossy_walker')) newlyUnlocked.push('crossy_walker');
+        if (score >= 75 && !unlockedSet.has('crossy_runner') && await unlockAchievement(userId, 'crossy_runner')) newlyUnlocked.push('crossy_runner');
+        if (score >= 150 && !unlockedSet.has('crossy_master') && await unlockAchievement(userId, 'crossy_master')) newlyUnlocked.push('crossy_master');
+        if (score >= 300 && !unlockedSet.has('crossy_god') && await unlockAchievement(userId, 'crossy_god')) newlyUnlocked.push('crossy_god');
+        if (!unlockedSet.has('crossy_veteran')) {
+          const c = await db('scores').where({ user_id: userId }).whereIn('game_id', ['crossyneonroad', 'crossy', 'crossyroad']).count('id as cnt').first();
+          if (Number(c?.cnt || 0) >= 50 && await unlockAchievement(userId, 'crossy_veteran')) newlyUnlocked.push('crossy_veteran');
+        }
+      } else if (gid === 'neonstacking' || gid === 'neonstack' || gid === 'stacking') {
+        if (score >= 15 && !unlockedSet.has('stack_builder') && await unlockAchievement(userId, 'stack_builder')) newlyUnlocked.push('stack_builder');
+        if (score >= 35 && !unlockedSet.has('stack_climber') && await unlockAchievement(userId, 'stack_climber')) newlyUnlocked.push('stack_climber');
+        if (score >= 60 && !unlockedSet.has('stack_master') && await unlockAchievement(userId, 'stack_master')) newlyUnlocked.push('stack_master');
+        if (score >= 100 && !unlockedSet.has('stack_god') && await unlockAchievement(userId, 'stack_god')) newlyUnlocked.push('stack_god');
+        if (!unlockedSet.has('stack_veteran')) {
+          const c = await db('scores').where({ user_id: userId }).whereIn('game_id', ['neonstacking', 'neonstack', 'stacking']).count('id as cnt').first();
+          if (Number(c?.cnt || 0) >= 50 && await unlockAchievement(userId, 'stack_veteran')) newlyUnlocked.push('stack_veteran');
+        }
+      }
+
+      return { newlyUnlocked };
+    }
+
+    // ── FULL AUDIT PATH (Only executed during profile load / admin sync) ─────
     const user = await db('users').where({ id: userId }).first();
     if (!user) return { newlyUnlocked: [] };
 
@@ -528,14 +585,14 @@ export async function checkAndAwardAchievements(userId: string): Promise<{ newly
       }
     }
 
-    // 7. Season Leaderboard Placement Check
+    // 7. Season Leaderboard Placement Check (Optimized: reads season_user_stats instead of full scores table scan)
     const currentSeason = await getCurrentSeason();
     if (currentSeason && currentSeason.id) {
-      const topRows = await db('scores')
-        .select('user_id', db.raw('SUM(score) as total_profit'))
-        .groupBy('user_id')
-        .orderBy('total_profit', 'desc')
-        .limit(50);
+      const topRows = await db('season_user_stats')
+        .where('season_id', currentSeason.id)
+        .orderBy('net_profit', 'desc')
+        .limit(50)
+        .select('user_id');
 
       const userRankIndex = topRows.findIndex(r => r.user_id === userId);
       if (userRankIndex !== -1) {

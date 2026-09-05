@@ -34,6 +34,7 @@ interface GameWrapperProps {
   onOpenShop?: () => void;
   isTutorialStep2?: boolean;
   onTutorialGameCompleted?: () => void;
+  onGameStateChange?: (isPlaying: boolean) => void;
 }
 
 export function GameWrapper({
@@ -49,6 +50,7 @@ export function GameWrapper({
   onOpenShop,
   isTutorialStep2,
   onTutorialGameCompleted,
+  onGameStateChange,
 }: GameWrapperProps) {
   const { t, language } = useLanguage();
   const [activeGame, setActiveGame] = useState<Game | null>(null);
@@ -61,14 +63,38 @@ export function GameWrapper({
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const [benchmarks, setBenchmarks] = useState<Record<string, { targetScore: number; totalRoundsPlayed: number }>>({});
 
+  // Notify parent component (App.tsx) when game starts or closes to pause background polling
+  useEffect(() => {
+    if (onGameStateChange) {
+      onGameStateChange(isPlaying);
+    }
+  }, [isPlaying, onGameStateChange]);
+
   // Stable iframe URL that only updates when game session token or active game changes
   const iframeSrc = useMemo(() => {
     if (!activeGame || !gameSessionToken) return '';
     return `${activeGame.path}?token=${encodeURIComponent(gameSessionToken)}&lang=${encodeURIComponent(language)}&highscore=${currentGameHighscore}`;
   }, [activeGame?.id, activeGame?.path, gameSessionToken, language, currentGameHighscore]);
 
-  const fetchBenchmarks = useCallback(async () => {
+  // Client-Side Benchmarks Caching (10 min TTL in localStorage to save massive server queries)
+  const fetchBenchmarks = useCallback(async (force = false) => {
     if (!initData) return;
+    const CACHE_KEY = 'tggamehub_benchmarks_cache';
+    const CACHE_TTL = 10 * 60 * 1000; // 10 minutes client cache
+
+    if (!force) {
+      try {
+        const cachedRaw = localStorage.getItem(CACHE_KEY);
+        if (cachedRaw) {
+          const cached = JSON.parse(cachedRaw);
+          if (cached && cached.timestamp && (Date.now() - cached.timestamp < CACHE_TTL) && cached.benchmarks) {
+            setBenchmarks(cached.benchmarks);
+            return;
+          }
+        }
+      } catch (e) {}
+    }
+
     try {
       const res = await fetch(`${backendUrl}/api/game/benchmarks`, {
         headers: { Authorization: `Bearer ${initData}` },
@@ -77,6 +103,12 @@ export function GameWrapper({
         const bData = await res.json();
         if (bData.benchmarks) {
           setBenchmarks(bData.benchmarks);
+          try {
+            localStorage.setItem(CACHE_KEY, JSON.stringify({
+              timestamp: Date.now(),
+              benchmarks: bData.benchmarks,
+            }));
+          } catch (e) {}
         }
       }
     } catch (err) {
@@ -291,27 +323,38 @@ export function GameWrapper({
             .catch(() => showRewardedAd().catch(() => {}));
         } else if (event.data.type === 'SUBMIT_SCORE_AND_RETRY') {
           const score = event.data.score;
-          const payload = event.data.validationPayload;
+          const validationPayload = event.data.validationPayload;
 
-          // 1. Submit the completed round's score
-          await handleSubmitScore(score, payload, false);
+          if (!activeGame || !gameSessionToken) return;
+          if (submittedTokens.current.has(gameSessionToken)) return;
+          submittedTokens.current.add(gameSessionToken);
 
-          // 2. Request new game session token with -1 energy deduction
           setSubmitting(true);
           try {
-            const response = await fetch(`${backendUrl}/api/game/start`, {
+            // Combined single-roundtrip request: submit completed round and obtain next game session token
+            const response = await fetch(`${backendUrl}/api/game/score`, {
               method: 'POST',
               headers: {
                 'Authorization': `Bearer ${initData}`,
                 'Content-Type': 'application/json',
               },
-              body: JSON.stringify({ gameId: activeGame!.id }),
+              body: JSON.stringify({
+                gameSessionToken,
+                gameId: activeGame.id,
+                score,
+                validationPayload,
+                requestNextSession: true,
+              }),
             });
 
             const data = await response.json();
-            if (response.ok && data.gameSessionToken) {
-              setGameSessionToken(data.gameSessionToken);
-              onGameFinished(); // Deducts -1 energy in top header immediately
+            onGameFinished(); // Refresh energy/balance immediately
+
+            if (data.nextSession && data.nextSession.success && data.nextSession.gameSessionToken) {
+              setGameSessionToken(data.nextSession.gameSessionToken);
+              if (typeof data.nextSession.highscore === 'number') {
+                setCurrentGameHighscore(data.nextSession.highscore);
+              }
               setIsPlaying(false);
               setTimeout(() => {
                 setIsPlaying(true);
@@ -325,6 +368,7 @@ export function GameWrapper({
               setShowEnergyPopup(true);
             }
           } catch (err) {
+            console.error('Failed to submit score and restart:', err);
             setIsPlaying(false);
             setActiveGame(null);
             setSubmitting(false);

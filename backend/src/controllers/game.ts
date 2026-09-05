@@ -18,6 +18,29 @@ interface GameSessionPayload {
 
 const consumedSessions = new Map<string, number>();
 
+// In-memory User Highscore Cache to avoid repeated MAX(score) database scans on every game start
+const userHighscoreCache = new Map<string, { score: number; cachedAt: number }>();
+const HIGHSCORE_CACHE_TTL = 30 * 60 * 1000; // 30 minutes
+
+async function getCachedUserHighscore(userId: string, gameId: string): Promise<number> {
+  const cacheKey = `${userId}_${gameId}`;
+  const cached = userHighscoreCache.get(cacheKey);
+  if (cached && (Date.now() - cached.cachedAt) < HIGHSCORE_CACHE_TTL) {
+    return cached.score;
+  }
+  try {
+    const userBest = await db('scores')
+      .where({ game_id: gameId, user_id: userId })
+      .max('score as max_score')
+      .first();
+    const score = userBest?.max_score ? parseInt(userBest.max_score, 10) : 0;
+    userHighscoreCache.set(cacheKey, { score, cachedAt: Date.now() });
+    return score;
+  } catch (err) {
+    return 0;
+  }
+}
+
 /**
  * Initiates a game session by deducting 1 energy point and issuing a signed JWT game token.
  */
@@ -51,17 +74,8 @@ export async function startGame(req: AuthenticatedRequest, res: Response) {
       return res.status(403).json({ error: 'game_coming_soon', message: 'Dieses Spiel befindet sich noch in der Entwicklung.' });
     }
 
-    // Query authoritative personal highscore for this game from database
-    let personalHighscore = 0;
-    try {
-      const userBest = await db('scores')
-        .where({ game_id: gameConfig.id, user_id: userId })
-        .max('score as max_score')
-        .first();
-      personalHighscore = userBest?.max_score ? parseInt(userBest.max_score, 10) : 0;
-    } catch (err) {
-      console.warn('[GAME START] Could not query user highscore:', err);
-    }
+    // Query personal highscore from high-speed memory cache (with DB fallback)
+    const personalHighscore = await getCachedUserHighscore(userId, gameConfig.id);
 
     // Guest users start immediately with a signed session token
     if (req.telegramUser?.isGuest) {
@@ -116,7 +130,7 @@ export async function startGame(req: AuthenticatedRequest, res: Response) {
 export async function submitScore(req: AuthenticatedRequest, res: Response) {
   try {
     const userId = req.telegramUser?.id;
-    const { gameSessionToken, gameId, score, validationPayload } = req.body;
+    const { gameSessionToken, gameId, score, validationPayload, requestNextSession } = req.body;
 
     if (!userId) {
       return res.status(400).json({ error: 'User context not found' });
@@ -201,6 +215,29 @@ export async function submitScore(req: AuthenticatedRequest, res: Response) {
       });
     }
 
+    // Telemetry consistency check if validationPayload was provided
+    if (validationPayload && typeof validationPayload === 'object') {
+      const clientDuration = Number(validationPayload.durationSeconds);
+      if (!isNaN(clientDuration) && clientDuration > 0) {
+        // Detect huge discrepancy between client-reported elapsed time and server JWT time (speedhacks)
+        if (clientDuration < elapsedSeconds * 0.2 && parsedScore > 50) {
+          return res.status(400).json({
+            error: 'cheating_detected',
+            message: 'Client clock desynchronization detected. Score rejected.',
+          });
+        }
+      }
+      const jumpCount = Number(validationPayload.jumpCount);
+      if (!isNaN(jumpCount)) {
+        if (gameId === 'doodlejump' && parsedScore > 10 && jumpCount === 0) {
+          return res.status(400).json({ error: 'cheating_detected', message: 'Inconsistent jump telemetry.' });
+        }
+        if (gameId === 'neonbird' && parsedScore > 10 && jumpCount === 0) {
+          return res.status(400).json({ error: 'cheating_detected', message: 'Inconsistent flap telemetry.' });
+        }
+      }
+    }
+
     // Save score to persistent history log (records all rounds including test/guest rounds for dynamic averages)
     await db('scores').insert({
       user_id: userId,
@@ -257,11 +294,54 @@ export async function submitScore(req: AuthenticatedRequest, res: Response) {
     // Record activity round & net profit for active season (only if season is currently active)
     await recordUserGameActivity(userId, earnedCash);
 
-    // Check & award achievements
+    // Update in-memory user highscore cache immediately
+    const cacheKey = `${userId}_${gameId}`;
+    const prevBest = userHighscoreCache.get(cacheKey)?.score || 0;
+    const personalHighscore = Math.max(prevBest, parsedScore);
+    userHighscoreCache.set(cacheKey, { score: personalHighscore, cachedAt: Date.now() });
+
+    // Check & award achievements with targeted O(1) game context (no full table scans)
     const { checkAndAwardAchievements } = require('../services/achievementService');
-    const achievementRes = await checkAndAwardAchievements(userId);
+    const achievementRes = await checkAndAwardAchievements(userId, { gameId, score: parsedScore });
 
     const updatedUser = await db('users').where({ id: userId }).first();
+
+    // Combined Next-Session Restart: optionally generate and return new game session token in 1 single RTT
+    let nextSession: any = null;
+    if (requestNextSession) {
+      if (userId.startsWith('guest_') || req.telegramUser?.isGuest) {
+        const nextPayload: GameSessionPayload = {
+          userId,
+          gameId,
+          startedAt: Date.now(),
+        };
+        nextSession = {
+          success: true,
+          gameSessionToken: jwt.sign(nextPayload, config.jwtSecret, { expiresIn: '15m' }),
+          highscore: personalHighscore,
+        };
+      } else {
+        const energySuccess = await consumeEnergy(userId);
+        if (energySuccess) {
+          const nextPayload: GameSessionPayload = {
+            userId,
+            gameId,
+            startedAt: Date.now(),
+          };
+          nextSession = {
+            success: true,
+            gameSessionToken: jwt.sign(nextPayload, config.jwtSecret, { expiresIn: '15m' }),
+            highscore: personalHighscore,
+          };
+        } else {
+          nextSession = {
+            success: false,
+            error: 'insufficient_energy',
+            message: 'Nicht genügend Energie für eine weitere Runde.',
+          };
+        }
+      }
+    }
 
     return res.json({
       success: true,
@@ -269,6 +349,7 @@ export async function submitScore(req: AuthenticatedRequest, res: Response) {
       earnedCash,
       totalCash: Number(updatedUser?.game_cash || 0.0),
       newlyUnlockedBadges: achievementRes.newlyUnlocked || [],
+      nextSession,
       marketImpact: {
         targetScore: marketResult.targetScore || 1000,
         zScore: marketResult.zScore || 0,

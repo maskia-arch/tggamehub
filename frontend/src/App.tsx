@@ -92,6 +92,7 @@ export default function App() {
   const [tutorialSubStep, setTutorialSubStep] = useState<string | null>(null);
   const [tutorialPillar, setTutorialPillar] = useState<'games' | 'season'>('games');
   const [autoOpenAvatarModal, setAutoOpenAvatarModal] = useState<boolean>(false);
+  const [isGameActive, setIsGameActive] = useState<boolean>(false);
 
   // If accessed directly via browser outside Telegram -> Show referral landing card
   if (!isInsideTelegram) {
@@ -385,15 +386,16 @@ export default function App() {
     return () => clearInterval(timer);
   }, [profile?.energy?.current, profile?.energy?.max, profile?.energy?.nextRechargeInSeconds, fetchProfile]);
 
-  // 3. Periodic Background Sync (every 25s when visible):
+  // 3. Periodic Background Sync (every 25s when visible and NOT playing a game):
   useEffect(() => {
+    if (isGameActive) return; // Pause polling completely while game is actively running on device!
     const interval = setInterval(() => {
       if (document.visibilityState === 'visible' && initData) {
         fetchProfile();
       }
     }, 25000);
     return () => clearInterval(interval);
-  }, [initData, fetchProfile]);
+  }, [initData, fetchProfile, isGameActive]);
 
   return (
     <div
@@ -543,6 +545,7 @@ export default function App() {
                 dailyAdCount={profile.user.daily_ad_count}
                 dailyAdLimit={profile.user.daily_ad_limit}
                 onOpenShop={() => setActiveTab('shop')}
+                onGameStateChange={setIsGameActive}
                 isTutorialStep2={isTutorialActive && tutorialStep === 2}
                 onTutorialGameCompleted={() => {
                   setTutorialStep(3);
